@@ -44,7 +44,7 @@ model Home {
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   bookings  Booking[]
   expenses  Expense[]
 }
@@ -56,34 +56,34 @@ model Booking {
   phone         String
   homeId        Int
   home          Home      @relation(fields: [homeId], references: [id])
-  
+
   checkIn       DateTime  @db.Date
   checkInTime   String    @default("14:00")
   checkOut      DateTime  @db.Date
   checkOutTime  String    @default("12:00")
   guests        Int       @default(2)
-  
+
   // Dòng tiền
   totalAmount   Int       // = price × nights
   discount      Int       @default(0)  // Giảm giá trên tổng đơn (VND)
   deposit       Int       @default(0)
   paidAtCheckIn Int       @default(0)
   chargesTotal  Int       @default(0)
-  
+
   status        BookingStatus @default(CONFIRMED)
   notes         String?
-  
+
   // Check-in/out thực tế
   actualCheckIn   DateTime?
   actualCheckOut  DateTime?
   waterMeter      Float?
   inspectionNote  String?
-  
+
   charges       Charge[]
-  
+
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
-  
+
   @@index([homeId, checkIn, checkOut])
   @@index([status])
 }
@@ -100,12 +100,12 @@ model Charge {
   id        Int      @id @default(autoincrement())
   bookingId Int
   booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  
+
   name      String
   unit      Int      // Đơn giá
   qty       Int      @default(1)
   amount    Int      // = unit × qty
-  
+
   createdAt DateTime @default(now())
 }
 
@@ -132,4 +132,12 @@ model Expense {
   category  String
   desc      String
   amount    Int
-  homeId  
+  homeId    Int?
+  home      Home?    @relation(fields: [homeId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([date])
+  @@index([category])
+}
