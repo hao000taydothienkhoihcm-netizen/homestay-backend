@@ -1,0 +1,221 @@
+{
+  "client": "Thunder Client",
+  "collectionName": "HomeStay API",
+  "dateExported": "2025-05-13T00:00:00.000Z",
+  "version": "1.2",
+  "folders": [
+    { "_id": "auth", "name": "🔐 Auth", "containerId": "", "created": "2025-05-13T00:00:00.000Z", "sortNum": 10000 },
+    { "_id": "bookings", "name": "📅 Bookings", "containerId": "", "created": "2025-05-13T00:00:00.000Z", "sortNum": 20000 },
+    { "_id": "homes", "name": "🏡 Homes", "containerId": "", "created": "2025-05-13T00:00:00.000Z", "sortNum": 30000 },
+    { "_id": "expenses", "name": "💸 Expenses", "containerId": "", "created": "2025-05-13T00:00:00.000Z", "sortNum": 40000 },
+    { "_id": "stats", "name": "📊 Stats", "containerId": "", "created": "2025-05-13T00:00:00.000Z", "sortNum": 50000 },
+    { "_id": "users", "name": "👥 Users", "containerId": "", "created": "2025-05-13T00:00:00.000Z", "sortNum": 60000 },
+    { "_id": "charges", "name": "💵 Charge Templates", "containerId": "", "created": "2025-05-13T00:00:00.000Z", "sortNum": 70000 }
+  ],
+  "requests": [
+    {
+      "_id": "req-1",
+      "colId": "homestay",
+      "containerId": "auth",
+      "name": "POST Login",
+      "url": "{{baseUrl}}/auth/login",
+      "method": "POST",
+      "sortNum": 10000,
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "body": {
+        "type": "json",
+        "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin123\"\n}"
+      },
+      "tests": [{ "type": "set-env-var", "custom": "json.token", "action": "setto", "value": "TOKEN" }]
+    },
+    {
+      "_id": "req-2",
+      "colId": "homestay",
+      "containerId": "auth",
+      "name": "GET Me",
+      "url": "{{baseUrl}}/auth/me",
+      "method": "GET",
+      "sortNum": 20000,
+      "headers": [{ "name": "Authorization", "value": "Bearer {{TOKEN}}" }]
+    },
+    {
+      "_id": "req-3",
+      "colId": "homestay",
+      "containerId": "bookings",
+      "name": "GET All Bookings",
+      "url": "{{baseUrl}}/bookings",
+      "method": "GET",
+      "sortNum": 10000,
+      "headers": [{ "name": "Authorization", "value": "Bearer {{TOKEN}}" }]
+    },
+    {
+      "_id": "req-4",
+      "colId": "homestay",
+      "containerId": "bookings",
+      "name": "GET Today's bookings",
+      "url": "{{baseUrl}}/bookings/today",
+      "method": "GET",
+      "sortNum": 20000,
+      "headers": [{ "name": "Authorization", "value": "Bearer {{TOKEN}}" }]
+    },
+    {
+      "_id": "req-5",
+      "colId": "homestay",
+      "containerId": "bookings",
+      "name": "POST Create booking",
+      "url": "{{baseUrl}}/bookings",
+      "method": "POST",
+      "sortNum": 30000,
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{TOKEN}}" },
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "body": {
+        "type": "json",
+        "raw": "{\n  \"guest\": \"Khách Test\",\n  \"phone\": \"0999888777\",\n  \"homeId\": 1,\n  \"checkIn\": \"2025-06-01\",\n  \"checkOut\": \"2025-06-03\",\n  \"checkInTime\": \"14:00\",\n  \"checkOutTime\": \"12:00\",\n  \"guests\": 4,\n  \"deposit\": 2000000,\n  \"notes\": \"Test\"\n}"
+      }
+    },
+    {
+      "_id": "req-6",
+      "colId": "homestay",
+      "containerId": "bookings",
+      "name": "POST Check-in booking",
+      "url": "{{baseUrl}}/bookings/1/checkin",
+      "method": "POST",
+      "sortNum": 40000,
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{TOKEN}}" },
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "body": {
+        "type": "json",
+        "raw": "{\n  \"note\": \"Đã giao chìa khóa\"\n}"
+      }
+    },
+    {
+      "_id": "req-7",
+      "colId": "homestay",
+      "containerId": "bookings",
+      "name": "POST Check-out với phụ thu",
+      "url": "{{baseUrl}}/bookings/1/checkout",
+      "method": "POST",
+      "sortNum": 50000,
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{TOKEN}}" },
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "body": {
+        "type": "json",
+        "raw": "{\n  \"water\": 24.5,\n  \"inspectionNote\": \"Nhà sạch\",\n  \"charges\": [\n    { \"name\": \"Nước ngọt (lon)\", \"unit\": 15000, \"qty\": 2 },\n    { \"name\": \"Bia lon\", \"unit\": 25000, \"qty\": 3 },\n    { \"name\": \"Không rửa chén\", \"unit\": 350000, \"qty\": 1 }\n  ]\n}"
+      }
+    },
+    {
+      "_id": "req-8",
+      "colId": "homestay",
+      "containerId": "homes",
+      "name": "GET All homes",
+      "url": "{{baseUrl}}/homes",
+      "method": "GET",
+      "sortNum": 10000,
+      "headers": [{ "name": "Authorization", "value": "Bearer {{TOKEN}}" }]
+    },
+    {
+      "_id": "req-9",
+      "colId": "homestay",
+      "containerId": "expenses",
+      "name": "GET All expenses",
+      "url": "{{baseUrl}}/expenses",
+      "method": "GET",
+      "sortNum": 10000,
+      "headers": [{ "name": "Authorization", "value": "Bearer {{TOKEN}}" }]
+    },
+    {
+      "_id": "req-10",
+      "colId": "homestay",
+      "containerId": "expenses",
+      "name": "POST Create expense",
+      "url": "{{baseUrl}}/expenses",
+      "method": "POST",
+      "sortNum": 20000,
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{TOKEN}}" },
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "body": {
+        "type": "json",
+        "raw": "{\n  \"date\": \"2025-05-13\",\n  \"category\": \"Điện nước\",\n  \"desc\": \"Hóa đơn điện\",\n  \"amount\": 500000,\n  \"homeId\": 1\n}"
+      }
+    },
+    {
+      "_id": "req-11",
+      "colId": "homestay",
+      "containerId": "stats",
+      "name": "GET Dashboard KPI",
+      "url": "{{baseUrl}}/stats/dashboard",
+      "method": "GET",
+      "sortNum": 10000,
+      "headers": [{ "name": "Authorization", "value": "Bearer {{TOKEN}}" }]
+    },
+    {
+      "_id": "req-12",
+      "colId": "homestay",
+      "containerId": "stats",
+      "name": "GET Monthly (6 tháng)",
+      "url": "{{baseUrl}}/stats/monthly",
+      "method": "GET",
+      "sortNum": 20000,
+      "headers": [{ "name": "Authorization", "value": "Bearer {{TOKEN}}" }]
+    },
+    {
+      "_id": "req-13",
+      "colId": "homestay",
+      "containerId": "stats",
+      "name": "GET By Home",
+      "url": "{{baseUrl}}/stats/by-home",
+      "method": "GET",
+      "sortNum": 30000,
+      "headers": [{ "name": "Authorization", "value": "Bearer {{TOKEN}}" }]
+    },
+    {
+      "_id": "req-14",
+      "colId": "homestay",
+      "containerId": "users",
+      "name": "GET All users (admin)",
+      "url": "{{baseUrl}}/users",
+      "method": "GET",
+      "sortNum": 10000,
+      "headers": [{ "name": "Authorization", "value": "Bearer {{TOKEN}}" }]
+    },
+    {
+      "_id": "req-15",
+      "colId": "homestay",
+      "containerId": "charges",
+      "name": "GET All templates",
+      "url": "{{baseUrl}}/charge-templates",
+      "method": "GET",
+      "sortNum": 10000,
+      "headers": [{ "name": "Authorization", "value": "Bearer {{TOKEN}}" }]
+    },
+    {
+      "_id": "req-16",
+      "colId": "homestay",
+      "containerId": "charges",
+      "name": "GET Rules only",
+      "url": "{{baseUrl}}/charge-templates?type=RULE",
+      "method": "GET",
+      "sortNum": 20000,
+      "headers": [{ "name": "Authorization", "value": "Bearer {{TOKEN}}" }]
+    },
+    {
+      "_id": "req-17",
+      "colId": "homestay",
+      "containerId": "charges",
+      "name": "GET Quick items only",
+      "url": "{{baseUrl}}/charge-templates?type=QUICK",
+      "method": "GET",
+      "sortNum": 30000,
+      "headers": [{ "name": "Authorization", "value": "Bearer {{TOKEN}}" }]
+    }
+  ],
+  "ref": []
+}

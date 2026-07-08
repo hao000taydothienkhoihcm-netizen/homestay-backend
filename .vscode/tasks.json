@@ -1,0 +1,48 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "🚀 Dev Server (auto-reload)",
+      "type": "shell",
+      "command": "npm run dev",
+      "group": { "kind": "build", "isDefault": true },
+      "presentation": { "echo": true, "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "🌱 Seed Database",
+      "type": "shell",
+      "command": "npm run db:seed",
+      "presentation": { "reveal": "always", "panel": "shared" }
+    },
+    {
+      "label": "🔄 Reset DB + Seed",
+      "type": "shell",
+      "command": "npm run db:reset",
+      "presentation": { "reveal": "always", "panel": "shared" }
+    },
+    {
+      "label": "📊 Open Prisma Studio",
+      "type": "shell",
+      "command": "npm run db:studio",
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "⬆️ Push Schema to DB",
+      "type": "shell",
+      "command": "npm run db:push",
+      "presentation": { "reveal": "always", "panel": "shared" }
+    },
+    {
+      "label": "📦 Install Dependencies",
+      "type": "shell",
+      "command": "npm install",
+      "presentation": { "reveal": "always", "panel": "shared" }
+    },
+    {
+      "label": "☁️ Start Cloudflare Tunnel",
+      "type": "shell",
+      "command": "cloudflared tunnel --url http://localhost:3000",
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    }
+  ]
+}

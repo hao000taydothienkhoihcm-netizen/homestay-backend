@@ -1,0 +1,16 @@
+{
+  "recommendations": [
+    "Prisma.prisma",
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "mikestead.dotenv",
+    "rangav.vscode-thunder-client",
+    "eamodio.gitlens",
+    "usernamehw.errorlens",
+    "formulahendry.auto-rename-tag",
+    "christian-kohler.path-intellisense",
+    "PKief.material-icon-theme",
+    "ckolkman.vscode-postgres",
+    "ritwickdey.LiveServer"
+  ]
+}

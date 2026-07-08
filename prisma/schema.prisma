@@ -1,0 +1,135 @@
+// ═══════════════════════════════════════
+// HOMESTAY MANAGER — PRISMA SCHEMA
+// PostgreSQL backend
+// ═══════════════════════════════════════
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ───── User & Auth ─────
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  password  String   // bcrypt hash
+  name      String
+  email     String?
+  role      Role     @default(STAFF)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  STAFF
+}
+
+// ───── Homes ─────
+model Home {
+  id        Int      @id @default(autoincrement())
+  name      String
+  address   String
+  price     Int      // VND/đêm (giá ngày thường T2–T5)
+  weekendPrice Int?  // VND/đêm cuối tuần (T6, T7, CN). Null = dùng price
+  maxGuests Int      @default(8)
+  emoji     String   @default("🏡")
+  desc      String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  bookings  Booking[]
+  expenses  Expense[]
+}
+
+// ───── Bookings ─────
+model Booking {
+  id            Int       @id @default(autoincrement())
+  guest         String
+  phone         String
+  homeId        Int
+  home          Home      @relation(fields: [homeId], references: [id])
+  
+  checkIn       DateTime  @db.Date
+  checkInTime   String    @default("14:00")
+  checkOut      DateTime  @db.Date
+  checkOutTime  String    @default("12:00")
+  guests        Int       @default(2)
+  
+  // Dòng tiền
+  totalAmount   Int       // = price × nights
+  discount      Int       @default(0)  // Giảm giá trên tổng đơn (VND)
+  deposit       Int       @default(0)
+  paidAtCheckIn Int       @default(0)
+  chargesTotal  Int       @default(0)
+  
+  status        BookingStatus @default(CONFIRMED)
+  notes         String?
+  
+  // Check-in/out thực tế
+  actualCheckIn   DateTime?
+  actualCheckOut  DateTime?
+  waterMeter      Float?
+  inspectionNote  String?
+  
+  charges       Charge[]
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@index([homeId, checkIn, checkOut])
+  @@index([status])
+}
+
+enum BookingStatus {
+  CONFIRMED       // Đã đặt
+  CHECKEDIN       // Đang ở
+  CHECKOUT_TODAY  // Trả hôm nay
+  CHECKEDOUT      // Đã trả
+}
+
+// ───── Charges (phụ thu khi trả nhà) ─────
+model Charge {
+  id        Int      @id @default(autoincrement())
+  bookingId Int
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  
+  name      String
+  unit      Int      // Đơn giá
+  qty       Int      @default(1)
+  amount    Int      // = unit × qty
+  
+  createdAt DateTime @default(now())
+}
+
+// ───── Charge Templates (RULES + QUICK) ─────
+model ChargeTemplate {
+  id        Int      @id @default(autoincrement())
+  name      String
+  amount    Int
+  type      ChargeType
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum ChargeType {
+  RULE      // Nội quy phạt — không có số lượng
+  QUICK     // Tiêu thụ — có số lượng
+}
+
+// ───── Expenses (chi phí vận hành) ─────
+model Expense {
+  id        Int      @id @default(autoincrement())
+  date      DateTime @db.Date
+  category  String
+  desc      String
+  amount    Int
+  homeId  

@@ -1,0 +1,325 @@
+### ═══════════════════════════════════════
+### HOMESTAY API TEST — REST Client
+### Click "Send Request" trên mỗi block để test
+### ═══════════════════════════════════════
+
+@baseUrl = http://localhost:3000/v1
+@token = paste-token-here-after-login
+
+### ════════════════════════════════
+### 🔐 AUTH
+### ════════════════════════════════
+
+### Test 1: Login (chạy cái này TRƯỚC, copy token vào @token ở trên)
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "admin123"
+}
+
+### Test 2: Get Me (kiểm tra token)
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{login.response.body.token}}
+
+
+### ════════════════════════════════
+### 📅 BOOKINGS
+### ════════════════════════════════
+
+### Test 3: GET tất cả bookings
+GET {{baseUrl}}/bookings
+Authorization: Bearer {{login.response.body.token}}
+
+### Test 4: GET booking hôm nay (nhận/trả)
+GET {{baseUrl}}/bookings/today
+Authorization: Bearer {{login.response.body.token}}
+
+### Test 5: GET booking theo tháng (calendar)
+GET {{baseUrl}}/bookings/calendar?year=2026&month=5
+Authorization: Bearer {{login.response.body.token}}
+
+### Test 6: GET 1 booking detail
+GET {{baseUrl}}/bookings/1
+Authorization: Bearer {{login.response.body.token}}
+
+### Test 7: TẠO booking mới
+POST {{baseUrl}}/bookings
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "guest": "Khách Test API",
+  "phone": "0999888777",
+  "homeId": 1,
+  "checkIn": "2026-07-15",
+  "checkOut": "2026-07-18",
+  "checkInTime": "14:00",
+  "checkOutTime": "12:00",
+  "guests": 4,
+  "deposit": 2000000,
+  "notes": "Test từ REST Client"
+}
+
+### Test 8: TẠO booking trùng lịch (test conflict check)
+POST {{baseUrl}}/bookings
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "guest": "Khách Bị Trùng",
+  "phone": "0987654321",
+  "homeId": 1,
+  "checkIn": "2026-07-16",
+  "checkOut": "2026-07-17",
+  "guests": 2,
+  "deposit": 1000000
+}
+
+### Test 9: NHẬN NHÀ booking #2 (Trần Thị Bình)
+POST {{baseUrl}}/bookings/2/checkin
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "note": "Đã giao 2 thẻ từ, bàn giao OK"
+}
+
+### Test 10: TRẢ NHÀ booking #3 với phụ thu (Lê Minh Cường)
+POST {{baseUrl}}/bookings/3/checkout
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "water": 24.5,
+  "inspectionNote": "Nhà sạch, đủ đồ",
+  "charges": [
+    { "name": "Nước ngọt (lon)", "unit": 15000, "qty": 2 },
+    { "name": "Bia lon", "unit": 25000, "qty": 3 },
+    { "name": "Không rửa chén / chén nhiều", "unit": 350000, "qty": 1 }
+  ]
+}
+
+
+### ════════════════════════════════
+### 🏡 HOMES
+### ════════════════════════════════
+
+### Test 11: GET tất cả căn nhà
+GET {{baseUrl}}/homes
+Authorization: Bearer {{login.response.body.token}}
+
+### Test 12: GET 1 căn nhà
+GET {{baseUrl}}/homes/1
+Authorization: Bearer {{login.response.body.token}}
+
+### Test 13: TẠO căn nhà mới (admin only)
+POST {{baseUrl}}/homes
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "name": "Villa Núi",
+  "address": "100 Đà Lạt",
+  "price": 5000000,
+  "maxGuests": 15,
+  "emoji": "🏔",
+  "desc": "View núi, không khí trong lành"
+}
+
+
+### ════════════════════════════════
+### 💸 EXPENSES
+### ════════════════════════════════
+
+### Test 14: GET tất cả chi phí
+GET {{baseUrl}}/expenses
+Authorization: Bearer {{login.response.body.token}}
+
+### Test 15: TẠO chi phí mới
+POST {{baseUrl}}/expenses
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "date": "2026-05-13",
+  "category": "Vật tư",
+  "desc": "Mua khăn tắm mới",
+  "amount": 450000,
+  "homeId": 1
+}
+
+
+### ════════════════════════════════
+### 📊 STATISTICS
+### ════════════════════════════════
+
+### Test 16: Dashboard KPI
+GET {{baseUrl}}/stats/dashboard
+Authorization: Bearer {{login.response.body.token}}
+
+### Test 17: Monthly stats (6 tháng)
+GET {{baseUrl}}/stats/monthly?months=6
+Authorization: Bearer {{login.response.body.token}}
+
+### Test 18: By Home
+GET {{baseUrl}}/stats/by-home
+Authorization: Bearer {{login.response.body.token}}
+
+### Test 19: Finance tháng hiện tại
+GET {{baseUrl}}/stats/finance
+Authorization: Bearer {{login.response.body.token}}
+
+
+### ════════════════════════════════
+### 👥 USERS (admin only)
+### ════════════════════════════════
+
+### Test 20: GET tất cả users
+GET {{baseUrl}}/users
+Authorization: Bearer {{login.response.body.token}}
+
+### Test 21: TẠO user mới
+POST {{baseUrl}}/users
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "username": "newstaff",
+  "password": "staff2025",
+  "name": "Nhân viên mới",
+  "email": "newstaff@homestay.vn",
+  "role": "STAFF",
+  "active": true
+}
+
+
+### ════════════════════════════════
+### 💵 CHARGE TEMPLATES (RULES + QUICK)
+### ════════════════════════════════
+
+### Test 22: GET tất cả template phụ thu
+GET {{baseUrl}}/charge-templates
+Authorization: Bearer {{login.response.body.token}}
+
+### Test 23: GET chỉ nội quy phạt (RULES)
+GET {{baseUrl}}/charge-templates?type=RULE
+Authorization: Bearer {{login.response.body.token}}
+
+### Test 24: GET chỉ tiêu thụ (QUICK)
+GET {{baseUrl}}/charge-templates?type=QUICK
+Authorization: Bearer {{login.response.body.token}}
+
+### Test 25: THÊM mục tiêu thụ mới
+POST {{baseUrl}}/charge-templates
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "name": "Cà phê pha sẵn",
+  "amount": 30000,
+  "type": "QUICK"
+}
+
+
+### ════════════════════════════════
+### ✏️ PATCH (SỬA) — UPDATE
+### ════════════════════════════════
+
+### Test 26: SỬA booking #2 (đổi tên khách, ngày)
+PATCH {{baseUrl}}/bookings/2
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "guest": "Trần Thị Bình (đã sửa)",
+  "phone": "0912000000",
+  "guests": 8,
+  "notes": "Đã update qua API"
+}
+
+### Test 27: SỬA căn nhà #2 (đổi giá, mô tả)
+PATCH {{baseUrl}}/homes/2
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "price": 2500000,
+  "desc": "Sân vườn rộng, đã nâng cấp BBQ"
+}
+
+### Test 28: SỬA chi phí #1
+PATCH {{baseUrl}}/expenses/1
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "amount": 950000,
+  "desc": "Hóa đơn điện tháng 5 (đã điều chỉnh)"
+}
+
+### Test 29: SỬA user (đổi tên, role)
+PATCH {{baseUrl}}/users/3
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "name": "Lê Quản Gia (Senior)",
+  "email": "qg.senior@homestay.vn",
+  "active": true
+}
+
+### Test 30: SỬA template phụ thu (đổi giá nước ngọt)
+PATCH {{baseUrl}}/charge-templates/6
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "name": "Nước ngọt (lon) - tăng giá",
+  "amount": 18000
+}
+
+
+### ════════════════════════════════
+### 🗑 DELETE (XÓA)
+### ════════════════════════════════
+
+### Test 31: XÓA booking (vd booking ID 5)
+# ⚠️ Trước khi chạy: kiểm tra ID còn tồn tại bằng Test 3
+DELETE {{baseUrl}}/bookings/5
+Authorization: Bearer {{login.response.body.token}}
+
+### Test 32: XÓA chi phí (vd ID 2)
+DELETE {{baseUrl}}/expenses/2
+Authorization: Bearer {{login.response.body.token}}
+
+### Test 33: XÓA template phụ thu (vd ID 10 — Giặt khăn)
+DELETE {{baseUrl}}/charge-templates/10
+Authorization: Bearer {{login.response.body.token}}
+
+### Test 34: XÓA user (vd ID 4 — staff1)
+# ⚠️ Không xóa được chính user đang đăng nhập (ID 1 = admin)
+DELETE {{baseUrl}}/users/1
+Authorization: Bearer {{login.response.body.token}}
+
+### Test 35: XÓA căn nhà (vd ID 2)
+# ⚠️ Sẽ báo lỗi nếu căn nhà còn booking ACTIVE (status != CHECKEDOUT)
+DELETE {{baseUrl}}/homes/3
+Authorization: Bearer {{login.response.body.token}}
+
+
+### ════════════════════════════════
+### 💡 LƯU Ý KHI TEST DELETE
+### ════════════════════════════════
+# 
+# Sau khi xóa, chạy lại GET để xác nhận:
+# - GET /bookings → đếm số booking
+# - GET /expenses → kiểm tra chi phí đã mất
+# - GET /charge-templates → check template
+# 
+# Nếu cần reset lại data ban đầu:
+# Mở terminal và chạy: npm run db:reset
+# 
+

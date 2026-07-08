@@ -1,0 +1,17 @@
+{
+  "client": "Thunder Client",
+  "environmentName": "HomeStay Local",
+  "dateExported": "2025-05-13T00:00:00.000Z",
+  "version": "1.2",
+  "default": true,
+  "data": [
+    {
+      "name": "baseUrl",
+      "value": "http://localhost:3000/v1"
+    },
+    {
+      "name": "TOKEN",
+      "value": ""
+    }
+  ]
+}

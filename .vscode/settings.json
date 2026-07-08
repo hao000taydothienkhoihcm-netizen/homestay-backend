@@ -1,0 +1,32 @@
+{
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.tabSize": 2,
+  "editor.bracketPairColorization.enabled": true,
+  "editor.linkedEditing": true,
+  "files.autoSave": "onFocusChange",
+  "files.exclude": {
+    "node_modules": true,
+    ".git": true
+  },
+  "files.eol": "\n",
+  "prisma.format": true,
+  "[prisma]": {
+    "editor.defaultFormatter": "Prisma.prisma"
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[markdown]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": false
+  },
+  "workbench.iconTheme": "material-icon-theme",
+  "terminal.integrated.fontSize": 13,
+  "javascript.suggest.autoImports": true,
+  "liveServer.settings.host": "0.0.0.0",
+  "liveServer.settings.port": 5500
+}
