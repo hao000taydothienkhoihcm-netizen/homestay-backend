@@ -223,4 +223,74 @@ router.patch('/:id', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
 
 // ───── DELETE ─────
 router.delete('/:id', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
-  const i
+  const id = parseInt(req.params.id);
+  await prisma.booking.delete({ where: { id } });
+  res.json({ ok: true });
+});
+
+// ───── CHECK-IN ─────
+router.post('/:id/checkin', async (req, res) => {
+  const id = parseInt(req.params.id);
+  const { actualTime, note } = req.body;
+
+  const b = await prisma.booking.findUnique({ where: { id } });
+  if (!b) return res.status(404).json({ error: 'Không tìm thấy' });
+
+  const paidAtCheckIn = Math.max(0, b.totalAmount - (b.discount || 0) - (b.deposit || 0));
+
+  const updated = await prisma.booking.update({
+    where: { id },
+    data: {
+      status: 'CHECKEDIN',
+      paidAtCheckIn,
+      actualCheckIn: actualTime ? new Date(actualTime) : new Date(),
+      notes: note || b.notes
+    },
+    include: { home: true, charges: true }
+  });
+  res.json(updated);
+});
+
+// ───── CHECK-OUT ─────
+router.post('/:id/checkout', async (req, res) => {
+  const id = parseInt(req.params.id);
+  const { actualTime, water, inspectionNote, charges } = req.body;
+
+  // Chỉ ADMIN được thêm/sửa phụ thu & phạt. MANAGER, STAFF: giữ nguyên phụ thu cũ (admin nhập sau).
+  const isAdmin = req.user.role === 'ADMIN';
+  const chargesArr = (isAdmin && Array.isArray(charges)) ? charges : [];
+  const chargesTotal = chargesArr.reduce((s, c) => s + (parseInt(c.unit) || 0) * (parseInt(c.qty) || 1), 0);
+
+  // Transaction: (admin) xóa charges cũ + tạo mới, rồi update booking
+  const updated = await prisma.$transaction(async (tx) => {
+    const data = {
+      status: 'CHECKEDOUT',
+      actualCheckOut: actualTime ? new Date(actualTime) : new Date(),
+      waterMeter: water ? parseFloat(water) : null,
+      inspectionNote: inspectionNote || null
+    };
+    if (isAdmin) {
+      await tx.charge.deleteMany({ where: { bookingId: id } });
+      if (chargesArr.length) {
+        await tx.charge.createMany({
+          data: chargesArr.map(c => ({
+            bookingId: id,
+            name: c.name,
+            unit: parseInt(c.unit) || 0,
+            qty: parseInt(c.qty) || 1,
+            amount: (parseInt(c.unit) || 0) * (parseInt(c.qty) || 1)
+          }))
+        });
+      }
+      data.chargesTotal = chargesTotal;
+    }
+    return tx.booking.update({
+      where: { id },
+      data,
+      include: { home: true, charges: true }
+    });
+  });
+  res.json(updated);
+});
+
+export default router;

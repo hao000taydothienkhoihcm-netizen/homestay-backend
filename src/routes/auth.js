@@ -31,4 +31,8 @@ router.post('/login', async (req, res) => {
 });
 
 router.get('/me', authMiddleware, (req, res) => {
-  const { password, ...user } 
+  const { password, ...user } = req.user;
+  res.json({ user });
+});
+
+export default router;

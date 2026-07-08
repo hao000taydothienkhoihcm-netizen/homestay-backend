@@ -56,4 +56,16 @@ router.patch('/:id', requireRole('ADMIN'), async (req, res) => {
 
 router.delete('/:id', requireRole('ADMIN'), async (req, res) => {
   const id = parseInt(req.params.id);
-  // Check if có booking ac
+  // Check if có booking active
+  const active = await prisma.booking.count({
+    where: { homeId: id, status: { not: 'CHECKEDOUT' } }
+  });
+  if (active > 0) {
+    return res.status(400).json({ error: `Còn ${active} booking active, không thể xóa` });
+  }
+  // Soft delete
+  await prisma.home.update({ where: { id }, data: { active: false } });
+  res.json({ ok: true });
+});
+
+export default router;

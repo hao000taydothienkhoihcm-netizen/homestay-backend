@@ -59,4 +59,34 @@ function isWeekendNight(date) {
 
 /**
  * Tổng tiền phòng theo 2 mức giá (ngày thường / cuối tuần).
- * Đếm từng đêm theo ngày nhận của đêm đó
+ * Đếm từng đêm theo ngày nhận của đêm đó. Nếu home.weekendPrice trống -> dùng price.
+ */
+export function stayTotal(home, checkIn, checkOut) {
+  const wkPrice = (home.weekendPrice != null && home.weekendPrice > 0)
+    ? home.weekendPrice : home.price;
+  const start = new Date(checkIn);
+  const end = new Date(checkOut);
+  let total = 0, count = 0;
+  // Duyệt từng đêm: từ ngày nhận đến trước ngày trả
+  for (let t = start.getTime(); t < end.getTime(); t += 86400000) {
+    total += isWeekendNight(t) ? wkPrice : home.price;
+    count++;
+  }
+  if (count === 0) total = home.price; // an toàn: tối thiểu 1 đêm
+  return total;
+}
+
+/**
+ * Tổng tiền thực đã thu vào tay
+ */
+export function actualReceived(b) {
+  return (b.deposit || 0) + (b.paidAtCheckIn || 0) + (b.chargesTotal || 0);
+}
+
+/**
+ * Tiền còn phải thu (khi chưa nhận nhà)
+ */
+export function stillOwed(b) {
+  if (b.status === 'CHECKEDOUT') return 0;
+  return Math.max(0, b.totalAmount - (b.discount || 0) - (b.deposit || 0) - (b.paidAtCheckIn || 0));
+}

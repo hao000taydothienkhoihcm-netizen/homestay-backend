@@ -57,4 +57,33 @@ router.patch('/:id', async (req, res) => {
     if (name) data.name = name;
     if (email !== undefined) data.email = email;
     if (role !== undefined) {
-      con
+      const nRole = normRole(role);
+      if (nRole === null) return res.status(400).json({ error: 'Vai trò không hợp lệ' });
+      if (nRole) data.role = nRole;
+    }
+    if (active !== undefined) data.active = active;
+
+    const user = await prisma.user.update({
+      where: { id }, data,
+      select: { id: true, username: true, name: true, email: true, role: true, active: true }
+    });
+    res.json(user);
+  } catch (err) {
+    if (err?.code === 'P2025') return res.status(404).json({ error: 'Không tìm thấy tài khoản' });
+    res.status(500).json({ error: 'Lỗi cập nhật tài khoản' });
+  }
+});
+
+router.delete('/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (id === req.user.id) return res.status(400).json({ error: 'Không thể xóa chính mình' });
+    await prisma.user.delete({ where: { id } });
+    res.json({ ok: true });
+  } catch (err) {
+    if (err?.code === 'P2025') return res.status(404).json({ error: 'Không tìm thấy tài khoản' });
+    res.status(500).json({ error: 'Lỗi xóa tài khoản' });
+  }
+});
+
+export default router;
