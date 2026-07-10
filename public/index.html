@@ -363,8 +363,44 @@ textarea.fc{resize:vertical;min-height:60px}
 .login-btn{width:100%;padding:11px;background:linear-gradient(135deg,#7C6A4E,#5C4E38);color:#FDFBF6;border:none;border-radius:8px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;margin-top:6px;transition:filter 0.15s}
 .login-btn:hover{filter:brightness(1.1)}
 
+/* Hamburger + drawer backdrop (ẩn mặc định trên desktop) */
+.tb-burger{display:none;background:transparent;border:1px solid var(--br2);border-radius:8px;width:38px;height:38px;font-size:18px;line-height:1;color:#5C4E38;cursor:pointer;flex-shrink:0;margin-right:10px;font-family:inherit}
+.tb-burger:active{background:rgba(124,106,78,0.12)}
+.sb-backdrop{display:none;position:fixed;inset:0;background:rgba(46,36,22,0.5);z-index:149}
+
 @media(max-width:1100px){.sg4{grid-template-columns:repeat(2,1fr)}.hg{grid-template-columns:1fr 1fr}}
-@media(max-width:768px){.fr2{grid-template-columns:1fr}}
+
+/* ═══════ ĐIỆN THOẠI / TABLET NHỎ ═══════ */
+@media(max-width:768px){
+  .fr2{grid-template-columns:1fr}
+  /* Sidebar -> ngăn kéo trượt từ trái */
+  .tb-burger{display:flex;align-items:center;justify-content:center}
+  .sb{position:fixed;top:0;left:0;bottom:0;height:100%;width:250px;max-width:82vw;z-index:150;
+      transform:translateX(-100%);transition:transform .25s ease;box-shadow:2px 0 18px rgba(46,36,22,0.18)}
+  .sb.open{transform:translateX(0)}
+  .sb-backdrop.show{display:block}
+  .main{width:100%}
+  .topbar{height:auto;min-height:52px;padding:8px 12px}
+  .tb-l{margin-right:auto}
+  .tb-l h3{font-size:13px}
+  .content{padding:12px}
+  /* Lưới thống kê 2 cột cho gọn */
+  .sg4{grid-template-columns:repeat(2,1fr);gap:8px}
+  .hg{grid-template-columns:1fr}
+  .card{padding:12px;border-radius:10px}
+  /* Modal chiếm gần trọn màn hình */
+  .ov{align-items:flex-end}
+  .modal,.modal.sm{width:100%;max-width:100%;max-height:94vh;border-radius:16px 16px 0 0;padding:18px 16px}
+  .bk-search-box{min-width:0;max-width:none;width:100%}
+}
+
+/* ═══════ ĐIỆN THOẠI NHỎ ═══════ */
+@media(max-width:480px){
+  .sg4{grid-template-columns:1fr}
+  .content{padding:10px}
+  .tb-r .red-pill{display:none}
+  .modal,.modal.sm{padding:16px 13px}
+}
 
 </style>
 <!-- SheetJS for Excel export -->
@@ -397,7 +433,8 @@ textarea.fc{resize:vertical;min-height:60px}
 
 <!-- APP -->
 <div id="pg-app" class="app" style="display:none">
-  <div class="sb">
+  <div class="sb-backdrop" id="sb-backdrop" onclick="closeSidebar()"></div>
+  <div class="sb" id="sb">
     <div class="sb-brand">
       <div class="sb-mark">🏡</div>
       <h2>HomeStay</h2><p>Manager Pro</p>
@@ -425,6 +462,7 @@ textarea.fc{resize:vertical;min-height:60px}
   </div>
   <div class="main">
     <div class="topbar">
+      <button class="tb-burger" id="tb-burger" onclick="toggleSidebar()" aria-label="Menu">☰</button>
       <div class="tb-l"><p>HomeStay Manager Pro</p><h3 id="ptitle">Tổng quan</h3></div>
       <div class="tb-r">
         <div id="alert-pill" class="red-pill" style="display:none"></div>
@@ -1301,22 +1339,139 @@ function renderBusyDates(hmId, excludeId) {
   return h;
 }
 
+/* ═══ LỊCH TRỰC QUAN NGÀY ĐÃ ĐẶT (trong dialog booking) ═══ */
+var BUSYCAL = {};
+function bpad(n){ return String(n).padStart(2,'0'); }
+
+function busyCalMap(hmId, excludeId) {
+  // { 'YYYY-MM-DD': ['Tên khách', ...] } theo từng đêm (checkIn <= ngày < checkOut)
+  var map = {};
+  getBusyDates(parseInt(hmId), excludeId||0).forEach(function(b){
+    if (!b.checkIn || !b.checkOut) return;
+    var t = new Date(b.checkIn).getTime(), end = new Date(b.checkOut).getTime();
+    for (; t < end; t += 86400000) {
+      var dt = new Date(t);
+      var ds = dt.getFullYear()+'-'+bpad(dt.getMonth()+1)+'-'+bpad(dt.getDate());
+      (map[ds] = map[ds] || []).push(b.guest || 'Khách');
+    }
+  });
+  return map;
+}
+
+function renderBusyBlock(prefix, hmId, excludeId) {
+  var ciEl = document.getElementById(prefix+'-ci');
+  var coEl = document.getElementById(prefix+'-co');
+  var ci = ciEl ? ciEl.value : '';
+  var co = coEl ? coEl.value : '';
+  if (!BUSYCAL[prefix]) {
+    var base = ci ? new Date(ci) : new Date();
+    BUSYCAL[prefix] = { y: base.getFullYear(), m: base.getMonth(), stage: 0 };
+  }
+  var st = BUSYCAL[prefix];
+  var y = st.y, m = st.m;
+  var map = busyCalMap(hmId, excludeId);
+  var MONTHS = ['Th1','Th2','Th3','Th4','Th5','Th6','Th7','Th8','Th9','Th10','Th11','Th12'];
+  var WD = ['T2','T3','T4','T5','T6','T7','CN'];
+
+  var h = '<div style="background:#FBF9F3;border:1px solid #E6DFCF;border-radius:8px;padding:8px 8px 6px;margin-top:6px">';
+  // header nav
+  h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">'
+    + '<button type="button" onclick="busyCalNav(&#39;'+prefix+'&#39;,-1)" style="border:1px solid #E6DFCF;background:#fff;border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:14px;line-height:1">‹</button>'
+    + '<span style="font-size:12px;font-weight:700;color:#2E2416">'+MONTHS[m]+' / '+y+'</span>'
+    + '<button type="button" onclick="busyCalNav(&#39;'+prefix+'&#39;,1)" style="border:1px solid #E6DFCF;background:#fff;border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:14px;line-height:1">›</button>'
+    + '</div>';
+  // weekday row
+  h += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:2px">';
+  WD.forEach(function(w,i){ h += '<div style="text-align:center;font-size:9.5px;font-weight:700;color:'+(i===6?'#B85C4A':'#8A7E68')+'">'+w+'</div>'; });
+  h += '</div>';
+  // day grid
+  h += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px">';
+  var startOff = (new Date(y,m,1).getDay()+6)%7;
+  var dim = new Date(y,m+1,0).getDate();
+  for (var i=0;i<startOff;i++) h += '<div></div>';
+  var todayDS = new Date().getFullYear()+'-'+bpad(new Date().getMonth()+1)+'-'+bpad(new Date().getDate());
+  for (var d=1; d<=dim; d++) {
+    var ds = y+'-'+bpad(m+1)+'-'+bpad(d);
+    var names = map[ds];
+    var isBusy = names && names.length;
+    var inRange = ci && co && ds >= ci && ds < co;
+    var isCI = ds === ci, isCO = ds === co;
+    var bg='transparent', col='#2E2416', bd='1px solid transparent', fw='500';
+    if (isBusy) { bg='rgba(184,92,74,0.16)'; col='#B85C4A'; fw='700'; }
+    if (inRange) { bg='rgba(160,120,64,0.18)'; col='#5C4E38'; }
+    if (isCI || isCO) { bg='#5C4E38'; col='#fff'; fw='800'; }
+    var isToday = ds === todayDS;
+    if (isToday && !isCI && !isCO) bd='1px solid #A07840';
+    var title = isBusy ? names.join(', ') : '';
+    h += '<button type="button" title="'+title.replace(/"/g,'&quot;')+'" onclick="busyCalPick(&#39;'+prefix+'&#39;,&#39;'+ds+'&#39;)" '
+      + 'style="position:relative;aspect-ratio:1;border:'+bd+';border-radius:6px;background:'+bg+';color:'+col+';font-size:11px;font-weight:'+fw+';cursor:pointer;padding:0">'
+      + d
+      + (isBusy && !isCI && !isCO ? '<span style="position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:#B85C4A"></span>' : '')
+      + '</button>';
+  }
+  h += '</div>';
+  // legend
+  h += '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;font-size:9.5px;color:#8A7E68">'
+    + '<span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:rgba(184,92,74,0.4);vertical-align:middle;margin-right:3px"></span>Đã đặt</span>'
+    + '<span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#5C4E38;vertical-align:middle;margin-right:3px"></span>Ngày đang chọn</span>'
+    + '<span>👆 Bấm ngày để chọn nhận/trả</span>'
+    + '</div>';
+  h += '</div>';
+  // Danh sách tên người đặt (giữ nguyên như cũ)
+  h += renderBusyDates(hmId, excludeId);
+  return h;
+}
+
+function busyCalNav(prefix, delta) {
+  var st = BUSYCAL[prefix]; if (!st) return;
+  var d = new Date(st.y, st.m + delta, 1);
+  st.y = d.getFullYear(); st.m = d.getMonth();
+  var hmId = document.getElementById(prefix+'-home')?.value;
+  var excludeId = prefix === 'e' ? (parseInt(document.getElementById('ebk-id')?.value)||0) : 0;
+  var el = document.getElementById(prefix+'-busy');
+  if (el) el.innerHTML = renderBusyBlock(prefix, hmId, excludeId);
+}
+
+function busyCalPick(prefix, ds) {
+  var ciEl = document.getElementById(prefix+'-ci');
+  var coEl = document.getElementById(prefix+'-co');
+  if (!ciEl || !coEl) return;
+  if (!BUSYCAL[prefix]) BUSYCAL[prefix] = { y:0, m:0, stage:0 };
+  var st = BUSYCAL[prefix];
+  var nextDay = function(s){ return fmt(addD(new Date(s), 1)); };
+  if (st.stage === 0 || !ciEl.value) {
+    ciEl.value = ds;
+    if (!coEl.value || coEl.value <= ds) coEl.value = nextDay(ds);
+    st.stage = 1;
+  } else {
+    if (ds > ciEl.value) { coEl.value = ds; st.stage = 0; }
+    else { ciEl.value = ds; coEl.value = nextDay(ds); st.stage = 1; }
+  }
+  var ciLbl = document.getElementById(prefix+'-ci-lbl'); if (ciLbl) ciLbl.textContent = fD(ciEl.value);
+  var coLbl = document.getElementById(prefix+'-co-lbl'); if (coLbl) coLbl.textContent = fD(coEl.value);
+  if (prefix === 'bk') updPrev(); else updEPrev();
+  var hmId = document.getElementById(prefix+'-home')?.value;
+  var excludeId = prefix === 'e' ? (parseInt(document.getElementById('ebk-id')?.value)||0) : 0;
+  var el = document.getElementById(prefix+'-busy');
+  if (el) el.innerHTML = renderBusyBlock(prefix, hmId, excludeId);
+}
+
 function updHomeInfo(src) {
   // Cập nhật thông tin bận/trống khi đổi nhà trong form thêm/sửa
-  var hmId, excludeId, elId;
+  var hmId, excludeId, prefix;
   if (src === 'add') {
     hmId = document.getElementById('bk-home')?.value;
     excludeId = 0;
-    elId = 'bk-busy';
+    prefix = 'bk';
     updPrev();
   } else {
     hmId = document.getElementById('e-home')?.value;
     excludeId = parseInt(document.getElementById('ebk-id')?.value)||0;
-    elId = 'e-busy';
+    prefix = 'e';
     updEPrev();
   }
-  var el = document.getElementById(elId);
-  if (el) el.innerHTML = renderBusyDates(hmId, excludeId);
+  var el = document.getElementById(prefix+'-busy');
+  if (el) el.innerHTML = renderBusyBlock(prefix, hmId, excludeId);
 }
 
 /* ───── AUTH (API) ───── */
@@ -1428,6 +1583,22 @@ function setPage(p) {
   const c = document.getElementById('pcontent');
   const pages = {dashboard:renderDashboard,bookings:renderBookings,checkinout:renderCheckinOut,calendar:renderCalendar,statistics:renderStatistics,finance:renderFinance,users:renderUsers,homes:renderHomes,charges:renderCharges};
   c.innerHTML = pages[p] ? pages[p]() : '';
+  closeSidebar(); // đóng ngăn kéo sau khi chọn trang (điện thoại)
+}
+
+/* ───── NGĂN KÉO SIDEBAR (ĐIỆN THOẠI) ───── */
+function toggleSidebar() {
+  const sb = document.getElementById('sb');
+  const bd = document.getElementById('sb-backdrop');
+  if (!sb) return;
+  const open = sb.classList.toggle('open');
+  if (bd) bd.classList.toggle('show', open);
+}
+function closeSidebar() {
+  const sb = document.getElementById('sb');
+  const bd = document.getElementById('sb-backdrop');
+  if (sb) sb.classList.remove('open');
+  if (bd) bd.classList.remove('show');
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
@@ -1825,6 +1996,7 @@ function fbk() { applyBkFilters(); }
 /* ═══════════ ADD/EDIT BOOKING MODAL ═══════════ */
 function openAddBK() {
   if (!HOMES.length) { toast('Chưa có căn nhà! Admin cần thêm căn nhà trước.', 'warn'); return; }
+  BUSYCAL.bk = null;
   const defCO = fmt(addD(T,1));
   const homeOpts = HOMES.map(h=>'<option value="'+h.id+'">'+h.emoji+' '+h.name+' — '+money(h.price)+'/đêm ('+h.maxG+' người)</option>').join('');
   const timeInOpts = TIME_IN.map(t=>'<option'+(t==='14:00'?' selected':'')+'>'+t+'</option>').join('');
@@ -1836,7 +2008,7 @@ function openAddBK() {
     +'<div class="fg"><label class="fl">Điện thoại *</label><input class="fc" id="bk-phone" type="tel" inputmode="tel" maxlength="13" placeholder="0901234567" oninput="vnPhoneFmt(this)" onblur="vnPhoneCheck(this)"/><div id="bk-phone-hint" style="font-size:10.5px;color:var(--t3);margin-top:3px">Định dạng: 10 số (vd: 0901234567)</div></div></div>'
     +'<div class="fr2"><div class="fg"><label class="fl">Căn nhà *</label><select class="fc" id="bk-home" onchange="updHomeInfo(&#39;add&#39;)">'+homeOpts+'</select></div>'
     +'<div class="fg"><label class="fl">Số người</label><input type="number" class="fc" id="bk-guests" value="4" min="1"/></div></div>'
-    +'<div id="bk-busy">'+renderBusyDates(HOMES[0]?.id||0, 0)+'</div>'
+    +'<div id="bk-busy"></div>'
     +'<div class="tbox"><div class="tbox-t">🕐 Thời gian nhận &amp; trả nhà</div><div style="font-size:10px;color:#7A5C30;background:rgba(160,120,64,0.1);padding:5px 8px;border-radius:5px;margin-bottom:8px">📌 Quy định: Nhận nhà <strong>14:00</strong> — Trả nhà <strong>12:00</strong>. Cùng ngày trả/nhận vẫn được đặt.</div>'
     +'<div class="fr2">'
     +'<div class="fg" style="margin-bottom:0"><label class="fl">Ngày nhận *</label>'
@@ -1856,6 +2028,9 @@ function openAddBK() {
     +'<div class="fg"><label class="fl">Ghi chú</label><textarea class="fc" id="bk-note" placeholder="Yêu cầu đặc biệt..."></textarea></div>'
     +'<div class="mfoot"><button class="btn btn-out" onclick="closeModal()">Hủy</button><button class="btn btn-gold" onclick="saveBK()">Tạo booking</button></div>'
   );
+  BUSYCAL.bk = null;
+  var _bkBusy = document.getElementById('bk-busy');
+  if (_bkBusy) _bkBusy.innerHTML = renderBusyBlock('bk', HOMES[0]?.id||0, 0);
 }
 async function saveBK() {
   const g=document.getElementById('bk-guest')?.value?.trim();
@@ -1910,7 +2085,7 @@ function openEditBK(id) {
     +'<div class="fg"><label class="fl">Điện thoại</label><input class="fc" id="e-phone" type="tel" inputmode="tel" maxlength="13" value="'+b.phone+'" oninput="vnPhoneFmt(this)" onblur="vnPhoneCheck(this)"/></div></div>'
     +'<div class="fr2"><div class="fg"><label class="fl">Căn nhà</label><select class="fc" id="e-home" onchange="updHomeInfo(&#39;edit&#39;)">'+homeOpts+'</select></div>'
     +'<div class="fg"><label class="fl">Số người</label><input type="number" class="fc" id="e-guests" value="'+b.guests+'" min="1"/></div></div>'
-    +'<div id="e-busy">'+renderBusyDates(b.homeId, b.id)+'</div>'
+    +'<div id="e-busy"></div>'
     +'<input type="hidden" id="ebk-id" value="'+b.id+'"/>'
     +'<div class="tbox"><div class="tbox-t">🕐 Thời gian</div>'
     +'<div class="fr2">'
@@ -1930,6 +2105,9 @@ function openEditBK(id) {
     +'<div class="fg"><label class="fl">Ghi chú</label><textarea class="fc" id="e-note">'+( b.notes||'')+'</textarea></div>'
     +'<div class="mfoot"><button class="btn btn-out" onclick="closeModal()">Hủy</button><button class="btn btn-gold" onclick="updateBK('+b.id+')">Cập nhật</button></div>'
   );
+  BUSYCAL.e = null;
+  var _eBusy = document.getElementById('e-busy');
+  if (_eBusy) _eBusy.innerHTML = renderBusyBlock('e', b.homeId, b.id);
 }
 async function updateBK(id) {
   const b=BOOKINGS.find(x=>x.id===id); if(!b)return;
