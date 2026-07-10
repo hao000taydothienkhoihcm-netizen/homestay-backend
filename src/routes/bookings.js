@@ -111,10 +111,9 @@ router.post('/', requireRole('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
 
   const totalAmount = stayTotal(home, checkIn, checkOut);
 
-  // Chỉ ADMIN được nhập tiền (cọc / giảm giá). MANAGER, STAFF: bỏ qua, admin nhập sau.
-  const isAdmin = req.user.role === 'ADMIN';
-  const dep = isAdmin ? (parseInt(deposit) || 0) : 0;
-  const disc = isAdmin ? Math.max(0, parseInt(discount) || 0) : 0;
+  // Mọi quyền (ADMIN, MANAGER, STAFF) đều được nhập tiền cọc / giảm giá.
+  const dep = parseInt(deposit) || 0;
+  const disc = Math.max(0, parseInt(discount) || 0);
   const st = status || 'CONFIRMED';
   const data = {
     guest, phone, homeId: parseInt(homeId),
@@ -183,11 +182,9 @@ router.patch('/:id', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
   if (checkInTime) updateData.checkInTime = checkInTime;
   if (checkOutTime) updateData.checkOutTime = checkOutTime;
   if (guests !== undefined) updateData.guests = parseInt(guests);
-  // Chỉ ADMIN được sửa tiền (cọc / giảm giá). MANAGER, STAFF: bỏ qua.
-  if (req.user.role === 'ADMIN') {
-    if (deposit !== undefined) updateData.deposit = parseInt(deposit);
-    if (discount !== undefined) updateData.discount = Math.max(0, parseInt(discount) || 0);
-  }
+  // Mọi quyền được sửa tiền cọc / giảm giá.
+  if (deposit !== undefined) updateData.deposit = parseInt(deposit);
+  if (discount !== undefined) updateData.discount = Math.max(0, parseInt(discount) || 0);
   if (notes !== undefined) updateData.notes = notes;
   if (status) updateData.status = status;
 
