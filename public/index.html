@@ -446,8 +446,8 @@ textarea.fc{resize:vertical;min-height:60px}
       <div class="ni" data-p="bookings">◉ Booking</div>
       <div class="ni" data-p="checkinout">🔑 Nhận &amp; Trả nhà <span class="nbadge" id="nav-badge" style="display:none">0</span></div>
       <div class="ni" data-p="calendar">⊞ Lịch</div>
-      <div class="ni" data-p="statistics">◎ Thống kê</div>
-      <div class="ni" data-p="finance">💰 Thu chi</div>
+      <div class="ni" data-p="statistics" id="nav-stats">◎ Thống kê</div>
+      <div class="ni" data-p="finance" id="nav-finance">💰 Thu chi</div>
       <div class="ni" data-p="users" id="nav-users">◑ Tài khoản</div>
       <div class="ni" data-p="homes" id="nav-homes">🏡 Căn nhà</div>
       <div class="ni" data-p="charges" id="nav-charges">💵 Phụ thu</div>
@@ -1553,6 +1553,7 @@ function setPage(p) {
   if (p==='homes'&&CU?.role!=='admin') return;
   if (p==='charges'&&CU?.role==='staff') return;
   if (p==='statistics'&&CU?.role==='staff') return;
+  if (p==='finance'&&CU?.role==='staff') return;
   curPage = p;
   document.querySelectorAll('.ni[data-p]').forEach(n => n.classList.toggle('on', n.dataset.p===p));
   document.getElementById('ptitle').textContent = PTITLES[p]||p;
@@ -1560,9 +1561,13 @@ function setPage(p) {
   const nh = document.getElementById('nav-homes');
   const nu = document.getElementById('nav-users');
   const nc = document.getElementById('nav-charges');
+  const nst = document.getElementById('nav-stats');
+  const nfi = document.getElementById('nav-finance');
   if (nh) nh.style.display = CU?.role==='admin'?'flex':'none';
   if (nu) nu.style.display = CU?.role==='admin'?'flex':'none';
   if (nc) nc.style.display = CU?.role!=='staff'?'flex':'none';
+  if (nst) nst.style.display = CU?.role!=='staff'?'flex':'none';
+  if (nfi) nfi.style.display = CU?.role!=='staff'?'flex':'none';
   // Badge
   const coCount = BOOKINGS.filter(b=>b.checkOut===todayS&&b.status!=='checkedout').length;
   const ciCount = BOOKINGS.filter(b=>b.checkIn===todayS&&b.status==='confirmed').length;
@@ -1614,6 +1619,7 @@ function closeModal() {
 
 /* ═══════════ DASHBOARD ═══════════ */
 function renderDashboard() {
+  const staff = CU && CU.role==='staff';
   const coToday = BOOKINGS.filter(b=>b.checkOut===todayS&&b.status!=='checkedout');
   const ciToday = BOOKINGS.filter(b=>b.checkIn===todayS&&b.status==='confirmed');
   const active = BOOKINGS.filter(b=>['confirmed','checkedin','checkout-today'].includes(b.status));
@@ -1623,8 +1629,8 @@ function renderDashboard() {
   const pending = active.reduce((s,b)=>s+Math.max(0,b.totalAmount-(b.discount||0)-(b.deposit||0)),0);
   const occ = HOMES.filter(h=>['occupied','checkout'].includes(gHSt(h.id).st)).length;
 
-  let h = '<div class="sg4">'
-    +'<div class="sc g"><div class="sl">Doanh thu tháng '+( mn+1)+'</div><div class="sv gold">'+mS(mRev)+'</div><div class="ss">Lợi nhuận: '+mS(mRev-mExp)+'</div></div>'
+  let h = '<div class="sg4"'+(staff?' style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))"':'')+'>'
+    +(staff?'':'<div class="sc g"><div class="sl">Doanh thu tháng '+( mn+1)+'</div><div class="sv gold">'+mS(mRev)+'</div><div class="ss">Lợi nhuận: '+mS(mRev-mExp)+'</div></div>')
     +'<div class="sc b"><div class="sl">Đang có khách</div><div class="sv blue">'+occ+'/'+HOMES.length+' căn</div><div class="ss">'+active.length+' booking hoạt động</div></div>'
     +'<div class="sc r"><div class="sl">Trả nhà hôm nay</div><div class="sv red">'+coToday.length+'</div><div class="ss">'+ciToday.length+' nhận nhà hôm nay</div></div>'
     +'<div class="sc p"><div class="sl">Còn phải thu</div><div class="sv pur">'+mS(pending)+'</div><div class="ss">'+active.length+' booking active</div></div>'
@@ -1712,7 +1718,7 @@ function renderDashboard() {
     h += '</div>';
   }
 
-  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">';
+  h += '<div style="display:grid;grid-template-columns:'+(staff?'1fr':'1fr 1fr')+';gap:14px">';
   // Recent bookings table
   h += '<div class="card"><div class="ch"><div class="ct">📋 Booking gần đây</div><button class="btn btn-gold btn-xs" onclick="setPage(\'bookings\')">Xem tất cả</button></div><div class="tw"><table><thead><tr><th>Khách</th><th>Căn nhà</th><th>Nhận</th><th>Trả</th><th>Còn thu</th><th>TT</th></tr></thead><tbody>';
   [...BOOKINGS].sort((a,b)=>b.id-a.id).slice(0,5).forEach(b => {
@@ -1726,20 +1732,23 @@ function renderDashboard() {
   });
   h += '</tbody></table></div></div>';
 
-  // Finance mini
-  const maxV = Math.max(mRev,mExp,1);
-  h += '<div class="card"><div class="ch"><div class="ct">💰 Thu chi tháng '+(mn+1)+'</div></div>';
-  [{l:'Doanh thu',v:mRev,c:'#3A6037'},{l:'Chi phí',v:mExp,c:'#B85C4A'},{l:'Lợi nhuận',v:mRev-mExp,c:mRev-mExp>=0?'#5C4E38':'#B85C4A'}].forEach(r => {
-    h += '<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span style="color:var(--t2)">'+r.l+'</span><span style="font-weight:700;color:'+r.c+'">'+mS(r.v)+'</span></div>'
-      +'<div class="pbar"><div class="pbf" style="width:'+Math.max(0,Math.min(100,r.v/maxV*100))+'%;background:'+r.c+'"></div></div></div>';
-  });
-  h += '<div style="padding-top:9px;border-top:1px solid rgba(124,106,78,0.15)">'
-    +'<div style="font-size:10px;color:var(--t3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">Theo căn nhà</div>';
-  HOMES.forEach(hm => {
-    const rv = BOOKINGS.filter(b=>b.homeId===hm.id&&b.status==='checkedout'&&new Date(b.checkOut).getMonth()===mn).reduce((s,b)=>s+b.totalAmount,0);
-    h += '<div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid rgba(124,106,78,0.1)"><span>'+hm.emoji+' '+hm.name+'</span><span style="color:#5C4E38;font-weight:600">'+mS(rv)+'</span></div>';
-  });
-  h += '</div></div></div>';
+  // Finance mini — chỉ admin/quản lý
+  if (!staff) {
+    const maxV = Math.max(mRev,mExp,1);
+    h += '<div class="card"><div class="ch"><div class="ct">💰 Thu chi tháng '+(mn+1)+'</div></div>';
+    [{l:'Doanh thu',v:mRev,c:'#3A6037'},{l:'Chi phí',v:mExp,c:'#B85C4A'},{l:'Lợi nhuận',v:mRev-mExp,c:mRev-mExp>=0?'#5C4E38':'#B85C4A'}].forEach(r => {
+      h += '<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span style="color:var(--t2)">'+r.l+'</span><span style="font-weight:700;color:'+r.c+'">'+mS(r.v)+'</span></div>'
+        +'<div class="pbar"><div class="pbf" style="width:'+Math.max(0,Math.min(100,r.v/maxV*100))+'%;background:'+r.c+'"></div></div></div>';
+    });
+    h += '<div style="padding-top:9px;border-top:1px solid rgba(124,106,78,0.15)">'
+      +'<div style="font-size:10px;color:var(--t3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">Theo căn nhà</div>';
+    HOMES.forEach(hm => {
+      const rv = BOOKINGS.filter(b=>b.homeId===hm.id&&b.status==='checkedout'&&new Date(b.checkOut).getMonth()===mn).reduce((s,b)=>s+b.totalAmount,0);
+      h += '<div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid rgba(124,106,78,0.1)"><span>'+hm.emoji+' '+hm.name+'</span><span style="color:#5C4E38;font-weight:600">'+mS(rv)+'</span></div>';
+    });
+    h += '</div></div>';
+  }
+  h += '</div>';
   return h;
 }
 
