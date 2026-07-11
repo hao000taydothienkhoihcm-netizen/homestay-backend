@@ -1898,7 +1898,7 @@ function bkCards(list) {
     h += '<span style="font-size:9.5px;opacity:0.85">#'+b.id+'</span>';
     h += '</div>';
     // Body
-    h += '<div class="bk-card-body">';
+    h += '<div class="bk-card-body" onclick="openBKDetail('+b.id+')" style="cursor:pointer">';
     // Guest
     h += '<div class="bk-guest-row">';
     h += '<div class="bk-guest-av">'+b.guest.charAt(0).toUpperCase()+'</div>';
@@ -2067,6 +2067,39 @@ async function saveBK() {
   }
 }
 
+function openBKDetail(id) {
+  const b = BOOKINGS.find(x=>x.id===id); if(!b) return;
+  const hm = gH(b.homeId);
+  const n = nights(b.checkIn, b.checkOut);
+  const disc = b.discount||0;
+  const ciPaid = b.paidAtCheckIn||0;
+  const rec = actualReceived(b);
+  const owed = stillOwed(b);
+  const isStaff = !(CU && (CU.role==='admin' || CU.role==='manager'));
+  const stLabel = SL[b.status] || b.status;
+  showModal(
+    '<div class="mh"><div class="mt2">📋 Chi tiết Booking #'+b.id+'</div><button class="mc" onclick="closeModal()">✕</button></div>'
+    +'<div class="paybox">'
+      +'<div class="pr"><label>👤 Khách</label><span style="font-weight:600">'+b.guest+'</span></div>'
+      +'<div class="pr"><label>📞 Điện thoại</label><span>'+formatPhone(b.phone)+'</span></div>'
+      +'<div class="pr"><label>'+hm.emoji+' Căn nhà</label><span style="font-weight:600">'+hm.name+'</span></div>'
+      +'<div class="pr"><label>👥 Số người · Số đêm</label><span>'+b.guests+' người · '+n+' đêm</span></div>'
+      +'<div class="pr"><label>📅 Nhận</label><span>'+fD(b.checkIn)+' · '+b.checkInTime+'</span></div>'
+      +'<div class="pr"><label>📅 Trả</label><span>'+fD(b.checkOut)+' · '+b.checkOutTime+'</span></div>'
+      +'<div class="pr"><label>🏷️ Trạng thái</label><span>'+stLabel+'</span></div>'
+    +'</div>'
+    +'<div class="paybox" style="margin-top:10px">'
+      +'<div class="pr"><label>Tiền nhà</label><span style="font-weight:600">'+money(b.totalAmount)+'</span></div>'
+      +(disc>0?'<div class="pr"><label>Giảm giá</label><span style="color:#B85C4A">−'+money(disc)+'</span></div>':'')
+      +'<div class="pr"><label>Đã cọc</label><span style="color:#3A6037;font-weight:600">'+money(b.deposit||0)+'</span></div>'
+      +(ciPaid>0?'<div class="pr"><label>Thu khi nhận nhà</label><span style="color:#3A6037">'+money(ciPaid)+'</span></div>':'')
+      +'<div class="pr"><label>Tổng đã thu</label><span style="color:#3A6037;font-weight:700">'+money(rec)+'</span></div>'
+      +'<div class="pr tot"><label>Còn lại</label><span style="color:'+(owed>0?'#B85C4A':'#3A6037')+';font-weight:700">'+(owed>0?money(owed):'✓ Đã thu đủ')+'</span></div>'
+    +'</div>'
+    +(b.notes?'<div class="bk-note" style="margin-top:10px">📝 <span>'+b.notes.replace(/</g,'&lt;')+'</span></div>':'')
+    +'<div class="mfoot"><button class="btn btn-out" onclick="closeModal()">Đóng</button>'+(!isStaff?'<button class="btn btn-gold" onclick="closeModal();openEditBK('+b.id+')">✏️ Sửa</button>':'')+'</div>'
+  );
+}
 function openEditBK(id) {
   const b=BOOKINGS.find(x=>x.id===id); if(!b)return;
   const homeOpts=HOMES.map(h=>'<option value="'+h.id+'"'+(h.id===b.homeId?' selected':'')+'>'+h.emoji+' '+h.name+' — '+money(h.price)+'/đêm</option>').join('');
