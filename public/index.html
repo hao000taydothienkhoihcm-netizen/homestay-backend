@@ -417,16 +417,10 @@ textarea.fc{resize:vertical;min-height:60px}
         <h1 style="font-size:22px;color:#5C4E38">HomeStay Manager</h1>
         <p style="font-size:11px;color:var(--t3);margin-top:3px">Quản lý homestay chuyên nghiệp</p>
       </div>
-      <div class="fg"><label class="fl">Tên đăng nhập</label><input class="fc" id="l-un" placeholder="username..." onkeydown="if(event.key==='Enter')doLogin()"/></div>
-      <div class="fg"><label class="fl">Mật khẩu</label><input type="password" class="fc" id="l-pw" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"/></div>
+      <div class="fg"><label class="fl">Tên đăng nhập</label><input class="fc" id="l-un" value="admin" placeholder="username..." onkeydown="if(event.key==='Enter')doLogin()"/></div>
+      <div class="fg"><label class="fl">Mật khẩu</label><input type="password" class="fc" id="l-pw" value="admin123" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"/></div>
       <button class="login-btn" onclick="doLogin()">Đăng nhập →</button>
       <div id="l-err" style="color:var(--red);font-size:12px;margin-top:8px;text-align:center"></div>
-      <div style="margin-top:16px;padding:12px;background:#F1EEE3;border-radius:8px;border:1px solid rgba(124,106,78,0.2)">
-        <p style="font-size:10px;color:var(--t3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">Tài khoản demo</p>
-        <div style="display:flex;justify-content:space-between;font-size:11px;padding:2px 0"><span style="color:var(--t2)">Admin</span><code style="color:#7C6A4E">admin / admin123</code></div>
-        <div style="display:flex;justify-content:space-between;font-size:11px;padding:2px 0"><span style="color:var(--t2)">Quản lý</span><code style="color:#7C6A4E">manager / manager123</code></div>
-        <div style="display:flex;justify-content:space-between;font-size:11px;padding:2px 0"><span style="color:var(--t2)">Quản gia</span><code style="color:#7C6A4E">quanggia / qg123</code></div>
-      </div>
     </div>
   </div>
 </div>
@@ -2021,8 +2015,8 @@ function openAddBK() {
     +'<div style="font-size:10px;color:var(--t3);margin-top:2px">Đã chọn: <span id="bk-co-lbl" style="color:#5C4E38;font-weight:600">'+fD(defCO)+'</span></div></div>'
     +'<div class="fg" style="margin-bottom:0"><label class="fl">Giờ trả</label><select class="fc" id="bk-cot">'+timeOutOpts+'</select></div>'
     +'</div><div id="bk-prev">'+pricePreview(HOMES[0]?.id,todayS,defCO,0)+'</div></div>'
-    +((CU&&CU.role==='admin')?('<div class="fr2"><div class="fg"><label class="fl">Tiền cọc (đ)</label><input type="text" inputmode="numeric" class="fc" id="bk-dep" value="" placeholder="Nhập số tiền cọc..." oninput="fmtNumInput(this);updPrev()"/></div>'
-    +'<div class="fg"><label class="fl">Giảm giá (đ)</label><input type="text" inputmode="numeric" class="fc" id="bk-disc" value="" placeholder="VD: 100.000" oninput="fmtNumInput(this);updPrev()"/></div></div>'):'<div style="font-size:11px;color:var(--t3);margin-bottom:10px">💡 Tiền cọc / giảm giá do quản trị viên (admin) nhập.</div>')
+    +('<div class="fr2"><div class="fg"><label class="fl">Tiền cọc (đ)</label><input type="text" inputmode="numeric" class="fc" id="bk-dep" value="" placeholder="Nhập số tiền cọc..." oninput="fmtNumInput(this);updPrev()"/></div>'
+    +'<div class="fg"><label class="fl">Giảm giá (đ)</label><input type="text" inputmode="numeric" class="fc" id="bk-disc" value="" placeholder="VD: 100.000" oninput="fmtNumInput(this);updPrev()"/></div></div>')
     +'<div class="fr2">'
     +'<div class="fg"><label class="fl">Trạng thái</label><select class="fc" id="bk-st"><option value="confirmed">Đã đặt</option><option value="checkedin">Đang ở (đã nhận nhà)</option>'+((CU&&CU.role==='admin')?'<option value="checkedout">Đã trả (nhập bù)</option>':'')+'</select>'+((CU&&CU.role==='admin')?'<div style="font-size:10px;color:var(--t3);margin-top:2px">Chọn "Đang ở" hoặc "Đã trả" sẽ ghi nhận đã thu đủ tiền phòng vào Thống kê</div>':'')+'</div></div>'
     +'<div class="fg"><label class="fl">Ghi chú</label><textarea class="fc" id="bk-note" placeholder="Yêu cầu đặc biệt..."></textarea></div>'
@@ -2099,8 +2093,8 @@ function openEditBK(id) {
     +'<div style="font-size:10px;color:var(--t3);margin-top:2px">Đã chọn: <span id="e-co-lbl" style="color:#5C4E38;font-weight:600">'+fD(b.checkOut)+'</span></div></div>'
     +'<div class="fg" style="margin-bottom:0"><label class="fl">Giờ trả</label><select class="fc" id="e-cot">'+toOpts+'</select></div>'
     +'</div><div id="ebk-prev">'+pricePreview(b.homeId,b.checkIn,b.checkOut,b.deposit||0,b.discount||0)+'</div></div>'
-    +((CU&&CU.role==='admin')?('<div class="fr2"><div class="fg"><label class="fl">Tiền cọc (đ)</label><input type="text" inputmode="numeric" class="fc" id="e-dep" value="'+numVal(b.deposit||0)+'" placeholder="Nhập số tiền cọc..." oninput="fmtNumInput(this);updEPrev()"/></div>'
-    +'<div class="fg"><label class="fl">Giảm giá (đ)</label><input type="text" inputmode="numeric" class="fc" id="e-disc" value="'+numVal(b.discount||0)+'" placeholder="VD: 100.000" oninput="fmtNumInput(this);updEPrev()"/></div></div>'):('<div style="background:#F1EEE3;border-radius:8px;padding:9px 12px;margin-bottom:10px;font-size:12px;color:var(--t2);display:flex;justify-content:space-between"><span>Tiền cọc: <strong>'+money(b.deposit||0)+'</strong></span><span>Giảm giá: <strong>'+money(b.discount||0)+'</strong></span></div><div style="font-size:11px;color:var(--t3);margin-bottom:10px">💡 Chỉ admin sửa được tiền.</div>'))
+    +('<div class="fr2"><div class="fg"><label class="fl">Tiền cọc (đ)</label><input type="text" inputmode="numeric" class="fc" id="e-dep" value="'+numVal(b.deposit||0)+'" placeholder="Nhập số tiền cọc..." oninput="fmtNumInput(this);updEPrev()"/></div>'
+    +'<div class="fg"><label class="fl">Giảm giá (đ)</label><input type="text" inputmode="numeric" class="fc" id="e-disc" value="'+numVal(b.discount||0)+'" placeholder="VD: 100.000" oninput="fmtNumInput(this);updEPrev()"/></div></div>')
     +'<div class="fr2"><div class="fg"><label class="fl">Trạng thái</label><select class="fc" id="e-st">'+stOpts+'</select></div><div class="fg"></div></div>'
     +'<div class="fg"><label class="fl">Ghi chú</label><textarea class="fc" id="e-note">'+( b.notes||'')+'</textarea></div>'
     +'<div class="mfoot"><button class="btn btn-out" onclick="closeModal()">Hủy</button><button class="btn btn-gold" onclick="updateBK('+b.id+')">Cập nhật</button></div>'
