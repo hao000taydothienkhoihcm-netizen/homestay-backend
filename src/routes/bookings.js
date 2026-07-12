@@ -226,19 +226,22 @@ router.patch('/:id', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
     updateData.totalAmount = stayTotal(home, updateData.checkIn || existing.checkIn, updateData.checkOut || existing.checkOut);
   }
 
-  // Xác nhận booking sang Đã nhận / Đã trả (nhập bù) → ghi nhận đã thu đủ tiền phòng
-  // nếu trước đó chưa thu (paidAtCheckIn = 0), để doanh thu vào mục Thống kê.
-  if (status === 'CHECKEDIN' || status === 'CHECKEDOUT') {
+  // Trạng thái hiệu lực sau cập nhật (client gửi status mới, hoặc giữ nguyên).
+  const effStatus = status || existing.status;
+
+  // Booking đã Nhận / đã Trả: "thu khi nhận nhà" = tiền phòng sau giảm giá, trừ cọc.
+  // TÍNH LẠI mỗi khi tiền phòng / giảm giá / cọc thay đổi, để số liệu không bị lệch.
+  // (Trước đây chỉ tính khi paidAtCheckIn = 0 → sửa giảm giá SAU check-in bị sai số.)
+  if (effStatus === 'CHECKEDIN' || effStatus === 'CHECKEDOUT') {
     const total = updateData.totalAmount != null ? updateData.totalAmount : existing.totalAmount;
     const dep = updateData.deposit != null ? updateData.deposit : (existing.deposit || 0);
     const disc = updateData.discount != null ? updateData.discount : (existing.discount || 0);
-    if (!existing.paidAtCheckIn) {
-      updateData.paidAtCheckIn = Math.max(0, total - disc - dep);
-    }
+    updateData.paidAtCheckIn = Math.max(0, total - disc - dep);
+
     if (!existing.actualCheckIn) {
       updateData.actualCheckIn = updateData.checkIn || existing.checkIn;
     }
-    if (status === 'CHECKEDOUT' && !existing.actualCheckOut) {
+    if (effStatus === 'CHECKEDOUT' && !existing.actualCheckOut) {
       updateData.actualCheckOut = updateData.checkOut || existing.checkOut;
     }
   }
