@@ -300,12 +300,20 @@ router.post('/:id/checkout', async (req, res) => {
   const id = parseInt(req.params.id);
   const { actualTime, water, inspectionNote, charges } = req.body;
 
-  // Chỉ ADMIN được thêm/sửa phụ thu & phạt. MANAGER, STAFF: giữ nguyên phụ thu cũ (admin nhập sau).
+  const existing = await prisma.booking.findUnique({ where: { id } });
+  if (!existing) return res.status(404).json({ error: 'Không tìm thấy booking' });
+
+  // Ai được thêm/sửa phụ thu: ADMIN luôn được; MANAGER & STAFF chỉ được ĐÚNG NGÀY trả nhà (giờ VN), không qua hôm sau.
   const isAdmin = req.user.role === 'ADMIN';
-  const chargesArr = (isAdmin && Array.isArray(charges)) ? charges : [];
+  const vnToday = new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 10);
+  const refDate = (existing.status === 'CHECKEDOUT' && existing.actualCheckOut) ? existing.actualCheckOut : existing.checkOut;
+  const checkoutDay = refDate ? new Date(refDate).toISOString().slice(0, 10) : null;
+  const canEditCharges = isAdmin || (checkoutDay && vnToday === checkoutDay);
+
+  const chargesArr = (canEditCharges && Array.isArray(charges)) ? charges : [];
   const chargesTotal = chargesArr.reduce((s, c) => s + (parseInt(c.unit) || 0) * (parseInt(c.qty) || 1), 0);
 
-  // Transaction: (admin) xóa charges cũ + tạo mới, rồi update booking
+  // Transaction: (nếu được phép) xóa charges cũ + tạo mới, rồi update booking
   const updated = await prisma.$transaction(async (tx) => {
     const data = {
       status: 'CHECKEDOUT',
@@ -313,7 +321,7 @@ router.post('/:id/checkout', async (req, res) => {
       waterMeter: water ? parseFloat(water) : null,
       inspectionNote: inspectionNote || null
     };
-    if (isAdmin) {
+    if (canEditCharges) {
       await tx.charge.deleteMany({ where: { bookingId: id } });
       if (chargesArr.length) {
         await tx.charge.createMany({
