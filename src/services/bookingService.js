@@ -77,16 +77,20 @@ export function stayTotal(home, checkIn, checkOut) {
 }
 
 /**
- * Tổng tiền thực đã thu vào tay
+ * Tổng tiền thực đã thu vào tay.
+ * Phụ thu (chargesTotal) chỉ tính là ĐÃ THU khi khách đã trả nhà (CHECKEDOUT);
+ * trước đó phụ thu là khoản khách CÒN NỢ, chưa vào doanh thu.
  */
 export function actualReceived(b) {
-  return (b.deposit || 0) + (b.paidAtCheckIn || 0) + (b.chargesTotal || 0);
+  const ch = b.status === 'CHECKEDOUT' ? (b.chargesTotal || 0) : 0;
+  return (b.deposit || 0) + (b.paidAtCheckIn || 0) + ch;
 }
 
 /**
- * Tiền còn phải thu (khi chưa nhận nhà)
+ * Tiền còn phải thu (khi chưa trả nhà).
+ * Gồm cả phụ thu (kê nệm, dọn dẹp...) — khách trả khi trả nhà.
  */
 export function stillOwed(b) {
   if (b.status === 'CHECKEDOUT') return 0;
-  return Math.max(0, b.totalAmount - (b.discount || 0) - (b.deposit || 0) - (b.paidAtCheckIn || 0));
+  return Math.max(0, b.totalAmount - (b.discount || 0) + (b.chargesTotal || 0) - (b.deposit || 0) - (b.paidAtCheckIn || 0));
 }
