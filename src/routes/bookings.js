@@ -78,7 +78,7 @@ router.get('/:id', async (req, res) => {
 // ───── CREATE ─────
 router.post('/', requireRole('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
   const { guest, phone, homeId, checkIn, checkOut, checkInTime, checkOutTime,
-          guests, deposit, discount, notes, status } = req.body;
+          guests, deposit, discount, notes, status, charges } = req.body;
 
   if (!guest || !phone || !homeId || !checkIn || !checkOut) {
     return res.status(400).json({ error: 'Thiếu thông tin bắt buộc' });
@@ -115,6 +115,20 @@ router.post('/', requireRole('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
   const dep = parseInt(deposit) || 0;
   const disc = Math.max(0, parseInt(discount) || 0);
   const st = status || 'CONFIRMED';
+
+  // Phụ thu (kê nệm, dọn dẹp...) — mọi quyền được nhập khi tạo booking.
+  const chargesArr = Array.isArray(charges)
+    ? charges
+        .filter(c => c && c.name && (parseInt(c.unit) || 0) > 0)
+        .map(c => ({
+          name: String(c.name).trim(),
+          unit: parseInt(c.unit) || 0,
+          qty: parseInt(c.qty) || 1,
+          amount: (parseInt(c.unit) || 0) * (parseInt(c.qty) || 1)
+        }))
+    : [];
+  const chargesTotal = chargesArr.reduce((s, c) => s + c.amount, 0);
+
   const data = {
     guest, phone, homeId: parseInt(homeId),
     checkIn: new Date(checkIn), checkInTime: checkInTime || '14:00',
@@ -124,8 +138,12 @@ router.post('/', requireRole('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
     discount: disc,
     deposit: dep,
     status: st,
+    chargesTotal,
     notes: notes || null
   };
+  if (chargesArr.length) {
+    data.charges = { create: chargesArr };
+  }
   // Nhập bù lịch sử: tạo booking đã nhận / đã trả → ghi nhận đã thu đủ tiền phòng
   // (sau khi trừ giảm giá) để doanh thu vào thẳng mục Thống kê.
   if (st === 'CHECKEDIN' || st === 'CHECKEDOUT') {
@@ -150,7 +168,7 @@ router.patch('/:id', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
   if (!existing) return res.status(404).json({ error: 'Không tìm thấy' });
 
   const { guest, phone, homeId, checkIn, checkOut, checkInTime, checkOutTime,
-          guests, deposit, discount, notes, status } = req.body;
+          guests, deposit, discount, notes, status, charges } = req.body;
 
   // Conflict check khi đổi ngày hoặc nhà
   if (homeId && checkIn && checkOut) {
@@ -188,6 +206,20 @@ router.patch('/:id', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
   if (notes !== undefined) updateData.notes = notes;
   if (status) updateData.status = status;
 
+  // Phụ thu: nếu client gửi mảng charges → thay toàn bộ + tính lại chargesTotal.
+  let chargesArr = null;
+  if (Array.isArray(charges)) {
+    chargesArr = charges
+      .filter(c => c && c.name && (parseInt(c.unit) || 0) > 0)
+      .map(c => ({
+        name: String(c.name).trim(),
+        unit: parseInt(c.unit) || 0,
+        qty: parseInt(c.qty) || 1,
+        amount: (parseInt(c.unit) || 0) * (parseInt(c.qty) || 1)
+      }));
+    updateData.chargesTotal = chargesArr.reduce((s, c) => s + c.amount, 0);
+  }
+
   // Recalculate totalAmount nếu đổi ngày/nhà
   if (homeId || checkIn || checkOut) {
     const home = await prisma.home.findUnique({ where: { id: updateData.homeId || existing.homeId } });
@@ -211,10 +243,25 @@ router.patch('/:id', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
     }
   }
 
-  const booking = await prisma.booking.update({
-    where: { id }, data: updateData,
-    include: { home: true, charges: true }
-  });
+  let booking;
+  if (chargesArr !== null) {
+    // Thay charges cũ bằng danh sách mới trong 1 transaction.
+    booking = await prisma.$transaction(async (tx) => {
+      await tx.charge.deleteMany({ where: { bookingId: id } });
+      if (chargesArr.length) {
+        await tx.charge.createMany({ data: chargesArr.map(c => ({ bookingId: id, ...c })) });
+      }
+      return tx.booking.update({
+        where: { id }, data: updateData,
+        include: { home: true, charges: true }
+      });
+    });
+  } else {
+    booking = await prisma.booking.update({
+      where: { id }, data: updateData,
+      include: { home: true, charges: true }
+    });
+  }
   res.json(booking);
 });
 
