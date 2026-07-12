@@ -799,17 +799,27 @@ function setLoading(on) {
 function actualReceived(b) {
   var dep = b.deposit||0;
   var ci  = b.paidAtCheckIn||0;  // thu khi nhận nhà
-  var ch  = b.chargesTotal||0;   // phụ thu khi trả
+  // Phụ thu chỉ tính là ĐÃ THU khi khách đã trả nhà (checkedout)
+  var ch  = b.status==='checkedout' ? (b.chargesTotal||0) : 0;
   // Nếu chưa có paidAtCheckIn nhưng đã checkedout → toàn bộ đã thu (sau giảm giá)
   if (b.status==='checkedout' && !b.paidAtCheckIn && ci===0) {
     ci = Math.max(0, b.totalAmount - (b.discount||0) - dep);
   }
   return dep + ci + ch;
 }
-// Còn lại chưa thu (chưa nhận nhà)
+// Còn lại chưa thu (gồm cả phụ thu — khách trả khi trả nhà)
 function stillOwed(b) {
   if (b.status==='checkedout') return 0;
-  return Math.max(0, b.totalAmount - (b.discount||0) - (b.deposit||0) - (b.paidAtCheckIn||0));
+  return Math.max(0, b.totalAmount - (b.discount||0) + (b.chargesTotal||0) - (b.deposit||0) - (b.paidAtCheckIn||0));
+}
+// Booking "quá khứ" = đã trả xong (ngày trả trước hôm nay)
+function isPastBK(b) { return b && b.checkOut < todayS; }
+// Ai được sửa/xoá booking: admin luôn được; quản lý chỉ với booking chưa qua (hiện tại/tương lai); nhân viên không được
+function canEditBK(b) {
+  if (!CU) return false;
+  if (CU.role === 'admin') return true;
+  if (CU.role === 'manager') return !isPastBK(b);
+  return false;
 }
 const TIME_IN=['10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00','22:00'];
 const TIME_OUT=['10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00'];
@@ -1943,7 +1953,7 @@ function bkCards(list) {
     } else if (b.status==='checkedout' && CU && CU.role==='admin') {
       h += '<button class="btn btn-amber btn-sm" onclick="openCO('+b.id+')">💵 Phụ thu/Phạt</button>';
     }
-    if (CU && CU.role!=='staff') {
+    if (canEditBK(b)) {
       h += '<button class="btn btn-out btn-sm" onclick="openEditBK('+b.id+')">✏️ Sửa</button>';
       h += '<button class="btn btn-danger btn-sm" onclick="delBK('+b.id+')">🗑</button>';
     }
@@ -1983,7 +1993,7 @@ function bkRows(list) {
     if (isCI) t += '<button class="btn btn-xs btn-amber" onclick="openCI('+b.id+')" title="Nhận nhà">📋</button>';
     if (isCO || b.status==='checkedin') t += '<button class="btn btn-xs btn-ok" onclick="openCO('+b.id+')" title="Trả nhà">🔑</button>';
     if (b.status==='checkedout' && CU && CU.role==='admin') t += '<button class="btn btn-xs btn-amber" onclick="openCO('+b.id+')" title="Thêm phụ thu/phạt">💵</button>';
-    if (CU && CU.role!=='staff') {
+    if (canEditBK(b)) {
       t += '<button class="btn btn-xs btn-out" onclick="openEditBK('+b.id+')" title="Sửa">✏️</button>';
       t += '<button class="btn btn-xs btn-danger" onclick="delBK('+b.id+')" title="Xóa">🗑</button>';
     }
@@ -1995,6 +2005,53 @@ function bkRows(list) {
 
 // Backward compatibility
 function fbk() { applyBkFilters(); }
+
+/* ═══════════ PHỤ THU (charges) trong form booking ═══════════ */
+function chRowHTML(p, name, unit, qty) {
+  name = name||''; unit = unit||0; qty = qty||1;
+  return '<div class="ch-row" style="display:flex;gap:6px;align-items:center;margin-bottom:6px">'
+    +'<input class="fc ch-name" style="flex:2;margin:0" placeholder="Tên (kê nệm...)" value="'+String(name).replace(/"/g,'&quot;')+'" maxlength="60"/>'
+    +'<input class="fc ch-unit" style="flex:1.3;margin:0" inputmode="numeric" placeholder="Đơn giá" value="'+(unit?numVal(unit):'')+'" oninput="fmtNumInput(this);chCalc(&#39;'+p+'&#39;)"/>'
+    +'<input class="fc ch-qty" style="width:52px;margin:0;text-align:center" inputmode="numeric" placeholder="SL" value="'+qty+'" oninput="this.value=this.value.replace(/[^0-9]/g,&#39;&#39;);chCalc(&#39;'+p+'&#39;)"/>'
+    +'<button type="button" class="btn btn-out" style="padding:6px 9px;margin:0" onclick="this.parentNode.remove();chCalc(&#39;'+p+'&#39;)">✕</button>'
+    +'</div>';
+}
+function chSectionHTML(p, list) {
+  var rows = (list||[]).map(function(c){ return chRowHTML(p, c.name, c.unit, c.qty); }).join('');
+  var tot = (list||[]).reduce(function(s,c){ return s+(c.amount||((c.unit||0)*(c.qty||1))); },0);
+  return '<div class="tbox"><div class="tbox-t">➕ Phụ thu / Phát sinh</div>'
+    +'<div style="font-size:10px;color:var(--t3);margin-bottom:6px">Kê nệm, dọn dẹp... (nếu có). Khách trả khi trả nhà.</div>'
+    +'<div id="'+p+'-ch-list">'+rows+'</div>'
+    +'<button type="button" class="btn btn-out" style="width:100%;margin-top:4px" onclick="chAdd(&#39;'+p+'&#39;)">+ Thêm phụ thu</button>'
+    +'<div style="display:flex;justify-content:space-between;margin-top:8px;font-size:12px"><span style="color:var(--t2);font-weight:600">Tổng phụ thu</span><span id="'+p+'-ch-tot" style="color:#3A6037;font-weight:700">'+(tot>0?money(tot):'—')+'</span></div>'
+    +'</div>';
+}
+function chAdd(p) {
+  var box = document.getElementById(p+'-ch-list');
+  if (box) box.insertAdjacentHTML('beforeend', chRowHTML(p));
+}
+function chCalc(p) {
+  var box = document.getElementById(p+'-ch-list'); if (!box) return;
+  var tot = 0;
+  box.querySelectorAll('.ch-row').forEach(function(r){
+    var u = parseNum(r.querySelector('.ch-unit') && r.querySelector('.ch-unit').value);
+    var q = parseInt(r.querySelector('.ch-qty') && r.querySelector('.ch-qty').value)||1;
+    tot += u*q;
+  });
+  var lbl = document.getElementById(p+'-ch-tot');
+  if (lbl) lbl.textContent = tot>0 ? money(tot) : '—';
+}
+function chCollect(p) {
+  var box = document.getElementById(p+'-ch-list'); if (!box) return [];
+  var out = [];
+  box.querySelectorAll('.ch-row').forEach(function(r){
+    var name = ((r.querySelector('.ch-name') && r.querySelector('.ch-name').value)||'').trim();
+    var unit = parseNum(r.querySelector('.ch-unit') && r.querySelector('.ch-unit').value);
+    var qty = parseInt(r.querySelector('.ch-qty') && r.querySelector('.ch-qty').value)||1;
+    if (name && unit>0) out.push({ name: name, unit: unit, qty: qty });
+  });
+  return out;
+}
 
 /* ═══════════ ADD/EDIT BOOKING MODAL ═══════════ */
 function openAddBK() {
@@ -2028,6 +2085,7 @@ function openAddBK() {
     +'<div class="fg"><label class="fl">Giảm giá (đ)</label><input type="text" inputmode="numeric" class="fc" id="bk-disc" value="" placeholder="VD: 100.000" oninput="fmtNumInput(this);updPrev()"/></div></div>')
     +'<div class="fr2">'
     +'<div class="fg"><label class="fl">Trạng thái</label><select class="fc" id="bk-st"><option value="confirmed">Đã đặt</option><option value="checkedin">Đang ở (đã nhận nhà)</option>'+((CU&&CU.role==='admin')?'<option value="checkedout">Đã trả (nhập bù)</option>':'')+'</select>'+((CU&&CU.role==='admin')?'<div style="font-size:10px;color:var(--t3);margin-top:2px">Chọn "Đang ở" hoặc "Đã trả" sẽ ghi nhận đã thu đủ tiền phòng vào Thống kê</div>':'')+'</div></div>'
+    +chSectionHTML('bk', [])
     +'<div class="fg"><label class="fl">Ghi chú</label><textarea class="fc" id="bk-note" placeholder="Yêu cầu đặc biệt..."></textarea></div>'
     +'<div class="mfoot"><button class="btn btn-out" onclick="closeModal()">Hủy</button><button class="btn btn-gold" onclick="saveBK()">Tạo booking</button></div>'
   );
@@ -2062,6 +2120,7 @@ async function saveBK() {
       deposit: parseNum(document.getElementById('bk-dep')?.value),
       discount: parseNum(document.getElementById('bk-disc')?.value),
       status: STATUS_UI_TO_API[document.getElementById('bk-st')?.value||'confirmed'],
+      charges: chCollect('bk'),
       notes: document.getElementById('bk-note')?.value||''
     };
     await api.post('/bookings', payload);
@@ -2084,7 +2143,9 @@ function openBKDetail(id) {
   const ciPaid = b.paidAtCheckIn||0;
   const rec = actualReceived(b);
   const owed = stillOwed(b);
-  const isStaff = !(CU && (CU.role==='admin' || CU.role==='manager'));
+  const chList = b.charges || [];
+  const chTot = chList.reduce((s,c)=>s+(c.amount||0),0);
+  const canEd = canEditBK(b);
   const stLabel = SL[b.status] || b.status;
   showModal(
     '<div class="mh"><div class="mt2">📋 Chi tiết Booking #'+b.id+'</div><button class="mc" onclick="closeModal()">✕</button></div>'
@@ -2105,12 +2166,18 @@ function openBKDetail(id) {
       +'<div class="pr"><label>Tổng đã thu</label><span style="color:#3A6037;font-weight:700">'+money(rec)+'</span></div>'
       +'<div class="pr tot"><label>Còn lại</label><span style="color:'+(owed>0?'#B85C4A':'#3A6037')+';font-weight:700">'+(owed>0?money(owed):'✓ Đã thu đủ')+'</span></div>'
     +'</div>'
+    +(chList.length?('<div class="paybox" style="margin-top:10px">'
+      +'<div class="pr" style="border-bottom:1px solid rgba(124,106,78,0.15);padding-bottom:6px"><label style="font-weight:700;color:#B85C4A">💵 Phụ thu / Phạt</label><span style="color:var(--t3);font-size:11px">'+chList.length+' khoản</span></div>'
+      +chList.map(function(c){return '<div class="pr"><label>'+String(c.name||'Khoản phụ thu').replace(/</g,'&lt;')+((c.qty&&c.qty>1)?' <span style="color:var(--t3);font-size:11px">('+money(c.unit||0)+' × '+c.qty+')</span>':'')+'</label><span style="color:#B85C4A;font-weight:600">+'+money(c.amount||0)+'</span></div>';}).join('')
+      +'<div class="pr tot"><label>Tổng phụ thu</label><span style="color:#B85C4A;font-weight:700">+'+money(chTot)+'</span></div>'
+    +'</div>'):'')
     +(b.notes?'<div class="bk-note" style="margin-top:10px">📝 <span>'+b.notes.replace(/</g,'&lt;')+'</span></div>':'')
-    +'<div class="mfoot"><button class="btn btn-out" onclick="closeModal()">Đóng</button>'+(!isStaff?'<button class="btn btn-gold" onclick="closeModal();openEditBK('+b.id+')">✏️ Sửa</button>':'')+'</div>'
+    +'<div class="mfoot"><button class="btn btn-out" onclick="closeModal()">Đóng</button>'+(canEd?'<button class="btn btn-gold" onclick="closeModal();openEditBK('+b.id+')">✏️ Sửa</button>':'')+'</div>'
   );
 }
 function openEditBK(id) {
   const b=BOOKINGS.find(x=>x.id===id); if(!b)return;
+  if(!canEditBK(b)){toast('Chỉ admin mới sửa được booking đã trả (quá khứ)','warn');return;}
   const homeOpts=HOMES.map(h=>'<option value="'+h.id+'"'+(h.id===b.homeId?' selected':'')+'>'+h.emoji+' '+h.name+' — '+money(h.price)+'/đêm</option>').join('');
   const tiOpts=TIME_IN.map(t=>'<option'+(t===b.checkInTime?' selected':'')+'>'+t+'</option>').join('');
   const toOpts=TIME_OUT.map(t=>'<option'+(t===b.checkOutTime?' selected':'')+'>'+t+'</option>').join('');
@@ -2138,6 +2205,7 @@ function openEditBK(id) {
     +('<div class="fr2"><div class="fg"><label class="fl">Tiền cọc (đ)</label><input type="text" inputmode="numeric" class="fc" id="e-dep" value="'+numVal(b.deposit||0)+'" placeholder="Nhập số tiền cọc..." oninput="fmtNumInput(this);updEPrev()"/></div>'
     +'<div class="fg"><label class="fl">Giảm giá (đ)</label><input type="text" inputmode="numeric" class="fc" id="e-disc" value="'+numVal(b.discount||0)+'" placeholder="VD: 100.000" oninput="fmtNumInput(this);updEPrev()"/></div></div>')
     +'<div class="fr2"><div class="fg"><label class="fl">Trạng thái</label><select class="fc" id="e-st">'+stOpts+'</select></div><div class="fg"></div></div>'
+    +chSectionHTML('e', b.charges||[])
     +'<div class="fg"><label class="fl">Ghi chú</label><textarea class="fc" id="e-note">'+( b.notes||'')+'</textarea></div>'
     +'<div class="mfoot"><button class="btn btn-out" onclick="closeModal()">Hủy</button><button class="btn btn-gold" onclick="updateBK('+b.id+')">Cập nhật</button></div>'
   );
@@ -2179,6 +2247,7 @@ async function updateBK(id) {
       deposit: parseNum(document.getElementById('e-dep')?.value),
       discount: parseNum(document.getElementById('e-disc')?.value),
       status: STATUS_UI_TO_API[document.getElementById('e-st')?.value || b.status],
+      charges: chCollect('e'),
       notes: document.getElementById('e-note')?.value || ''
     };
     await api.patch('/bookings/' + id, payload);
@@ -2196,6 +2265,7 @@ async function updateBK(id) {
 async function delBK(id) {
   const b = BOOKINGS.find(function(x){ return x.id===id; });
   if (!b) return;
+  if(!canEditBK(b)){toast('Chỉ admin mới xoá được booking đã trả (quá khứ)','warn');return;}
   const dep = b.deposit||0;
   if (b.status === 'checkedin') {
     if (!confirm('Booking của ' + b.guest + ' đang ở trong nhà. Bạn chắc muốn xóa?')) return;
