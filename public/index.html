@@ -2599,6 +2599,88 @@ function setStatRange() {
   setPage('statistics');
 }
 
+function openHomePerf(id) {
+  var hm = HOMES.find(function(x){return x.id===id;});
+  if (!hm) return;
+  var P = window._statPeriod || {bkInPeriod:[], expInPeriod:[], periodLabel:''};
+  var bks = P.bkInPeriod.filter(function(b){return b.homeId===id;});
+  var exps = P.expInPeriod.filter(function(e){return e.homeId===id;});
+
+  // Thu: bóc tách tiền phòng / cọc / phụ thu (giống mục thống kê chung)
+  var incCoc=0, incPhong=0, incPhu=0, received=0;
+  bks.forEach(function(b){
+    var dep=b.deposit||0, ci=b.paidAtCheckIn||0, ch=b.chargesTotal||0;
+    if (b.status==='checkedout' && !b.paidAtCheckIn && ci===0) ci=Math.max(0, b.totalAmount-(b.discount||0)-dep);
+    incCoc+=dep; incPhong+=ci; incPhu+=ch;
+    received+=actualReceived(b);
+  });
+  var totalExp = exps.reduce(function(s,e){return s+e.amount;},0);
+  var profit = received - totalExp;
+  var nightsSum = bks.reduce(function(s,b){return s+nights(b.checkIn,b.checkOut);},0);
+
+  var incItems=[
+    {name:'🏠 Tiền phòng', amt:incPhong, col:'#3A6037'},
+    {name:'🔑 Tiền cọc', amt:incCoc, col:'#A07840'},
+    {name:'➕ Phụ thu & phạt', amt:incPhu, col:'#7A6890'}
+  ];
+  var catColors = {'Điện nước':'#5A7A96','Dọn dẹp':'#5E7E5B','Sửa chữa':'#A07840','Vật tư':'#7A6890','Lương':'#B85C4A','Khác':'#B5A48A'};
+  var byCat = {};
+  exps.forEach(function(e){byCat[e.cat]=(byCat[e.cat]||0)+e.amount;});
+  var catEntries = Object.entries(byCat).sort(function(a,b){return b[1]-a[1];});
+
+  var h = '<div class="mh"><div class="mt2">' + hm.emoji + ' ' + hm.name + '</div><button class="mc" onclick="closeModal()">✕</button></div>';
+  h += '<div style="font-size:12px;color:var(--t3);margin:2px 0 14px">Thu chi · ' + (P.periodLabel||'') + '</div>';
+
+  // Summary 3 ô
+  h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">';
+  h += '<div style="background:#F8F4EC;border:1px solid rgba(124,106,78,0.15);border-left:3px solid #3A6037;border-radius:10px;padding:11px 13px"><div style="font-size:10.5px;color:var(--t3);text-transform:uppercase;letter-spacing:0.6px;font-weight:600;margin-bottom:3px">💵 Thực thu</div><div style="font-size:17px;font-weight:800;color:#3A6037;font-variant-numeric:tabular-nums">'+money(received)+'</div></div>';
+  h += '<div style="background:#F8F4EC;border:1px solid rgba(124,106,78,0.15);border-left:3px solid #B85C4A;border-radius:10px;padding:11px 13px"><div style="font-size:10.5px;color:var(--t3);text-transform:uppercase;letter-spacing:0.6px;font-weight:600;margin-bottom:3px">💸 Chi phí</div><div style="font-size:17px;font-weight:800;color:#B85C4A;font-variant-numeric:tabular-nums">'+money(totalExp)+'</div></div>';
+  h += '<div style="background:#F8F4EC;border:1px solid rgba(124,106,78,0.15);border-left:3px solid '+(profit>=0?'#3A6037':'#B85C4A')+';border-radius:10px;padding:11px 13px"><div style="font-size:10.5px;color:var(--t3);text-transform:uppercase;letter-spacing:0.6px;font-weight:600;margin-bottom:3px">📈 Lợi nhuận</div><div style="font-size:17px;font-weight:800;color:'+(profit>=0?'#3A6037':'#B85C4A')+';font-variant-numeric:tabular-nums">'+(profit>0?'+':'')+money(profit)+'</div></div>';
+  h += '</div>';
+  h += '<div style="font-size:11.5px;color:var(--t3);margin-bottom:16px">'+bks.length+' booking · '+nightsSum+' đêm'+(nightsSum?' · '+money(received/nightsSum)+'/đêm':'')+'</div>';
+
+  // Khoản THU — từng booking
+  h += '<div style="font-size:12px;font-weight:700;color:#3A6037;margin-bottom:8px">💵 KHOẢN THU · '+bks.length+' booking</div>';
+  if (!bks.length) {
+    h += '<div style="text-align:center;padding:16px;color:var(--t3);font-size:12px">📭 Không có booking</div>';
+  } else {
+    bks.slice().sort(function(a,b){return new Date(b.checkIn)-new Date(a.checkIn);}).forEach(function(b){
+      var rec = actualReceived(b);
+      var n = nights(b.checkIn, b.checkOut);
+      var stLabel = (typeof SL!=='undefined' && SL[b.status]) ? SL[b.status] : b.status;
+      var dep=b.deposit||0, ci=b.paidAtCheckIn||0, ch=b.chargesTotal||0;
+      if (b.status==='checkedout' && !b.paidAtCheckIn && ci===0) ci=Math.max(0, b.totalAmount-(b.discount||0)-dep);
+      var parts=[];
+      if (ci>0) parts.push('Phòng '+money(ci));
+      if (dep>0) parts.push('Cọc '+money(dep));
+      if (ch>0) parts.push('Phụ thu '+money(ch));
+      h += '<div onclick="closeModal();openBKDetail('+b.id+')" style="cursor:pointer;display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid rgba(124,106,78,0.08)">';
+      h += '<div style="min-width:0;flex:1"><div style="font-size:13px;font-weight:600;color:#2E2416">'+b.guest+' <span style="font-size:11px;color:var(--t3);font-weight:400">›</span></div>';
+      h += '<div style="font-size:11px;color:var(--t3);margin-top:2px">'+fD(b.checkIn)+' → '+fD(b.checkOut)+' · '+n+' đêm · '+stLabel+'</div>';
+      if (parts.length) h += '<div style="font-size:10.5px;color:#8A7A5E;margin-top:2px">'+parts.join(' · ')+'</div>';
+      h += '</div>';
+      h += '<div style="font-size:13px;font-weight:700;color:#3A6037;white-space:nowrap;font-variant-numeric:tabular-nums">'+money(rec)+'</div>';
+      h += '</div>';
+    });
+  }
+
+  // Khoản CHI — từng khoản
+  h += '<div style="font-size:12px;font-weight:700;color:#B85C4A;margin:18px 0 8px">💸 KHOẢN CHI'+(exps.length?' · '+exps.length+' khoản':'')+'</div>';
+  if (!exps.length) {
+    h += '<div style="text-align:center;padding:16px;color:var(--t3);font-size:12px">📭 Không có khoản chi</div>';
+  } else {
+    exps.slice().sort(function(a,b){return new Date(b.date)-new Date(a.date);}).forEach(function(e){
+      var col = catColors[e.cat]||'#B5A48A';
+      h += '<div style="display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid rgba(124,106,78,0.08)">';
+      h += '<div style="min-width:0;flex:1"><div style="font-size:13px;font-weight:600;color:#2E2416;display:flex;align-items:center;gap:7px"><span style="width:8px;height:8px;border-radius:50%;background:'+col+';flex-shrink:0"></span>'+(e.desc||e.cat)+'</div>';
+      h += '<div style="font-size:11px;color:var(--t3);margin-top:2px;margin-left:15px">'+fD(e.date)+' · '+e.cat+'</div></div>';
+      h += '<div style="font-size:13px;font-weight:700;color:#B85C4A;white-space:nowrap;font-variant-numeric:tabular-nums">'+money(e.amount)+'</div>';
+      h += '</div>';
+    });
+  }
+  showModal(h);
+}
+
 function renderStatistics() {
   _initStatFilter();
   var allBK = BOOKINGS;
@@ -2723,6 +2805,7 @@ function renderStatistics() {
   var totalReceived = bkInPeriod.reduce(function(s,b){return s+actualReceived(b);},0);
   var totalExp = expInPeriod.reduce(function(s,e){return s+e.amount;},0);
   var totalProfit = totalReceived - totalExp;
+  window._statPeriod = {bkInPeriod: bkInPeriod, expInPeriod: expInPeriod, periodLabel: periodLabel};
   var totalNights = bkInPeriod.reduce(function(s,b){return s+nights(b.checkIn,b.checkOut);},0);
   var avgRevPerBk = bkInPeriod.length ? totalReceived/bkInPeriod.length : 0;
   var profitMargin = totalReceived ? (totalProfit/totalReceived*100) : 0;
@@ -2903,9 +2986,9 @@ function renderStatistics() {
     byHomeP.slice().sort(function(a,b){return b.received-a.received;}).forEach(function(hm,i){
       var pct = maxHR>0?Math.round(hm.received/maxHR*100):0;
       var col = homeColors[i%homeColors.length];
-      h += '<div class="home-perf-card">';
+      h += '<div class="home-perf-card" onclick="openHomePerf('+hm.id+')" style="cursor:pointer" title="Bấm để xem thu chi căn này">';
       h += '<div class="home-perf-head">';
-      h += '<div><div class="home-perf-name">' + hm.emoji + ' ' + hm.name + '</div>';
+      h += '<div><div class="home-perf-name">' + hm.emoji + ' ' + hm.name + ' <span style="font-size:11px;color:var(--t3);font-weight:400">›</span></div>';
       h += '<div class="home-perf-meta">' + hm.cnt + ' booking · ' + hm.nights + ' đêm</div></div>';
       h += '<div><div class="home-perf-amt">' + money(hm.received) + '</div>';
       h += '<div class="home-perf-amt-meta">' + (hm.nights ? money(hm.received/hm.nights)+'/đêm' : '—') + '</div></div>';
