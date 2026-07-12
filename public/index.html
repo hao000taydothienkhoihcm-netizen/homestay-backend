@@ -192,6 +192,7 @@ textarea.fc{resize:vertical;min-height:60px}
 .cal-ev.cin{background:rgba(94,126,91,0.18);color:#3A6037;border-left:2px solid #5E7E5B}
 .cal-ev.cout{background:rgba(184,92,74,0.15);color:#B85C4A;border-left:2px solid #B85C4A}
 .cal-ev.stay{background:rgba(90,122,150,0.12);color:#5A7A96;border-left:2px solid #5A7A96}
+.cal-ev.done{opacity:0.55;filter:grayscale(0.35)}
 
 /* TABS */
 .tabs{display:flex;border-bottom:1px solid rgba(124,106,78,0.2);margin-bottom:15px}
@@ -2503,8 +2504,8 @@ let calY = T.getFullYear(), calM = T.getMonth();
 function renderCalendar() {
   const firstDow = new Date(calY, calM, 1).getDay();
   const daysInMonth = new Date(calY, calM+1, 0).getDate();
-  // Lọc booking hiển thị trên lịch (tất cả trừ checkedout)
-  const vis = BOOKINGS.filter(b => b.status !== 'checkedout');
+  // Hiển thị TẤT CẢ booking trên lịch (kể cả đã trả) để xem được tên khách những ngày đã qua.
+  const vis = BOOKINGS.slice();
 
   let h = '<div class="card">';
   // Nav
@@ -2554,8 +2555,9 @@ function renderCalendar() {
       var parts = ev.b.guest.split(' ');
       var shortName = parts.length>=2 ? (parts[parts.length-2].charAt(0)+'. '+parts[parts.length-1]) : parts[0];
       var icon = ev.t==='cin'?'▶':(ev.t==='cout'?'■':'·');
-      var tip = ev.b.guest+' — '+(hm.name||'?')+' ('+fD(ev.b.checkIn)+' → '+fD(ev.b.checkOut)+')';
-      h += '<div class="cal-ev '+ev.t+'" title="'+tip+'">'+icon+' '+shortName+'</div>';
+      var doneCls = ev.b.status==='checkedout' ? ' done' : '';
+      var tip = ev.b.guest+' — '+(hm.name||'?')+' ('+fD(ev.b.checkIn)+' → '+fD(ev.b.checkOut)+')'+(ev.b.status==='checkedout'?' — đã trả':'');
+      h += '<div class="cal-ev '+ev.t+doneCls+'" title="'+tip+'">'+icon+' '+shortName+'</div>';
     }
     if (evs.length>3) h += '<div style="font-size:9px;color:var(--t3)">+'+( evs.length-3)+' nữa</div>';
     h += '</div>';
@@ -2567,6 +2569,7 @@ function renderCalendar() {
   h += '<span style="font-size:11px;display:flex;align-items:center;gap:5px;color:#3A6037"><span style="width:8px;height:8px;border-radius:50%;background:#5E7E5B;display:inline-block"></span>▶ Nhận nhà</span>';
   h += '<span style="font-size:11px;display:flex;align-items:center;gap:5px;color:#B85C4A"><span style="width:8px;height:8px;border-radius:50%;background:#B85C4A;display:inline-block"></span>■ Trả nhà</span>';
   h += '<span style="font-size:11px;display:flex;align-items:center;gap:5px;color:#5A7A96"><span style="width:8px;height:8px;border-radius:50%;background:#5A7A96;display:inline-block"></span>· Đang ở</span>';
+  h += '<span style="font-size:11px;display:flex;align-items:center;gap:5px;color:#9A8F7C;opacity:0.7"><span style="width:8px;height:8px;border-radius:50%;background:#9A8F7C;display:inline-block"></span>Mờ = đã trả (quá khứ)</span>';
   h += '</div></div>';
   return h;
 }
@@ -3489,7 +3492,7 @@ async function delHome(id){
 function showDayDetail(dateStr) {
   // Lọc booking trong ngày
   var dayBookings = BOOKINGS.filter(function(b){
-    if (b.status === 'checkedout') return false;
+    // Kể cả booking đã trả (quá khứ) để xem lại được lịch sử.
     // Nhận hôm đó
     if (b.checkIn === dateStr) return true;
     // Trả hôm đó
