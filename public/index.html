@@ -795,23 +795,33 @@ function setLoading(on) {
   }
 }
 
+// Booking đã nhận nhà (hoặc muộn hơn) → phụ thu NHẬN nhà đã được thu.
+function isCheckedInWeb(b){
+  return b.status==='checkedin' || b.status==='checkout_today' || b.status==='checkedout';
+}
 // Tổng tiền ĐÃ THU THỰC của 1 booking (vào tay)
-// = deposit (cọc) + paidAtCheckIn (thu khi nhận) + chargesTotal (phụ thu khi trả)
+// = cọc + thu khi nhận (tiền phòng) + phụ thu NHẬN nhà (khi đã nhận) + phụ thu TRẢ nhà (khi đã trả)
 function actualReceived(b) {
   var dep = b.deposit||0;
-  var ci  = b.paidAtCheckIn||0;  // thu khi nhận nhà
-  // Phụ thu chỉ tính là ĐÃ THU khi khách đã trả nhà (checkedout)
-  var ch  = b.status==='checkedout' ? (b.chargesTotal||0) : 0;
-  // Nếu chưa có paidAtCheckIn nhưng đã checkedout → toàn bộ đã thu (sau giảm giá)
+  var ci  = b.paidAtCheckIn||0;  // thu khi nhận nhà (tiền phòng)
+  // Phụ thu NHẬN nhà: đã thu ngay khi nhận nhà
+  var chIn  = isCheckedInWeb(b) ? (b.checkinCharges||0) : 0;
+  // Phụ thu TRẢ nhà: chỉ tính là ĐÃ THU khi khách đã trả nhà (checkedout)
+  var chOut = b.status==='checkedout' ? (b.chargesTotal||0) : 0;
+  // Nếu chưa có paidAtCheckIn nhưng đã checkedout → toàn bộ tiền phòng đã thu (sau giảm giá)
   if (b.status==='checkedout' && !b.paidAtCheckIn && ci===0) {
     ci = Math.max(0, b.totalAmount - (b.discount||0) - dep);
   }
-  return dep + ci + ch;
+  return dep + ci + chIn + chOut;
 }
-// Còn lại chưa thu (gồm cả phụ thu — khách trả khi trả nhà)
+// Còn lại chưa thu (gồm phụ thu nhận nhà + phụ thu trả nhà)
 function stillOwed(b) {
   if (b.status==='checkedout') return 0;
-  return Math.max(0, b.totalAmount - (b.discount||0) + (b.chargesTotal||0) - (b.deposit||0) - (b.paidAtCheckIn||0));
+  var chInReceived = isCheckedInWeb(b) ? (b.checkinCharges||0) : 0;
+  return Math.max(0,
+    b.totalAmount - (b.discount||0)
+    + (b.checkinCharges||0) + (b.chargesTotal||0)
+    - (b.deposit||0) - (b.paidAtCheckIn||0) - chInReceived);
 }
 // Booking "quá khứ" = đã trả xong (ngày trả trước hôm nay)
 function isPastBK(b) { return b && b.checkOut < todayS; }
@@ -2008,20 +2018,25 @@ function bkRows(list) {
 function fbk() { applyBkFilters(); }
 
 /* ═══════════ PHỤ THU (charges) trong form booking ═══════════ */
-function chRowHTML(p, name, unit, qty) {
+function chRowHTML(p, name, unit, qty, phase) {
   name = name||''; unit = unit||0; qty = qty||1;
-  return '<div class="ch-row" style="display:flex;gap:6px;align-items:center;margin-bottom:6px">'
-    +'<input class="fc ch-name" style="flex:2;margin:0" placeholder="Tên (kê nệm...)" value="'+String(name).replace(/"/g,'&quot;')+'" maxlength="60"/>'
-    +'<input class="fc ch-unit" style="flex:1.3;margin:0" inputmode="numeric" placeholder="Đơn giá" value="'+(unit?numVal(unit):'')+'" oninput="fmtNumInput(this);chCalc(&#39;'+p+'&#39;)"/>'
+  phase = (phase==='CHECKIN') ? 'CHECKIN' : 'CHECKOUT';
+  return '<div class="ch-row" style="display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap">'
+    +'<input class="fc ch-name" style="flex:2;min-width:110px;margin:0" placeholder="Tên (kê nệm...)" value="'+String(name).replace(/"/g,'&quot;')+'" maxlength="60"/>'
+    +'<input class="fc ch-unit" style="flex:1.3;min-width:80px;margin:0" inputmode="numeric" placeholder="Đơn giá" value="'+(unit?numVal(unit):'')+'" oninput="fmtNumInput(this);chCalc(&#39;'+p+'&#39;)"/>'
     +'<input class="fc ch-qty" style="width:52px;margin:0;text-align:center" inputmode="numeric" placeholder="SL" value="'+qty+'" oninput="this.value=this.value.replace(/[^0-9]/g,&#39;&#39;);chCalc(&#39;'+p+'&#39;)"/>'
+    +'<select class="fc ch-phase" style="flex:1.2;min-width:96px;margin:0">'
+      +'<option value="CHECKIN"'+(phase==='CHECKIN'?' selected':'')+'>Nhận nhà</option>'
+      +'<option value="CHECKOUT"'+(phase==='CHECKOUT'?' selected':'')+'>Trả nhà</option>'
+    +'</select>'
     +'<button type="button" class="btn btn-out" style="padding:6px 9px;margin:0" onclick="this.parentNode.remove();chCalc(&#39;'+p+'&#39;)">✕</button>'
     +'</div>';
 }
 function chSectionHTML(p, list) {
-  var rows = (list||[]).map(function(c){ return chRowHTML(p, c.name, c.unit, c.qty); }).join('');
+  var rows = (list||[]).map(function(c){ return chRowHTML(p, c.name, c.unit, c.qty, c.phase); }).join('');
   var tot = (list||[]).reduce(function(s,c){ return s+(c.amount||((c.unit||0)*(c.qty||1))); },0);
   return '<div class="tbox"><div class="tbox-t">➕ Phụ thu / Phát sinh</div>'
-    +'<div style="font-size:10px;color:var(--t3);margin-bottom:6px">Kê nệm, dọn dẹp... (nếu có). Khách trả khi trả nhà.</div>'
+    +'<div style="font-size:10px;color:var(--t3);margin-bottom:6px">Kê nệm... chọn <strong>Nhận nhà</strong> (thu ngay khi nhận). Dọn dẹp, nước uống... chọn <strong>Trả nhà</strong> (thu khi trả).</div>'
     +'<div id="'+p+'-ch-list">'+rows+'</div>'
     +'<button type="button" class="btn btn-out" style="width:100%;margin-top:4px" onclick="chAdd(&#39;'+p+'&#39;)">+ Thêm phụ thu</button>'
     +'<div style="display:flex;justify-content:space-between;margin-top:8px;font-size:12px"><span style="color:var(--t2);font-weight:600">Tổng phụ thu</span><span id="'+p+'-ch-tot" style="color:#3A6037;font-weight:700">'+(tot>0?money(tot):'—')+'</span></div>'
@@ -2049,7 +2064,8 @@ function chCollect(p) {
     var name = ((r.querySelector('.ch-name') && r.querySelector('.ch-name').value)||'').trim();
     var unit = parseNum(r.querySelector('.ch-unit') && r.querySelector('.ch-unit').value);
     var qty = parseInt(r.querySelector('.ch-qty') && r.querySelector('.ch-qty').value)||1;
-    if (name && unit>0) out.push({ name: name, unit: unit, qty: qty });
+    var phase = (r.querySelector('.ch-phase') && r.querySelector('.ch-phase').value)==='CHECKIN' ? 'CHECKIN' : 'CHECKOUT';
+    if (name && unit>0) out.push({ name: name, unit: unit, qty: qty, phase: phase });
   });
   return out;
 }
@@ -2169,7 +2185,7 @@ function openBKDetail(id) {
     +'</div>'
     +(chList.length?('<div class="paybox" style="margin-top:10px">'
       +'<div class="pr" style="border-bottom:1px solid rgba(124,106,78,0.15);padding-bottom:6px"><label style="font-weight:700;color:#B85C4A">💵 Phụ thu / Phạt</label><span style="color:var(--t3);font-size:11px">'+chList.length+' khoản</span></div>'
-      +chList.map(function(c){return '<div class="pr"><label>'+String(c.name||'Khoản phụ thu').replace(/</g,'&lt;')+((c.qty&&c.qty>1)?' <span style="color:var(--t3);font-size:11px">('+money(c.unit||0)+' × '+c.qty+')</span>':'')+'</label><span style="color:#B85C4A;font-weight:600">+'+money(c.amount||0)+'</span></div>';}).join('')
+      +chList.map(function(c){var ph=(c.phase==='CHECKIN')?'<span style="color:#3A6037;font-size:10px;font-weight:600"> · Nhận nhà</span>':'<span style="color:#7A5C30;font-size:10px;font-weight:600"> · Trả nhà</span>';return '<div class="pr"><label>'+String(c.name||'Khoản phụ thu').replace(/</g,'&lt;')+((c.qty&&c.qty>1)?' <span style="color:var(--t3);font-size:11px">('+money(c.unit||0)+' × '+c.qty+')</span>':'')+ph+'</label><span style="color:#B85C4A;font-weight:600">+'+money(c.amount||0)+'</span></div>';}).join('')
       +'<div class="pr tot"><label>Tổng phụ thu</label><span style="color:#B85C4A;font-weight:700">+'+money(chTot)+'</span></div>'
     +'</div>'):'')
     +(b.notes?'<div class="bk-note" style="margin-top:10px">📝 <span>'+b.notes.replace(/</g,'&lt;')+'</span></div>':'')
@@ -2345,7 +2361,8 @@ async function confirmCI(id) {
 let _charges = [];
 function openCO(id) {
   const b=BOOKINGS.find(x=>x.id===id); if(!b)return;
-  _charges=[...(b.charges||[])];
+  // Chỉ xử lý phụ thu TRẢ NHÀ; phụ thu NHẬN NHÀ đã thu lúc nhận, không đụng tới.
+  _charges=[...(b.charges||[]).filter(c=>c.phase!=='CHECKIN')];
   window._coId=id;
   _renderCO();
 }
@@ -2394,7 +2411,7 @@ function _renderCO() {
     +'<div class="paybox">'
     +'<div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--t3);margin-bottom:7px">💰 Thu phụ thu khi trả nhà</div>'
     +'<div class="pr"><label>Tiền nhà ('+n+' đêm)</label><span style="color:#3A6037">✓ '+money(b.totalAmount)+'</span></div>'
-    +'<div class="pr"><label style="font-size:10px;color:var(--t3)">Đã thanh toán đủ (cọc + nhận nhà)</label><span style="font-size:10px;color:var(--t3)">'+money((b.deposit||0)+(b.paidAtCheckIn||0))+'</span></div>'
+    +'<div class="pr"><label style="font-size:10px;color:var(--t3)">Đã thanh toán đủ (cọc + nhận nhà + phụ thu nhận nhà)</label><span style="font-size:10px;color:var(--t3)">'+money((b.deposit||0)+(b.paidAtCheckIn||0)+(b.checkinCharges||0))+'</span></div>'
     +(extra>0?'<div class="pr"><label>Phụ thu ('+_charges.length+' khoản)</label><span style="color:#B85C4A;font-weight:600">+'+money(extra)+'</span></div>':'')
     +'<div class="pr tot"><label>Tổng thu khi trả nhà</label><span style="font-size:16px;color:'+(grand>0?'#B85C4A':'#3A6037')+'">'+(grand>0?money(grand):'Không thu thêm ✓')+'</span></div>'
     +(grand>0?'<div style="margin-top:8px;padding:7px 10px;background:rgba(184,92,74,0.1);border-radius:6px;font-size:11px;color:#B85C4A">⚠ Thu thêm <strong>'+money(grand)+'</strong> (chỉ là phụ thu) trước khi khách rời nhà</div>':'<div style="margin-top:8px;padding:7px 10px;background:rgba(94,126,91,0.1);border-radius:6px;font-size:11px;color:#3A6037">✓ Không có phụ thu — khách có thể về</div>')
@@ -2612,7 +2629,8 @@ function openHomePerf(id) {
   // Thu: bóc tách tiền phòng / cọc / phụ thu (giống mục thống kê chung)
   var incCoc=0, incPhong=0, incPhu=0, received=0;
   bks.forEach(function(b){
-    var dep=b.deposit||0, ci=b.paidAtCheckIn||0, ch=b.chargesTotal||0;
+    var dep=b.deposit||0, ci=b.paidAtCheckIn||0;
+    var ch=(b.status==='checkedout'?(b.chargesTotal||0):0)+(isCheckedInWeb(b)?(b.checkinCharges||0):0);
     if (b.status==='checkedout' && !b.paidAtCheckIn && ci===0) ci=Math.max(0, b.totalAmount-(b.discount||0)-dep);
     incCoc+=dep; incPhong+=ci; incPhu+=ch;
     received+=actualReceived(b);
@@ -2651,7 +2669,8 @@ function openHomePerf(id) {
       var rec = actualReceived(b);
       var n = nights(b.checkIn, b.checkOut);
       var stLabel = (typeof SL!=='undefined' && SL[b.status]) ? SL[b.status] : b.status;
-      var dep=b.deposit||0, ci=b.paidAtCheckIn||0, ch=b.chargesTotal||0;
+      var dep=b.deposit||0, ci=b.paidAtCheckIn||0;
+      var ch=(b.status==='checkedout'?(b.chargesTotal||0):0)+(isCheckedInWeb(b)?(b.checkinCharges||0):0);
       if (b.status==='checkedout' && !b.paidAtCheckIn && ci===0) ci=Math.max(0, b.totalAmount-(b.discount||0)-dep);
       var parts=[];
       if (ci>0) parts.push('Phòng '+money(ci));
@@ -3098,7 +3117,7 @@ function renderFinanceRevenue() {
   var totalRec = rows.reduce(function(s,b){ return s+actualReceived(b); }, 0);
   var totalDep = rows.reduce(function(s,b){ return s+(b.deposit||0); }, 0);
   var totalAtCI = rows.reduce(function(s,b){ return s+(b.paidAtCheckIn||0); }, 0);
-  var totalCharges = rows.reduce(function(s,b){ return s+(b.chargesTotal||0); }, 0);
+  var totalCharges = rows.reduce(function(s,b){ return s+(b.chargesTotal||0)+(b.checkinCharges||0); }, 0);
   var totalOwed = rows.reduce(function(s,b){ return s+stillOwed(b); }, 0);
 
   var h = '';
@@ -3107,8 +3126,8 @@ function renderFinanceRevenue() {
   h += '<div class="stat-section" style="background:#F8F4EC;padding:14px 18px;margin-bottom:12px">';
   h += '<div style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:0.8px;font-weight:700;margin-bottom:6px">💡 Cách tính thực thu</div>';
   h += '<div style="font-size:12.5px;color:#5C4E38;line-height:1.6">';
-  h += '<strong style="color:#3A6037">Thực thu</strong> = <span style="color:#5A7A96">Cọc</span> + <span style="color:#3A6037">Thu khi nhận nhà</span> + <span style="color:#B85C4A">Phụ thu khi trả</span><br>';
-  h += '<span style="color:var(--t3);font-size:11.5px">Ví dụ: Tiền nhà 5tr, cọc 2tr → khi nhận nhà thu thêm 3tr. Phụ thu rửa chén 350k → Tổng thực thu = 2tr + 3tr + 350k = 5.350.000đ</span>';
+  h += '<strong style="color:#3A6037">Thực thu</strong> = <span style="color:#5A7A96">Cọc</span> + <span style="color:#3A6037">Thu khi nhận nhà</span> + <span style="color:#B85C4A">Phụ thu nhận nhà + Phụ thu trả nhà</span><br>';
+  h += '<span style="color:var(--t3);font-size:11.5px">Ví dụ: Tiền nhà 5tr, cọc 2tr, kê nệm 400k (thu lúc nhận) → khi nhận nhà thu 3tr + 400k. Phụ thu rửa chén 350k (thu lúc trả) → Tổng thực thu = 2tr + 3tr + 400k + 350k = 5.750.000đ</span>';
   h += '</div></div>';
 
   // Quick summary 5 ô gọn
@@ -3146,7 +3165,7 @@ function renderFinanceRevenue() {
       var n = nights(b.checkIn, b.checkOut);
       var dep = b.deposit||0;
       var ci = b.paidAtCheckIn || (b.status==='checkedout' ? Math.max(0, b.totalAmount-(b.discount||0)-dep) : 0);
-      var ch = b.chargesTotal||0;
+      var ch = (b.chargesTotal||0)+(b.checkinCharges||0);
       var rec = actualReceived(b);
       var owed = stillOwed(b);
 
