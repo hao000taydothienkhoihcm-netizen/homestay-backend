@@ -2036,7 +2036,7 @@ function chSectionHTML(p, list) {
   var rows = (list||[]).map(function(c){ return chRowHTML(p, c.name, c.unit, c.qty, c.phase); }).join('');
   var tot = (list||[]).reduce(function(s,c){ return s+(c.amount||((c.unit||0)*(c.qty||1))); },0);
   return '<div class="tbox"><div class="tbox-t">➕ Phụ thu / Phát sinh</div>'
-    +'<div style="font-size:10px;color:var(--t3);margin-bottom:6px">Kê nệm... chọn <strong>Nhận nhà</strong> (thu ngay khi nhận). Dọn dẹp, nước uống... chọn <strong>Trả nhà</strong> (thu khi trả).</div>'
+    +'<div style="font-size:10px;color:var(--t3);margin-bottom:6px">Mặc định <strong>Nhận nhà</strong> (thu ngay khi giao chìa khóa). Khoản nào thu lúc trả (nước, phát sinh...) thì đổi sang <strong>Trả nhà</strong>.</div>'
     +'<div id="'+p+'-ch-list">'+rows+'</div>'
     +'<button type="button" class="btn btn-out" style="width:100%;margin-top:4px" onclick="chAdd(&#39;'+p+'&#39;)">+ Thêm phụ thu</button>'
     +'<div style="display:flex;justify-content:space-between;margin-top:8px;font-size:12px"><span style="color:var(--t2);font-weight:600">Tổng phụ thu</span><span id="'+p+'-ch-tot" style="color:#3A6037;font-weight:700">'+(tot>0?money(tot):'—')+'</span></div>'
@@ -2044,7 +2044,7 @@ function chSectionHTML(p, list) {
 }
 function chAdd(p) {
   var box = document.getElementById(p+'-ch-list');
-  if (box) box.insertAdjacentHTML('beforeend', chRowHTML(p));
+  if (box) box.insertAdjacentHTML('beforeend', chRowHTML(p, '', 0, 1, 'CHECKIN'));
 }
 function chCalc(p) {
   var box = document.getElementById(p+'-ch-list'); if (!box) return;
@@ -2308,7 +2308,9 @@ async function delBK(id) {
 function openCI(id) {
   const b=BOOKINGS.find(x=>x.id===id); if(!b)return;
   const hm=gH(b.homeId); const n=nights(b.checkIn,b.checkOut);
-  const rem=Math.max(0,b.totalAmount-(b.discount||0)-(b.deposit||0));
+  const ciCharges=(b.charges||[]).filter(c=>c.phase==='CHECKIN');
+  const chIn=ciCharges.reduce((s,c)=>s+(c.amount||((c.unit||0)*(c.qty||1))),0);
+  const rem=Math.max(0,b.totalAmount-(b.discount||0)-(b.deposit||0))+chIn;
   const now=new Date();
   const nowT=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
   showModal(
@@ -2329,6 +2331,7 @@ function openCI(id) {
     +'<div class="pr"><label>Tiền nhà ('+n+' đêm × '+mS(hm.price)+')</label><span style="color:#5C4E38;font-weight:600">'+money(b.totalAmount)+'</span></div>'
     +((b.discount||0)>0?'<div class="pr"><label>Giảm giá</label><span style="color:#B85C4A">−'+money(b.discount)+'</span></div>':'')
     +'<div class="pr"><label>Đã cọc</label><span style="color:#3A6037">−'+money(b.deposit||0)+'</span></div>'
+    +ciCharges.map(function(c){return '<div class="pr"><label>➕ '+c.name+((c.qty>1)?' × '+c.qty:'')+'</label><span style="color:#B85C4A;font-weight:600">+'+money(c.amount||((c.unit||0)*(c.qty||1)))+'</span></div>';}).join('')
     +'<div class="pr tot"><label>Thu thêm khi nhận nhà</label><span style="font-size:16px;color:'+(rem>0?'#B85C4A':'#3A6037')+'">'+(rem>0?money(rem):'Đã đủ ✓')+'</span></div>'
     +(rem>0?'<div style="margin-top:8px;padding:7px 10px;background:rgba(184,92,74,0.1);border-radius:6px;font-size:11px;color:#B85C4A">⚠ Thu <strong>'+money(rem)+'</strong> trước khi giao chìa khóa</div>':'<div style="margin-top:8px;padding:7px 10px;background:rgba(94,126,91,0.1);border-radius:6px;font-size:11px;color:#3A6037">✓ Đã thanh toán đủ trước</div>')
     +'</div>'
