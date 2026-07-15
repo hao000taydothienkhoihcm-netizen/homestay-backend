@@ -44,7 +44,7 @@ model Home {
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
+  
   bookings  Booking[]
   expenses  Expense[]
 }
@@ -56,34 +56,35 @@ model Booking {
   phone         String
   homeId        Int
   home          Home      @relation(fields: [homeId], references: [id])
-
+  
   checkIn       DateTime  @db.Date
   checkInTime   String    @default("14:00")
   checkOut      DateTime  @db.Date
   checkOutTime  String    @default("12:00")
   guests        Int       @default(2)
-
+  
   // Dòng tiền
   totalAmount   Int       // = price × nights
   discount      Int       @default(0)  // Giảm giá trên tổng đơn (VND)
   deposit       Int       @default(0)
   paidAtCheckIn Int       @default(0)
-  chargesTotal  Int       @default(0)
+  chargesTotal   Int      @default(0)   // Phụ thu TRẢ nhà (doanh thu khi CHECKEDOUT)
+  checkinCharges Int      @default(0)   // Phụ thu NHẬN nhà (doanh thu ngay khi CHECKEDIN)
 
   status        BookingStatus @default(CONFIRMED)
   notes         String?
-
+  
   // Check-in/out thực tế
   actualCheckIn   DateTime?
   actualCheckOut  DateTime?
   waterMeter      Float?
   inspectionNote  String?
-
+  
   charges       Charge[]
-
+  
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
-
+  
   @@index([homeId, checkIn, checkOut])
   @@index([status])
 }
@@ -95,7 +96,7 @@ enum BookingStatus {
   CHECKEDOUT      // Đã trả
 }
 
-// ───── Charges (phụ thu khi trả nhà) ─────
+// ───── Charges (phụ thu — nhận nhà hoặc trả nhà) ─────
 model Charge {
   id        Int      @id @default(autoincrement())
   bookingId Int
@@ -105,8 +106,14 @@ model Charge {
   unit      Int      // Đơn giá
   qty       Int      @default(1)
   amount    Int      // = unit × qty
+  phase     ChargePhase @default(CHECKOUT)  // CHECKIN = thu lúc nhận nhà, CHECKOUT = thu lúc trả nhà
 
   createdAt DateTime @default(now())
+}
+
+enum ChargePhase {
+  CHECKIN    // Phụ thu khi nhận nhà (kê nệm...)
+  CHECKOUT   // Phụ thu khi trả nhà (dọn dẹp, nước uống...)
 }
 
 // ───── Charge Templates (RULES + QUICK) ─────
@@ -134,10 +141,10 @@ model Expense {
   amount    Int
   homeId    Int?
   home      Home?    @relation(fields: [homeId], references: [id])
-
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
+  
   @@index([date])
   @@index([category])
 }
