@@ -2309,7 +2309,7 @@ function openCI(id) {
   const b=BOOKINGS.find(x=>x.id===id); if(!b)return;
   const hm=gH(b.homeId); const n=nights(b.checkIn,b.checkOut);
   const ciCharges=(b.charges||[]).filter(c=>c.phase==='CHECKIN');
-  const chIn=ciCharges.reduce((s,c)=>s+(c.amount||((c.unit||0)*(c.qty||1))),0);
+  const chIn=(typeof b.checkinCharges==='number')?b.checkinCharges:ciCharges.reduce((s,c)=>s+(c.amount||((c.unit||0)*(c.qty||1))),0);
   const rem=Math.max(0,b.totalAmount-(b.discount||0)-(b.deposit||0))+chIn;
   const now=new Date();
   const nowT=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
@@ -2331,7 +2331,7 @@ function openCI(id) {
     +'<div class="pr"><label>Tiền nhà ('+n+' đêm × '+mS(hm.price)+')</label><span style="color:#5C4E38;font-weight:600">'+money(b.totalAmount)+'</span></div>'
     +((b.discount||0)>0?'<div class="pr"><label>Giảm giá</label><span style="color:#B85C4A">−'+money(b.discount)+'</span></div>':'')
     +'<div class="pr"><label>Đã cọc</label><span style="color:#3A6037">−'+money(b.deposit||0)+'</span></div>'
-    +ciCharges.map(function(c){return '<div class="pr"><label>➕ '+c.name+((c.qty>1)?' × '+c.qty:'')+'</label><span style="color:#B85C4A;font-weight:600">+'+money(c.amount||((c.unit||0)*(c.qty||1)))+'</span></div>';}).join('')
+    +(ciCharges.length?ciCharges.map(function(c){return '<div class="pr"><label>➕ '+c.name+((c.qty>1)?' × '+c.qty:'')+'</label><span style="color:#B85C4A;font-weight:600">+'+money(c.amount||((c.unit||0)*(c.qty||1)))+'</span></div>';}).join(''):(chIn>0?'<div class="pr"><label>➕ Phụ thu nhận nhà</label><span style="color:#B85C4A;font-weight:600">+'+money(chIn)+'</span></div>':''))
     +'<div class="pr tot"><label>Thu thêm khi nhận nhà</label><span style="font-size:16px;color:'+(rem>0?'#B85C4A':'#3A6037')+'">'+(rem>0?money(rem):'Đã đủ ✓')+'</span></div>'
     +(rem>0?'<div style="margin-top:8px;padding:7px 10px;background:rgba(184,92,74,0.1);border-radius:6px;font-size:11px;color:#B85C4A">⚠ Thu <strong>'+money(rem)+'</strong> trước khi giao chìa khóa</div>':'<div style="margin-top:8px;padding:7px 10px;background:rgba(94,126,91,0.1);border-radius:6px;font-size:11px;color:#3A6037">✓ Đã thanh toán đủ trước</div>')
     +'</div>'
