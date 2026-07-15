@@ -476,7 +476,7 @@ textarea.fc{resize:vertical;min-height:60px}
 <script>
 /* ───── DATA ───── */
 const T = new Date();
-const todayS = T.toISOString().split('T')[0];
+const todayS = fmt(T);
 const mn = T.getMonth(), yr = T.getFullYear();
 
 // date utils — không dùng toISOString để tránh timezone
