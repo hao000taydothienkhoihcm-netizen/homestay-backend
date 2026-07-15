@@ -76,21 +76,33 @@ export function stayTotal(home, checkIn, checkOut) {
   return total;
 }
 
+// Booking đã nhận nhà (hoặc muộn hơn) → phụ thu NHẬN nhà đã được thu.
+function isCheckedIn(b) {
+  return b.status === 'CHECKEDIN' || b.status === 'CHECKOUT_TODAY' || b.status === 'CHECKEDOUT';
+}
+
 /**
  * Tổng tiền thực đã thu vào tay.
- * Phụ thu (chargesTotal) chỉ tính là ĐÃ THU khi khách đã trả nhà (CHECKEDOUT);
- * trước đó phụ thu là khoản khách CÒN NỢ, chưa vào doanh thu.
+ * - Phụ thu NHẬN nhà (checkinCharges): thu ngay lúc nhận nhà → tính khi đã CHECKEDIN trở đi.
+ * - Phụ thu TRẢ nhà (chargesTotal): chỉ tính là ĐÃ THU khi khách đã trả nhà (CHECKEDOUT).
  */
 export function actualReceived(b) {
-  const ch = b.status === 'CHECKEDOUT' ? (b.chargesTotal || 0) : 0;
-  return (b.deposit || 0) + (b.paidAtCheckIn || 0) + ch;
+  const chIn  = isCheckedIn(b) ? (b.checkinCharges || 0) : 0;
+  const chOut = b.status === 'CHECKEDOUT' ? (b.chargesTotal || 0) : 0;
+  return (b.deposit || 0) + (b.paidAtCheckIn || 0) + chIn + chOut;
 }
 
 /**
  * Tiền còn phải thu (khi chưa trả nhà).
- * Gồm cả phụ thu (kê nệm, dọn dẹp...) — khách trả khi trả nhà.
+ * Nghĩa vụ = tiền phòng sau giảm + phụ thu nhận nhà + phụ thu trả nhà.
+ * Đã thu = cọc + thu khi nhận nhà (tiền phòng) + phụ thu nhận nhà (nếu đã nhận nhà).
  */
 export function stillOwed(b) {
   if (b.status === 'CHECKEDOUT') return 0;
-  return Math.max(0, b.totalAmount - (b.discount || 0) + (b.chargesTotal || 0) - (b.deposit || 0) - (b.paidAtCheckIn || 0));
+  const chInReceived = isCheckedIn(b) ? (b.checkinCharges || 0) : 0;
+  return Math.max(0,
+    b.totalAmount - (b.discount || 0)
+    + (b.checkinCharges || 0) + (b.chargesTotal || 0)
+    - (b.deposit || 0) - (b.paidAtCheckIn || 0) - chInReceived
+  );
 }
