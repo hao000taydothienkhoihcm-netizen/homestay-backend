@@ -2180,14 +2180,19 @@ function openBKDetail(id) {
       +(disc>0?'<div class="pr"><label>Giảm giá</label><span style="color:#B85C4A">−'+money(disc)+'</span></div>':'')
       +'<div class="pr"><label>Đã cọc</label><span style="color:#3A6037;font-weight:600">'+money(b.deposit||0)+'</span></div>'
       +(ciPaid>0?'<div class="pr"><label>Thu khi nhận nhà</label><span style="color:#3A6037">'+money(ciPaid)+'</span></div>':'')
-      +'<div class="pr"><label>Tổng đã thu</label><span style="color:#3A6037;font-weight:700">'+money(rec)+'</span></div>'
-      +'<div class="pr tot"><label>Còn lại</label><span style="color:'+(owed>0?'#B85C4A':'#3A6037')+';font-weight:700">'+(owed>0?money(owed):'✓ Đã thu đủ')+'</span></div>'
     +'</div>'
     +(chList.length?('<div class="paybox" style="margin-top:10px">'
       +'<div class="pr" style="border-bottom:1px solid rgba(124,106,78,0.15);padding-bottom:6px"><label style="font-weight:700;color:#B85C4A">💵 Phụ thu / Phạt</label><span style="color:var(--t3);font-size:11px">'+chList.length+' khoản</span></div>'
       +chList.map(function(c){var ph=(c.phase==='CHECKIN')?'<span style="color:#3A6037;font-size:10px;font-weight:600"> · Nhận nhà</span>':'<span style="color:#7A5C30;font-size:10px;font-weight:600"> · Trả nhà</span>';return '<div class="pr"><label>'+String(c.name||'Khoản phụ thu').replace(/</g,'&lt;')+((c.qty&&c.qty>1)?' <span style="color:var(--t3);font-size:11px">('+money(c.unit||0)+' × '+c.qty+')</span>':'')+ph+'</label><span style="color:#B85C4A;font-weight:600">+'+money(c.amount||0)+'</span></div>';}).join('')
       +'<div class="pr tot"><label>Tổng phụ thu</label><span style="color:#B85C4A;font-weight:700">+'+money(chTot)+'</span></div>'
     +'</div>'):'')
+    +'<div class="paybox" style="margin-top:10px;border:2px solid rgba(58,96,55,0.35)">'
+      +'<div class="pr"><label>Tiền nhà</label><span>'+money(b.totalAmount)+'</span></div>'
+      +(disc>0?'<div class="pr"><label>− Giảm giá</label><span style="color:#B85C4A">−'+money(disc)+'</span></div>':'')
+      +(chTot>0?'<div class="pr"><label>+ Phụ thu</label><span style="color:#B85C4A">+'+money(chTot)+'</span></div>':'')
+      +'<div class="pr tot" style="border-top:1px solid rgba(124,106,78,0.2);padding-top:8px"><label style="font-size:15px;font-weight:800">💰 Tổng đã thu</label><span style="color:#3A6037;font-weight:800;font-size:18px">'+money(rec)+'</span></div>'
+      +'<div class="pr"><label>Còn lại</label><span style="color:'+(owed>0?'#B85C4A':'#3A6037')+';font-weight:700">'+(owed>0?money(owed):'✓ Đã thu đủ')+'</span></div>'
+    +'</div>'
     +(b.notes?'<div class="bk-note" style="margin-top:10px">📝 <span>'+b.notes.replace(/</g,'&lt;')+'</span></div>':'')
     +'<div class="mfoot"><button class="btn btn-out" onclick="closeModal()">Đóng</button>'+(canEd?'<button class="btn btn-gold" onclick="closeModal();openEditBK('+b.id+')">✏️ Sửa</button>':'')+'</div>'
   );
