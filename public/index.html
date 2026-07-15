@@ -724,7 +724,7 @@ function normalizeBooking(b) {
     actualCO: b.actualCheckOut ? b.actualCheckOut.replace('T', ' ').slice(0, 16) : undefined,
     water: b.waterMeter,
     inspNote: b.inspectionNote,
-    charges: (b.charges || []).map(c => ({ id: c.id, name: c.name, unit: c.unit, qty: c.qty, amount: c.amount }))
+    charges: (b.charges || []).map(c => ({ id: c.id, name: c.name, unit: c.unit, qty: c.qty, amount: c.amount, phase: c.phase }))
   };
 }
 function normalizeUser(u) {
