@@ -117,6 +117,7 @@ router.post('/', requireRole('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
   const st = status || 'CONFIRMED';
 
   // Phụ thu (kê nệm, dọn dẹp...) — mọi quyền được nhập khi tạo booking.
+  // Mỗi dòng có phase: CHECKIN (thu lúc nhận nhà) hoặc CHECKOUT (thu lúc trả nhà).
   const chargesArr = Array.isArray(charges)
     ? charges
         .filter(c => c && c.name && (parseInt(c.unit) || 0) > 0)
@@ -124,10 +125,12 @@ router.post('/', requireRole('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
           name: String(c.name).trim(),
           unit: parseInt(c.unit) || 0,
           qty: parseInt(c.qty) || 1,
-          amount: (parseInt(c.unit) || 0) * (parseInt(c.qty) || 1)
+          amount: (parseInt(c.unit) || 0) * (parseInt(c.qty) || 1),
+          phase: c.phase === 'CHECKIN' ? 'CHECKIN' : 'CHECKOUT'
         }))
     : [];
-  const chargesTotal = chargesArr.reduce((s, c) => s + c.amount, 0);
+  const checkinCharges = chargesArr.filter(c => c.phase === 'CHECKIN').reduce((s, c) => s + c.amount, 0);
+  const chargesTotal = chargesArr.filter(c => c.phase === 'CHECKOUT').reduce((s, c) => s + c.amount, 0);
 
   const data = {
     guest, phone, homeId: parseInt(homeId),
@@ -138,6 +141,7 @@ router.post('/', requireRole('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
     discount: disc,
     deposit: dep,
     status: st,
+    checkinCharges,
     chargesTotal,
     notes: notes || null
   };
@@ -206,7 +210,7 @@ router.patch('/:id', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
   if (notes !== undefined) updateData.notes = notes;
   if (status) updateData.status = status;
 
-  // Phụ thu: nếu client gửi mảng charges → thay toàn bộ + tính lại chargesTotal.
+  // Phụ thu: nếu client gửi mảng charges → thay toàn bộ + tính lại theo phase.
   let chargesArr = null;
   if (Array.isArray(charges)) {
     chargesArr = charges
@@ -215,9 +219,11 @@ router.patch('/:id', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
         name: String(c.name).trim(),
         unit: parseInt(c.unit) || 0,
         qty: parseInt(c.qty) || 1,
-        amount: (parseInt(c.unit) || 0) * (parseInt(c.qty) || 1)
+        amount: (parseInt(c.unit) || 0) * (parseInt(c.qty) || 1),
+        phase: c.phase === 'CHECKIN' ? 'CHECKIN' : 'CHECKOUT'
       }));
-    updateData.chargesTotal = chargesArr.reduce((s, c) => s + c.amount, 0);
+    updateData.checkinCharges = chargesArr.filter(c => c.phase === 'CHECKIN').reduce((s, c) => s + c.amount, 0);
+    updateData.chargesTotal = chargesArr.filter(c => c.phase === 'CHECKOUT').reduce((s, c) => s + c.amount, 0);
   }
 
   // Recalculate totalAmount nếu đổi ngày/nhà
@@ -325,7 +331,8 @@ router.post('/:id/checkout', async (req, res) => {
       inspectionNote: inspectionNote || null
     };
     if (canEditCharges) {
-      await tx.charge.deleteMany({ where: { bookingId: id } });
+      // Chỉ thay phụ thu TRẢ NHÀ; giữ nguyên phụ thu NHẬN NHÀ (đã thu lúc nhận).
+      await tx.charge.deleteMany({ where: { bookingId: id, phase: 'CHECKOUT' } });
       if (chargesArr.length) {
         await tx.charge.createMany({
           data: chargesArr.map(c => ({
@@ -333,7 +340,8 @@ router.post('/:id/checkout', async (req, res) => {
             name: c.name,
             unit: parseInt(c.unit) || 0,
             qty: parseInt(c.qty) || 1,
-            amount: (parseInt(c.unit) || 0) * (parseInt(c.qty) || 1)
+            amount: (parseInt(c.unit) || 0) * (parseInt(c.qty) || 1),
+            phase: 'CHECKOUT'
           }))
         });
       }
