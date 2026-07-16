@@ -24,6 +24,22 @@ function monthBounds(monthStr) {
   return { start, end, label: `${String(m).padStart(2, '0')}/${y}` };
 }
 
+// Đầu ngày hôm nay (00:00) để so ngày quá khứ
+function startOfToday() {
+  const t = new Date();
+  return new Date(t.getFullYear(), t.getMonth(), t.getDate());
+}
+// Ngày (từ input) có thuộc quá khứ so với hôm nay không?
+function isPastDate(dateStr) {
+  const d = dateStr ? new Date(dateStr) : new Date();
+  const dd = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  return dd < startOfToday();
+}
+// Chỉ ADMIN được thao tác trên ngày quá khứ; NV/QL chỉ hôm nay + tương lai
+function canTouchPast(user) {
+  return user && user.role === 'ADMIN';
+}
+
 // ───── TỒN KHO + BÁO CÁO THÁNG ─────
 // GET /v1/inventory?month=YYYY-MM&homeId=optional
 // Trả về: { month, homes[], products[ { ...meta, rows:[{homeId,onHand,imported,sold,low}] } ] }
@@ -104,6 +120,7 @@ router.get('/', async (req, res) => {
       packLabel: p.packLabel,
       packSize: p.packSize,
       lowStock: p.lowStock,
+      costPrice: p.costPrice || 0,   // giá vốn 1 đơn vị lẻ (tính lợi nhuận)
       rows
     };
   });
@@ -143,8 +160,18 @@ router.post('/import', requireRole('ADMIN', 'MANAGER', 'STAFF'), async (req, res
   const hid = parseInt(homeId);
   if (!tid || !hid) return res.status(400).json({ error: 'Thiếu mặt hàng hoặc căn nhà' });
 
+  // NV/QL chỉ được nhập cho hôm nay/tương lai; nhập bù quá khứ chỉ ADMIN
+  if (isPastDate(date) && !canTouchPast(req.user)) {
+    return res.status(403).json({ error: 'Chỉ Admin được nhập bù ngày đã qua' });
+  }
+
   const tpl = await prisma.chargeTemplate.findUnique({ where: { id: tid } });
   if (!tpl || tpl.type !== 'QUICK') return res.status(404).json({ error: 'Mặt hàng không hợp lệ' });
+
+  // Nhập hàng nghĩa là bắt đầu theo dõi kho món này
+  if (!tpl.trackStock) {
+    await prisma.chargeTemplate.update({ where: { id: tid }, data: { trackStock: true } });
+  }
 
   const p = Math.max(0, parseInt(packs) || 0);
   const u = Math.max(0, parseInt(units) || 0);
@@ -174,6 +201,9 @@ router.post('/adjust', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
   const q = parseInt(qty);
   if (!tid || !hid) return res.status(400).json({ error: 'Thiếu mặt hàng hoặc căn nhà' });
   if (!q) return res.status(400).json({ error: 'Số điều chỉnh không hợp lệ' });
+  if (isPastDate(date) && !canTouchPast(req.user)) {
+    return res.status(403).json({ error: 'Chỉ Admin được điều chỉnh ngày đã qua' });
+  }
 
   const entry = await prisma.stockEntry.create({
     data: {
@@ -188,9 +218,52 @@ router.post('/adjust', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
   res.status(201).json(entry);
 });
 
+// ───── SỬA PHIẾU NHẬP / ĐIỀU CHỈNH ─────
+// PATCH /v1/inventory/entries/:id { packs, units, qty, date, note }
+router.patch('/entries/:id', requireRole('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
+  const id = parseInt(req.params.id);
+  const cur = await prisma.stockEntry.findUnique({ where: { id }, include: { template: true } });
+  if (!cur) return res.status(404).json({ error: 'Không tìm thấy phiếu' });
+
+  const { packs, units, qty, date, note } = req.body;
+  // NV/QL không được đụng phiếu quá khứ, và không được dời sang ngày quá khứ
+  if (!canTouchPast(req.user) && (isPastDate(cur.date) || (date && isPastDate(date)))) {
+    return res.status(403).json({ error: 'Chỉ Admin được sửa phiếu ngày đã qua' });
+  }
+
+  const data = {};
+  if (note !== undefined) data.note = note ? String(note).trim() : null;
+  if (date) data.date = new Date(date);
+  // Số lượng: nhận theo packs/units (IMPORT) hoặc qty thẳng (ADJUST cho phép âm)
+  if (packs !== undefined || units !== undefined) {
+    const pk = Math.max(0, parseInt(packs) || 0);
+    const un = Math.max(0, parseInt(units) || 0);
+    const total = pk * (cur.template.packSize || 1) + un;
+    if (total <= 0) return res.status(400).json({ error: 'Số lượng phải > 0' });
+    data.qty = total;
+  } else if (qty !== undefined) {
+    const q = parseInt(qty);
+    if (cur.type === 'ADJUST') { if (!q) return res.status(400).json({ error: 'Số điều chỉnh không hợp lệ' }); }
+    else if (!(q > 0)) return res.status(400).json({ error: 'Số lượng phải > 0' });
+    data.qty = q;
+  }
+
+  const entry = await prisma.stockEntry.update({
+    where: { id }, data,
+    include: { template: { select: { name: true, unitLabel: true } }, home: { select: { name: true, emoji: true } } }
+  });
+  res.json(entry);
+});
+
 // ───── XOÁ PHIẾU NHẬP / ĐIỀU CHỈNH ─────
-router.delete('/entries/:id', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
-  await prisma.stockEntry.delete({ where: { id: parseInt(req.params.id) } });
+router.delete('/entries/:id', requireRole('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
+  const id = parseInt(req.params.id);
+  const cur = await prisma.stockEntry.findUnique({ where: { id } });
+  if (!cur) return res.json({ ok: true });
+  if (!canTouchPast(req.user) && isPastDate(cur.date)) {
+    return res.status(403).json({ error: 'Chỉ Admin được xoá phiếu ngày đã qua' });
+  }
+  await prisma.stockEntry.delete({ where: { id } });
   res.json({ ok: true });
 });
 
