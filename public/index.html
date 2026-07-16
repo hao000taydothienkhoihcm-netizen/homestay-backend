@@ -452,6 +452,7 @@ textarea.fc{resize:vertical;min-height:60px}
       <div class="ni" data-p="users" id="nav-users">◑ Tài khoản</div>
       <div class="ni" data-p="homes" id="nav-homes">🏡 Căn nhà</div>
       <div class="ni" data-p="charges" id="nav-charges">💵 Phụ thu</div>
+      <div class="ni" data-p="inventory" id="nav-inventory">📦 Kho</div>
     </nav>
     <div class="sb-bot"><button class="btn-logout" onclick="doLogout()">← Đăng xuất</button></div>
   </div>
@@ -1566,13 +1567,14 @@ function startClock() {
 }
 
 /* ───── ROUTER ───── */
-const PTITLES = {dashboard:'Tổng quan',bookings:'Quản lý Booking',checkinout:'Nhận & Trả nhà',calendar:'Lịch đặt nhà',statistics:'Thống kê',finance:'Thu chi',users:'Tài khoản',homes:'Căn nhà',charges:'Phụ thu & Phạt'};
+const PTITLES = {dashboard:'Tổng quan',bookings:'Quản lý Booking',checkinout:'Nhận & Trả nhà',calendar:'Lịch đặt nhà',statistics:'Thống kê',finance:'Thu chi',users:'Tài khoản',homes:'Căn nhà',charges:'Phụ thu & Phạt',inventory:'Quản lý kho'};
 let curPage = 'dashboard';
 
 function setPage(p) {
   if (p==='users'&&CU?.role!=='admin') return;
   if (p==='homes'&&CU?.role!=='admin') return;
   if (p==='charges'&&CU?.role==='staff') return;
+  if (p==='inventory'&&CU?.role==='staff') return;
   if (p==='statistics'&&CU?.role==='staff') return;
   if (p==='finance'&&CU?.role==='staff') return;
   curPage = p;
@@ -1582,11 +1584,13 @@ function setPage(p) {
   const nh = document.getElementById('nav-homes');
   const nu = document.getElementById('nav-users');
   const nc = document.getElementById('nav-charges');
+  const ninv = document.getElementById('nav-inventory');
   const nst = document.getElementById('nav-stats');
   const nfi = document.getElementById('nav-finance');
   if (nh) nh.style.display = CU?.role==='admin'?'flex':'none';
   if (nu) nu.style.display = CU?.role==='admin'?'flex':'none';
   if (nc) nc.style.display = CU?.role!=='staff'?'flex':'none';
+  if (ninv) ninv.style.display = CU?.role!=='staff'?'flex':'none';
   if (nst) nst.style.display = CU?.role!=='staff'?'flex':'none';
   if (nfi) nfi.style.display = CU?.role!=='staff'?'flex':'none';
   // Badge
@@ -1601,7 +1605,7 @@ function setPage(p) {
     if (total) ap.textContent = '🔔 '+(coCount?coCount+' trả nhà':'')+( coCount&&ciCount?' · ':'')+( ciCount?ciCount+' nhận nhà':'')+' hôm nay';
   }
   const c = document.getElementById('pcontent');
-  const pages = {dashboard:renderDashboard,bookings:renderBookings,checkinout:renderCheckinOut,calendar:renderCalendar,statistics:renderStatistics,finance:renderFinance,users:renderUsers,homes:renderHomes,charges:renderCharges};
+  const pages = {dashboard:renderDashboard,bookings:renderBookings,checkinout:renderCheckinOut,calendar:renderCalendar,statistics:renderStatistics,finance:renderFinance,users:renderUsers,homes:renderHomes,charges:renderCharges,inventory:renderInventory};
   c.innerHTML = pages[p] ? pages[p]() : '';
   closeSidebar(); // đóng ngăn kéo sau khi chọn trang (điện thoại)
 }
@@ -3084,6 +3088,234 @@ function renderStatistics() {
 }
 
 /* ═══════════ FINANCE ═══════════ */
+/* ═══════════ QUẢN LÝ KHO ═══════════ */
+let invMonth = '';   // 'YYYY-MM' ('' = tháng hiện tại)
+let invHomeId = '';  // '' = tất cả các căn
+let INVDATA = null;
+
+function invCurMonthStr(){ if(invMonth) return invMonth; var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+
+function renderInventory(){
+  setTimeout(loadInv, 0);
+  var homeOpts = '<option value="">🏠 Tất cả các căn</option>' + HOMES.map(function(h){
+    return '<option value="'+h.id+'"'+(String(h.id)===String(invHomeId)?' selected':'')+'>'+(h.emoji||'🏡')+' '+h.name+'</option>';
+  }).join('');
+  var h = '';
+  h += '<div class="stat-filter-bar" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px">';
+  h += '<input type="month" value="'+invCurMonthStr()+'" onchange="invSetMonth(this.value)" style="padding:7px 10px;border:1px solid rgba(124,106,78,0.3);border-radius:8px;font-size:13px">';
+  h += '<select onchange="invSetHome(this.value)" style="padding:7px 10px;border:1px solid rgba(124,106,78,0.3);border-radius:8px;font-size:13px">'+homeOpts+'</select>';
+  h += '<button class="btn btn-xs" onclick="loadInv()" style="padding:7px 12px">🔄 Tải lại</button>';
+  h += '<div style="flex:1"></div>';
+  h += '<button class="btn btn-sky" onclick="invImportModal()" style="padding:7px 14px">➕ Nhập hàng</button>';
+  h += '<button class="btn" onclick="invConfigModal()" style="padding:7px 14px">⚙ Cấu hình mặt hàng</button>';
+  h += '<button class="btn" onclick="invHistoryModal()" style="padding:7px 14px">🧾 Lịch sử</button>';
+  h += '</div>';
+  h += '<div id="inv-body"><div style="padding:30px;text-align:center;color:var(--t3)">Đang tải kho…</div></div>';
+  return h;
+}
+
+function invSetMonth(v){ invMonth = v || ''; loadInv(); }
+function invSetHome(v){ invHomeId = v || ''; loadInv(); }
+
+async function loadInv(){
+  var body = document.getElementById('inv-body');
+  if (body) body.innerHTML = '<div style="padding:30px;text-align:center;color:var(--t3)">Đang tải kho…</div>';
+  try {
+    var q = '/inventory?month='+encodeURIComponent(invCurMonthStr()) + (invHomeId?('&homeId='+encodeURIComponent(invHomeId)):'');
+    INVDATA = await api.get(q);
+    body = document.getElementById('inv-body');
+    if (body) body.innerHTML = invBodyHtml(INVDATA);
+  } catch(e) {
+    body = document.getElementById('inv-body');
+    if (body) body.innerHTML = '<div style="padding:20px;color:#B85C4A">Lỗi tải kho: '+(e.message||'')+'</div>';
+  }
+}
+
+function invBodyHtml(data){
+  if (!data || !data.products || data.products.length===0) {
+    return '<div style="padding:30px;text-align:center;color:var(--t3);border:1px dashed rgba(124,106,78,0.3);border-radius:12px">'
+      +'📦 Chưa có mặt hàng nào được theo dõi kho.<br><br>'
+      +'<button class="btn btn-sky" onclick="invConfigModal()">⚙ Bật theo dõi kho cho nước suối, bia…</button></div>';
+  }
+  var oneHome = !!invHomeId;
+  var h = '';
+  // Cảnh báo tồn thấp tổng hợp
+  var lowList = [];
+  data.products.forEach(function(p){ p.rows.forEach(function(r){ if(r.low){ var hm=data.homes.find(function(x){return x.id===r.homeId;}); lowList.push((hm?(hm.emoji+hm.name):'')+' · '+p.name+' ('+r.onHand+' '+p.unitLabel+')'); } }); });
+  if (lowList.length) {
+    h += '<div style="background:#FBEEE9;border:1px solid rgba(184,92,74,0.3);border-radius:10px;padding:10px 14px;margin-bottom:14px;color:#B85C4A;font-size:13px">'
+      +'⚠️ <b>Sắp hết hàng ('+lowList.length+'):</b> '+lowList.join(' &nbsp;•&nbsp; ')+'</div>';
+  }
+  h += '<div style="font-size:12px;color:var(--t3);margin-bottom:10px">Báo cáo tháng '+data.month+' — Tồn = tổng nhập − tổng bán (bán tự tính từ phụ thu tiêu thụ)</div>';
+
+  data.products.forEach(function(p){
+    var totOn=0, totIn=0, totSold=0;
+    p.rows.forEach(function(r){ totOn+=r.onHand; totIn+=r.imported; totSold+=r.sold; });
+    h += '<div style="background:#fff;border:1px solid rgba(124,106,78,0.2);border-radius:12px;padding:14px;margin-bottom:12px">';
+    h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">';
+    h += '<div style="font-weight:700;font-size:15px;color:#2E2416">'+p.name+' <span style="font-size:11px;color:var(--t3);font-weight:400">('+money(p.amount)+'/'+p.unitLabel+' · 1 '+p.packLabel+' = '+p.packSize+' '+p.unitLabel+')</span></div>';
+    h += '<button class="btn btn-xs btn-sky" onclick="invImportModal('+p.id+')" style="padding:3px 10px">➕ Nhập</button>';
+    h += '</div>';
+
+    if (oneHome) {
+      var r = p.rows[0] || {onHand:0,imported:0,sold:0,low:false};
+      h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">';
+      h += invStatBox('Tồn hiện tại', r.onHand+' '+p.unitLabel, r.low?'#B85C4A':'#3A6037');
+      h += invStatBox('Nhập tháng này', '+'+r.imported+' '+p.unitLabel, '#5A7A96');
+      h += invStatBox('Bán tháng này', r.sold+' '+p.unitLabel, '#A07840');
+      h += '</div>';
+      if (r.low) h += '<div style="margin-top:8px;color:#B85C4A;font-size:12px">⚠️ Dưới ngưỡng '+p.lowStock+' '+p.unitLabel+' — nên nhập thêm.</div>';
+    } else {
+      h += '<table style="width:100%;border-collapse:collapse;font-size:13px">';
+      h += '<tr style="color:var(--t3);font-size:11px;text-align:right"><th style="text-align:left;padding:4px 6px">Căn</th><th style="padding:4px 6px">Tồn</th><th style="padding:4px 6px">Nhập tháng</th><th style="padding:4px 6px">Bán tháng</th></tr>';
+      p.rows.forEach(function(r){
+        var hm = data.homes.find(function(x){return x.id===r.homeId;});
+        h += '<tr style="border-top:1px solid rgba(124,106,78,0.12);text-align:right">';
+        h += '<td style="text-align:left;padding:6px">'+(hm?(hm.emoji+' '+hm.name):('#'+r.homeId))+'</td>';
+        h += '<td style="padding:6px;font-weight:700;color:'+(r.low?'#B85C4A':'#2E2416')+'">'+r.onHand+(r.low?' ⚠️':'')+'</td>';
+        h += '<td style="padding:6px;color:#5A7A96">+'+r.imported+'</td>';
+        h += '<td style="padding:6px;color:#A07840">'+r.sold+'</td>';
+        h += '</tr>';
+      });
+      h += '<tr style="border-top:2px solid rgba(124,106,78,0.25);text-align:right;font-weight:700">';
+      h += '<td style="text-align:left;padding:6px">Tổng</td><td style="padding:6px">'+totOn+'</td><td style="padding:6px;color:#5A7A96">+'+totIn+'</td><td style="padding:6px;color:#A07840">'+totSold+'</td></tr>';
+      h += '</table>';
+    }
+    h += '</div>';
+  });
+  return h;
+}
+
+function invStatBox(label, val, color){
+  return '<div style="background:#F7F4EC;border-radius:8px;padding:10px;text-align:center">'
+    +'<div style="font-size:11px;color:var(--t3);margin-bottom:4px">'+label+'</div>'
+    +'<div style="font-size:18px;font-weight:800;color:'+color+'">'+val+'</div></div>';
+}
+
+/* ── Nhập hàng ── */
+function invImportModal(preTid){
+  var prods = (INVDATA && INVDATA.products) ? INVDATA.products : [];
+  if (!prods.length) { toast('Chưa có mặt hàng theo dõi kho. Bấm ⚙ Cấu hình trước.', 'warn'); return; }
+  var prodOpts = prods.map(function(p){ return '<option value="'+p.id+'"'+(preTid&&p.id===preTid?' selected':'')+' data-pack="'+p.packSize+'" data-unit="'+p.unitLabel+'" data-packlabel="'+p.packLabel+'">'+p.name+'</option>'; }).join('');
+  var homeOpts = HOMES.map(function(h){ return '<option value="'+h.id+'">'+(h.emoji||'🏡')+' '+h.name+'</option>'; }).join('');
+  var today = new Date().toISOString().slice(0,10);
+  var html = '<div class="modal-head"><h3>➕ Nhập hàng vào kho</h3><button class="modal-x" onclick="closeModal()">✕</button></div>'
+    +'<div class="modal-body-in" style="padding:4px 2px">'
+    +'<label class="fld-label">Mặt hàng</label><select id="imp-tid" onchange="invImpPreview()" style="width:100%;padding:9px;border:1px solid rgba(124,106,78,0.3);border-radius:8px;margin-bottom:10px">'+prodOpts+'</select>'
+    +'<label class="fld-label">Căn nhà nhập vào</label><select id="imp-home" style="width:100%;padding:9px;border:1px solid rgba(124,106,78,0.3);border-radius:8px;margin-bottom:10px">'+homeOpts+'</select>'
+    +'<div style="display:flex;gap:10px">'
+      +'<div style="flex:1"><label class="fld-label">Số thùng/lốc</label><input type="number" id="imp-packs" min="0" value="1" oninput="invImpPreview()" style="width:100%;padding:9px;border:1px solid rgba(124,106,78,0.3);border-radius:8px"></div>'
+      +'<div style="flex:1"><label class="fld-label">Lẻ (thêm)</label><input type="number" id="imp-units" min="0" value="0" oninput="invImpPreview()" style="width:100%;padding:9px;border:1px solid rgba(124,106,78,0.3);border-radius:8px"></div>'
+    +'</div>'
+    +'<div id="imp-preview" style="margin:10px 0;padding:9px;background:#EAF1E9;border-radius:8px;text-align:center;font-weight:700;color:#3A6037"></div>'
+    +'<label class="fld-label">Ngày nhập</label><input type="date" id="imp-date" value="'+today+'" style="width:100%;padding:9px;border:1px solid rgba(124,106,78,0.3);border-radius:8px;margin-bottom:10px">'
+    +'<label class="fld-label">Ghi chú (tuỳ chọn)</label><input type="text" id="imp-note" placeholder="VD: nhập từ đại lý A" style="width:100%;padding:9px;border:1px solid rgba(124,106,78,0.3);border-radius:8px;margin-bottom:12px">'
+    +'<button class="btn btn-sky" style="width:100%;padding:11px" onclick="invDoImport()">Lưu nhập kho</button>'
+    +'</div>';
+  showModal(html, 'sm');
+  invImpPreview();
+}
+
+function invImpPreview(){
+  var sel = document.getElementById('imp-tid'); if(!sel) return;
+  var opt = sel.options[sel.selectedIndex];
+  var pack = parseInt(opt.getAttribute('data-pack'))||1;
+  var unit = opt.getAttribute('data-unit')||'cái';
+  var plabel = opt.getAttribute('data-packlabel')||'thùng';
+  var packs = parseInt((document.getElementById('imp-packs')||{}).value)||0;
+  var units = parseInt((document.getElementById('imp-units')||{}).value)||0;
+  var total = packs*pack + units;
+  var pv = document.getElementById('imp-preview');
+  if (pv) pv.innerHTML = '= <b>'+total+' '+unit+'</b> <span style="font-weight:400;color:var(--t3);font-size:12px">('+packs+' '+plabel+' × '+pack+' + '+units+' lẻ)</span>';
+}
+
+async function invDoImport(){
+  var tid = parseInt(document.getElementById('imp-tid').value);
+  var homeId = parseInt(document.getElementById('imp-home').value);
+  var packs = parseInt(document.getElementById('imp-packs').value)||0;
+  var units = parseInt(document.getElementById('imp-units').value)||0;
+  var date = document.getElementById('imp-date').value;
+  var note = document.getElementById('imp-note').value;
+  try {
+    await api.post('/inventory/import', { templateId:tid, homeId:homeId, packs:packs, units:units, date:date, note:note });
+    toast('Đã nhập kho', 'success');
+    closeModal();
+    loadInv();
+  } catch(e) { toast(e.message||'Lỗi nhập kho', 'error'); }
+}
+
+/* ── Cấu hình mặt hàng (bật theo dõi + quy cách + ngưỡng) ── */
+function invConfigModal(){
+  var rows = QUICK.map(function(q){
+    var t = !!q.trackStock;
+    return '<div style="border:1px solid rgba(124,106,78,0.2);border-radius:10px;padding:10px;margin-bottom:8px">'
+      +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'
+        +'<input type="checkbox" id="cf-tr-'+q.id+'" '+(t?'checked':'')+' style="width:18px;height:18px">'
+        +'<b style="font-size:14px">'+q.name+'</b> <span style="font-size:11px;color:var(--t3)">'+money(q.amount)+'</span>'
+      +'</div>'
+      +'<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">'
+        +'<div><label class="fld-label">Quy cách (số lẻ / thùng)</label><input type="number" id="cf-ps-'+q.id+'" min="1" value="'+(q.packSize||1)+'" style="width:100%;padding:7px;border:1px solid rgba(124,106,78,0.3);border-radius:6px"></div>'
+        +'<div><label class="fld-label">Ngưỡng tồn thấp</label><input type="number" id="cf-ls-'+q.id+'" min="0" value="'+(q.lowStock||0)+'" style="width:100%;padding:7px;border:1px solid rgba(124,106,78,0.3);border-radius:6px"></div>'
+        +'<div><label class="fld-label">Đơn vị lẻ</label><input type="text" id="cf-ul-'+q.id+'" value="'+(q.unitLabel||'cái')+'" style="width:100%;padding:7px;border:1px solid rgba(124,106,78,0.3);border-radius:6px"></div>'
+        +'<div><label class="fld-label">Đơn vị thùng</label><input type="text" id="cf-pl-'+q.id+'" value="'+(q.packLabel||'thùng')+'" style="width:100%;padding:7px;border:1px solid rgba(124,106,78,0.3);border-radius:6px"></div>'
+      +'</div></div>';
+  }).join('');
+  if (!QUICK.length) rows = '<div style="color:var(--t3);text-align:center;padding:16px">Chưa có mặt hàng tiêu thụ nào. Vào mục 💵 Phụ thu để thêm.</div>';
+  var html = '<div class="modal-head"><h3>⚙ Cấu hình mặt hàng kho</h3><button class="modal-x" onclick="closeModal()">✕</button></div>'
+    +'<div class="modal-body-in" style="padding:4px 2px">'
+    +'<div style="font-size:12px;color:var(--t3);margin-bottom:10px">Tích chọn mặt hàng cần theo dõi kho, đặt quy cách (VD 1 thùng = 24 chai) và ngưỡng cảnh báo.</div>'
+    +rows
+    +'<button class="btn btn-sky" style="width:100%;padding:11px;margin-top:6px" onclick="invSaveConfig()">Lưu cấu hình</button>'
+    +'</div>';
+  showModal(html);
+}
+
+async function invSaveConfig(){
+  try {
+    for (var i=0;i<QUICK.length;i++){
+      var q = QUICK[i];
+      var tr = document.getElementById('cf-tr-'+q.id).checked;
+      var ps = parseInt(document.getElementById('cf-ps-'+q.id).value)||1;
+      var ls = parseInt(document.getElementById('cf-ls-'+q.id).value)||0;
+      var ul = document.getElementById('cf-ul-'+q.id).value;
+      var pl = document.getElementById('cf-pl-'+q.id).value;
+      await api.patch('/charge-templates/'+q.id, { trackStock:tr, packSize:ps, lowStock:ls, unitLabel:ul, packLabel:pl });
+    }
+    await reloadCharges();
+    toast('Đã lưu cấu hình kho', 'success');
+    closeModal();
+    loadInv();
+  } catch(e) { toast(e.message||'Lỗi lưu cấu hình', 'error'); }
+}
+
+/* ── Lịch sử nhập / điều chỉnh ── */
+async function invHistoryModal(){
+  var html = '<div class="modal-head"><h3>🧾 Lịch sử nhập kho</h3><button class="modal-x" onclick="closeModal()">✕</button></div>'
+    +'<div class="modal-body-in" id="inv-hist-body" style="padding:4px 2px"><div style="padding:20px;text-align:center;color:var(--t3)">Đang tải…</div></div>';
+  showModal(html);
+  try {
+    var q = '/inventory/entries?month='+encodeURIComponent(invCurMonthStr()) + (invHomeId?('&homeId='+encodeURIComponent(invHomeId)):'');
+    var list = await api.get(q);
+    var body = document.getElementById('inv-hist-body');
+    if (!list.length) { if(body) body.innerHTML='<div style="padding:20px;text-align:center;color:var(--t3)">Chưa có phiếu nhập nào trong tháng.</div>'; return; }
+    var rows = list.map(function(e){
+      var sign = e.type==='ADJUST' ? (e.qty>=0?'+':'') : '+';
+      var color = e.type==='ADJUST' ? '#A07840' : '#3A6037';
+      return '<div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(124,106,78,0.12);padding:8px 4px">'
+        +'<div><b>'+(e.template?e.template.name:'?')+'</b> <span style="font-size:11px;color:var(--t3)">'+(e.home?(e.home.emoji+' '+e.home.name):'')+' · '+String(e.date).slice(0,10)+(e.type==='ADJUST'?' · điều chỉnh':'')+'</span>'+(e.note?('<br><span style="font-size:11px;color:var(--t3)">'+e.note+'</span>'):'')+'</div>'
+        +'<div style="display:flex;gap:8px;align-items:center"><span style="font-weight:700;color:'+color+'">'+sign+e.qty+' '+(e.template?e.template.unitLabel:'')+'</span>'
+        +'<button class="btn btn-xs btn-danger" onclick="invDelEntry('+e.id+')">✕</button></div></div>';
+    }).join('');
+    if (body) body.innerHTML = rows;
+  } catch(e) { var body=document.getElementById('inv-hist-body'); if(body) body.innerHTML='<div style="padding:20px;color:#B85C4A">Lỗi: '+(e.message||'')+'</div>'; }
+}
+
+async function invDelEntry(id){
+  if (!confirm('Xoá phiếu này? Tồn kho sẽ tính lại.')) return;
+  try { await api.delete('/inventory/entries/'+id); toast('Đã xoá', 'success'); invHistoryModal(); loadInv(); }
+  catch(e) { toast(e.message||'Lỗi xoá', 'error'); }
+}
+
 function renderFinance() {
   // ── Tính các số liệu chung ──
   var totalReceived = BOOKINGS.reduce(function(s,b){ return s + actualReceived(b); }, 0);
