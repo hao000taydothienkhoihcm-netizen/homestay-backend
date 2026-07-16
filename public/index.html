@@ -2526,7 +2526,7 @@ function renderCheckinOut() {
 /* ═══════════ CALENDAR — dùng table HTML thuần, không dùng template literal ═══════════ */
 let calY = T.getFullYear(), calM = T.getMonth();
 let calHomeId = ''; // '' = tất cả các căn
-function calSetHome(v){ calHomeId = v; setPage('calendar'); }
+function calSetHome(v){ calHomeId = (v==='' || v==null) ? '' : Number(v); setPage('calendar'); }
 // Đêm `dateStr` của căn homeId có khách? (nhận <= đêm < trả). Đêm trả nhà coi như trống.
 function homeOccupied(homeId, dateStr){
   for (var i=0;i<BOOKINGS.length;i++){ var b=BOOKINGS[i]; if(b.homeId!==homeId) continue; if(b.checkIn && b.checkOut && dateStr>=b.checkIn && dateStr<b.checkOut) return true; }
