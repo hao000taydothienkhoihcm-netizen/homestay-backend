@@ -14,13 +14,24 @@ router.get('/', async (req, res) => {
   res.json(templates);
 });
 
+// Chuẩn hoá các trường cấu hình kho (chỉ dùng cho QUICK)
+function stockFields(body) {
+  const out = {};
+  if (body.trackStock !== undefined) out.trackStock = !!body.trackStock;
+  if (body.packSize !== undefined) out.packSize = Math.max(1, parseInt(body.packSize) || 1);
+  if (body.packLabel !== undefined) out.packLabel = String(body.packLabel).trim() || 'thùng';
+  if (body.unitLabel !== undefined) out.unitLabel = String(body.unitLabel).trim() || 'cái';
+  if (body.lowStock !== undefined) out.lowStock = Math.max(0, parseInt(body.lowStock) || 0);
+  return out;
+}
+
 router.post('/', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
   const { name, amount, type } = req.body;
   if (!name || !amount || !type) return res.status(400).json({ error: 'Thiếu thông tin' });
   if (!['RULE', 'QUICK'].includes(type)) return res.status(400).json({ error: 'Type không hợp lệ' });
 
   const tpl = await prisma.chargeTemplate.create({
-    data: { name, amount: parseInt(amount), type }
+    data: { name, amount: parseInt(amount), type, ...(type === 'QUICK' ? stockFields(req.body) : {}) }
   });
   res.status(201).json(tpl);
 });
@@ -32,7 +43,8 @@ router.patch('/:id', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
     where: { id },
     data: {
       ...(name && { name }),
-      ...(amount !== undefined && { amount: parseInt(amount) })
+      ...(amount !== undefined && { amount: parseInt(amount) }),
+      ...stockFields(req.body)
     }
   });
   res.json(tpl);

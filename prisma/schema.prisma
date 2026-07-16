@@ -47,6 +47,7 @@ model Home {
   
   bookings  Booking[]
   expenses  Expense[]
+  stockEntries StockEntry[]
 }
 
 // ───── Bookings ─────
@@ -123,6 +124,16 @@ model ChargeTemplate {
   amount    Int
   type      ChargeType
   active    Boolean  @default(true)
+
+  // ── Quản lý kho (chỉ áp dụng cho QUICK — đồ tiêu thụ) ──
+  trackStock Boolean @default(false)  // Có theo dõi tồn kho không
+  packSize   Int     @default(1)      // Số đơn vị lẻ trong 1 thùng/lốc (VD 1 thùng = 24 chai)
+  packLabel  String  @default("thùng")// Tên đơn vị nhập (thùng / lốc / kiện)
+  unitLabel  String  @default("cái")  // Tên đơn vị lẻ (chai / lon / gói)
+  lowStock   Int     @default(0)      // Ngưỡng cảnh báo tồn thấp (theo đơn vị lẻ)
+
+  stockEntries StockEntry[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -130,6 +141,30 @@ model ChargeTemplate {
 enum ChargeType {
   RULE      // Nội quy phạt — không có số lượng
   QUICK     // Tiêu thụ — có số lượng
+}
+
+// ───── Nhập kho / điều chỉnh tồn (theo từng căn) ─────
+model StockEntry {
+  id         Int      @id @default(autoincrement())
+  templateId Int
+  template   ChargeTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  homeId     Int
+  home       Home     @relation(fields: [homeId], references: [id])
+
+  qty   Int          // Số đơn vị lẻ (đã quy đổi từ thùng). ADJUST có thể âm.
+  type  StockType @default(IMPORT)
+  note  String?
+  date  DateTime  @db.Date
+
+  createdAt DateTime @default(now())
+
+  @@index([templateId, homeId])
+  @@index([date])
+}
+
+enum StockType {
+  IMPORT   // Nhập hàng
+  ADJUST   // Kiểm kê / điều chỉnh tồn
 }
 
 // ───── Expenses (chi phí vận hành) ─────

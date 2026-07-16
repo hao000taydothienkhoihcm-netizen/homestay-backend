@@ -6,8 +6,6 @@ import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
-import path from 'path';
-import { fileURLToPath } from 'url';
 
 import { authMiddleware } from './middleware/auth.js';
 import authRouter from './routes/auth.js';
@@ -17,8 +15,8 @@ import expensesRouter from './routes/expenses.js';
 import usersRouter from './routes/users.js';
 import chargeTemplatesRouter from './routes/chargeTemplates.js';
 import statsRouter from './routes/stats.js';
+import inventoryRouter from './routes/inventory.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 
 // ───── Middleware ─────
@@ -36,11 +34,8 @@ app.use('/v1/auth/login', rateLimit({
   message: { error: 'Quá nhiều lần đăng nhập, thử lại sau 15 phút' }
 }));
 
-// ───── Giao diện web (tĩnh) ─────
-app.use(express.static(path.join(__dirname, '../public')));
-
 // ───── Health check ─────
-app.get('/healthz', (req, res) => res.json({
+app.get('/', (req, res) => res.json({
   ok: true,
   name: 'HomeStay Manager API',
   version: '1.0.0',
@@ -58,6 +53,7 @@ app.use('/v1/expenses', expensesRouter);
 app.use('/v1/users', usersRouter);
 app.use('/v1/charge-templates', chargeTemplatesRouter);
 app.use('/v1/stats', statsRouter);
+app.use('/v1/inventory', inventoryRouter);
 
 // ───── Error handler ─────
 app.use((err, req, res, next) => {
@@ -71,8 +67,7 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🏡 HomeStay Backend chạy tại http://localhost:${PORT}`);
-  console.log(`   Web:      http://localhost:${PORT}/`);
   console.log(`   API base: http://localhost:${PORT}/v1`);
-  console.log(`   Health:   http://localhost:${PORT}/healthz`);
+  console.log(`   Health:   http://localhost:${PORT}/`);
   console.log(`\n   Demo: POST /v1/auth/login với { username: "admin", password: "admin123" }\n`);
 });
