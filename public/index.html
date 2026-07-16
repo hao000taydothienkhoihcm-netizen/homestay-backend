@@ -3087,7 +3087,6 @@ function renderStatistics() {
   return h;
 }
 
-/* ═══════════ FINANCE ═══════════ */
 /* ═══════════ QUẢN LÝ KHO ═══════════ */
 let invMonth = '';   // 'YYYY-MM' ('' = tháng hiện tại)
 let invHomeId = '';  // '' = tất cả các căn
@@ -3146,11 +3145,11 @@ function invBodyHtml(data){
     h += '<div style="background:#FBEEE9;border:1px solid rgba(184,92,74,0.3);border-radius:10px;padding:10px 14px;margin-bottom:14px;color:#B85C4A;font-size:13px">'
       +'⚠️ <b>Sắp hết hàng ('+lowList.length+'):</b> '+lowList.join(' &nbsp;•&nbsp; ')+'</div>';
   }
-  h += '<div style="font-size:12px;color:var(--t3);margin-bottom:10px">Báo cáo tháng '+data.month+' — Tồn = tổng nhập − tổng bán (bán tự tính từ phụ thu tiêu thụ)</div>';
+  h += '<div style="font-size:12px;color:var(--t3);margin-bottom:10px">Báo cáo tháng '+data.month+' — <b>Tồn đầu + Nhập − Bán = Tồn cuối</b> (bán tự tính từ phụ thu tiêu thụ)</div>';
 
   data.products.forEach(function(p){
-    var totOn=0, totIn=0, totSold=0;
-    p.rows.forEach(function(r){ totOn+=r.onHand; totIn+=r.imported; totSold+=r.sold; });
+    var totOpen=0, totIn=0, totSold=0, totOn=0;
+    p.rows.forEach(function(r){ totOpen+=(r.opening||0); totIn+=r.imported; totSold+=r.sold; totOn+=r.onHand; });
     h += '<div style="background:#fff;border:1px solid rgba(124,106,78,0.2);border-radius:12px;padding:14px;margin-bottom:12px">';
     h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">';
     h += '<div style="font-weight:700;font-size:15px;color:#2E2416">'+p.name+' <span style="font-size:11px;color:var(--t3);font-weight:400">('+money(p.amount)+'/'+p.unitLabel+' · 1 '+p.packLabel+' = '+p.packSize+' '+p.unitLabel+')</span></div>';
@@ -3158,27 +3157,38 @@ function invBodyHtml(data){
     h += '</div>';
 
     if (oneHome) {
-      var r = p.rows[0] || {onHand:0,imported:0,sold:0,low:false};
-      h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">';
-      h += invStatBox('Tồn hiện tại', r.onHand+' '+p.unitLabel, r.low?'#B85C4A':'#3A6037');
-      h += invStatBox('Nhập tháng này', '+'+r.imported+' '+p.unitLabel, '#5A7A96');
-      h += invStatBox('Bán tháng này', r.sold+' '+p.unitLabel, '#A07840');
+      var r = p.rows[0] || {opening:0,onHand:0,imported:0,sold:0,low:false};
+      h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">';
+      h += invStatBox('Tồn đầu tháng', (r.opening||0)+' '+p.unitLabel, '#7C6A4E');
+      h += invStatBox('Nhập trong tháng', '+'+r.imported+' '+p.unitLabel, '#5A7A96');
+      h += invStatBox('Bán trong tháng', '−'+r.sold+' '+p.unitLabel, '#A07840');
+      h += invStatBox('Tồn cuối tháng', r.onHand+' '+p.unitLabel, r.low?'#B85C4A':'#3A6037');
       h += '</div>';
-      if (r.low) h += '<div style="margin-top:8px;color:#B85C4A;font-size:12px">⚠️ Dưới ngưỡng '+p.lowStock+' '+p.unitLabel+' — nên nhập thêm.</div>';
+      if (r.low) h += '<div style="margin-top:8px;color:#B85C4A;font-size:12px">⚠️ Còn ≤ ngưỡng '+p.lowStock+' '+p.unitLabel+' — nên nhập thêm.</div>';
     } else {
       h += '<table style="width:100%;border-collapse:collapse;font-size:13px">';
-      h += '<tr style="color:var(--t3);font-size:11px;text-align:right"><th style="text-align:left;padding:4px 6px">Căn</th><th style="padding:4px 6px">Tồn</th><th style="padding:4px 6px">Nhập tháng</th><th style="padding:4px 6px">Bán tháng</th></tr>';
+      h += '<tr style="color:var(--t3);font-size:11px">'
+        +'<th style="text-align:left;padding:4px 6px">Căn</th>'
+        +'<th style="text-align:right;padding:4px 6px">Tồn đầu</th>'
+        +'<th style="text-align:right;padding:4px 6px">Nhập</th>'
+        +'<th style="text-align:right;padding:4px 6px">Bán</th>'
+        +'<th style="text-align:right;padding:4px 6px">Tồn cuối</th></tr>';
       p.rows.forEach(function(r){
         var hm = data.homes.find(function(x){return x.id===r.homeId;});
-        h += '<tr style="border-top:1px solid rgba(124,106,78,0.12);text-align:right">';
+        h += '<tr style="border-top:1px solid rgba(124,106,78,0.12)">';
         h += '<td style="text-align:left;padding:6px">'+(hm?(hm.emoji+' '+hm.name):('#'+r.homeId))+'</td>';
-        h += '<td style="padding:6px;font-weight:700;color:'+(r.low?'#B85C4A':'#2E2416')+'">'+r.onHand+(r.low?' ⚠️':'')+'</td>';
-        h += '<td style="padding:6px;color:#5A7A96">+'+r.imported+'</td>';
-        h += '<td style="padding:6px;color:#A07840">'+r.sold+'</td>';
+        h += '<td style="text-align:right;padding:6px;color:#7C6A4E">'+(r.opening||0)+'</td>';
+        h += '<td style="text-align:right;padding:6px;color:#5A7A96">+'+r.imported+'</td>';
+        h += '<td style="text-align:right;padding:6px;color:#A07840">−'+r.sold+'</td>';
+        h += '<td style="text-align:right;padding:6px;font-weight:700;color:'+(r.low?'#B85C4A':'#2E2416')+'">'+r.onHand+(r.low?' ⚠️':'')+'</td>';
         h += '</tr>';
       });
-      h += '<tr style="border-top:2px solid rgba(124,106,78,0.25);text-align:right;font-weight:700">';
-      h += '<td style="text-align:left;padding:6px">Tổng</td><td style="padding:6px">'+totOn+'</td><td style="padding:6px;color:#5A7A96">+'+totIn+'</td><td style="padding:6px;color:#A07840">'+totSold+'</td></tr>';
+      h += '<tr style="border-top:2px solid rgba(124,106,78,0.25);font-weight:700">';
+      h += '<td style="text-align:left;padding:6px">Tổng</td>'
+        +'<td style="text-align:right;padding:6px;color:#7C6A4E">'+totOpen+'</td>'
+        +'<td style="text-align:right;padding:6px;color:#5A7A96">+'+totIn+'</td>'
+        +'<td style="text-align:right;padding:6px;color:#A07840">−'+totSold+'</td>'
+        +'<td style="text-align:right;padding:6px">'+totOn+'</td></tr>';
       h += '</table>';
     }
     h += '</div>';
@@ -3226,7 +3236,8 @@ function invImpPreview(){
   var units = parseInt((document.getElementById('imp-units')||{}).value)||0;
   var total = packs*pack + units;
   var pv = document.getElementById('imp-preview');
-  if (pv) pv.innerHTML = '= <b>'+total+' '+unit+'</b> <span style="font-weight:400;color:var(--t3);font-size:12px">('+packs+' '+plabel+' × '+pack+' + '+units+' lẻ)</span>';
+  if (pv) pv.innerHTML = '= <b>'+total+' '+unit+'</b> <span style="font-weight:400;color:var(--t3);font-size:12px">('+packs+' '+plabel+' × '+pack+' '+unit+' + '+units+' '+unit+' lẻ)</span>'
+    +'<div style="font-weight:400;color:var(--t3);font-size:11px;margin-top:3px">Quy cách: 1 '+plabel+' = '+pack+' '+unit+'</div>';
 }
 
 async function invDoImport(){
@@ -3254,10 +3265,10 @@ function invConfigModal(){
         +'<b style="font-size:14px">'+q.name+'</b> <span style="font-size:11px;color:var(--t3)">'+money(q.amount)+'</span>'
       +'</div>'
       +'<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">'
-        +'<div><label class="fld-label">Quy cách (số lẻ / thùng)</label><input type="number" id="cf-ps-'+q.id+'" min="1" value="'+(q.packSize||1)+'" style="width:100%;padding:7px;border:1px solid rgba(124,106,78,0.3);border-radius:6px"></div>'
-        +'<div><label class="fld-label">Ngưỡng tồn thấp</label><input type="number" id="cf-ls-'+q.id+'" min="0" value="'+(q.lowStock||0)+'" style="width:100%;padding:7px;border:1px solid rgba(124,106,78,0.3);border-radius:6px"></div>'
-        +'<div><label class="fld-label">Đơn vị lẻ</label><input type="text" id="cf-ul-'+q.id+'" value="'+(q.unitLabel||'cái')+'" style="width:100%;padding:7px;border:1px solid rgba(124,106,78,0.3);border-radius:6px"></div>'
-        +'<div><label class="fld-label">Đơn vị thùng</label><input type="text" id="cf-pl-'+q.id+'" value="'+(q.packLabel||'thùng')+'" style="width:100%;padding:7px;border:1px solid rgba(124,106,78,0.3);border-radius:6px"></div>'
+        +'<div><label class="fld-label">Tên đơn vị lẻ (chai, hũ, lon…)</label><input type="text" id="cf-ul-'+q.id+'" value="'+(q.unitLabel||'cái')+'" style="width:100%;padding:7px;border:1px solid rgba(124,106,78,0.3);border-radius:6px"></div>'
+        +'<div><label class="fld-label">Tên thùng (thùng, lốc, két…)</label><input type="text" id="cf-pl-'+q.id+'" value="'+(q.packLabel||'thùng')+'" style="width:100%;padding:7px;border:1px solid rgba(124,106,78,0.3);border-radius:6px"></div>'
+        +'<div><label class="fld-label">1 '+(q.packLabel||'thùng')+' = ? '+(q.unitLabel||'cái')+'</label><input type="number" id="cf-ps-'+q.id+'" min="1" value="'+(q.packSize||1)+'" style="width:100%;padding:7px;border:1px solid rgba(124,106,78,0.3);border-radius:6px"></div>'
+        +'<div><label class="fld-label">Cảnh báo khi còn ≤ (đơn vị lẻ)</label><input type="number" id="cf-ls-'+q.id+'" min="0" value="'+(q.lowStock||0)+'" style="width:100%;padding:7px;border:1px solid rgba(124,106,78,0.3);border-radius:6px"></div>'
       +'</div></div>';
   }).join('');
   if (!QUICK.length) rows = '<div style="color:var(--t3);text-align:center;padding:16px">Chưa có mặt hàng tiêu thụ nào. Vào mục 💵 Phụ thu để thêm.</div>';
