@@ -22,6 +22,7 @@ function stockFields(body) {
   if (body.packLabel !== undefined) out.packLabel = String(body.packLabel).trim() || 'thùng';
   if (body.unitLabel !== undefined) out.unitLabel = String(body.unitLabel).trim() || 'cái';
   if (body.lowStock !== undefined) out.lowStock = Math.max(0, parseInt(body.lowStock) || 0);
+  if (body.costPrice !== undefined) out.costPrice = Math.max(0, parseInt(body.costPrice) || 0);
   return out;
 }
 
