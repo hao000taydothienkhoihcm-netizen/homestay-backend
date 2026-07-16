@@ -2525,12 +2525,21 @@ function renderCheckinOut() {
 
 /* ═══════════ CALENDAR — dùng table HTML thuần, không dùng template literal ═══════════ */
 let calY = T.getFullYear(), calM = T.getMonth();
+let calHomeId = ''; // '' = tất cả các căn
+function calSetHome(v){ calHomeId = v; setPage('calendar'); }
+// Đêm `dateStr` của căn homeId có khách? (nhận <= đêm < trả). Đêm trả nhà coi như trống.
+function homeOccupied(homeId, dateStr){
+  for (var i=0;i<BOOKINGS.length;i++){ var b=BOOKINGS[i]; if(b.homeId!==homeId) continue; if(b.checkIn && b.checkOut && dateStr>=b.checkIn && dateStr<b.checkOut) return true; }
+  return false;
+}
+function freeHomesOn(dateStr){ return HOMES.filter(function(h){ return !homeOccupied(h.id, dateStr); }); }
 
 function renderCalendar() {
   const firstDow = new Date(calY, calM, 1).getDay();
   const daysInMonth = new Date(calY, calM+1, 0).getDate();
   // Hiển thị TẤT CẢ booking trên lịch (kể cả đã trả) để xem được tên khách những ngày đã qua.
-  const vis = BOOKINGS.slice();
+  const oneHome = !!calHomeId;
+  const vis = oneHome ? BOOKINGS.filter(function(b){return b.homeId===calHomeId;}) : BOOKINGS.slice();
 
   let h = '<div class="card">';
   // Nav
@@ -2539,7 +2548,12 @@ function renderCalendar() {
   h += '<h3 style="font-size:15px;color:#5C4E38">'+MFULL[calM]+' '+calY+'</h3>';
   h += '<button class="btn btn-out btn-sm" onclick="calNext()">Sau →</button>';
   h += '</div>';
-  h += '<div style="font-size:11px;color:var(--t3);margin-bottom:8px">'+vis.length+' booking đang hiển thị</div>';
+  // Bộ lọc căn
+  h += '<div style="margin-bottom:8px"><select onchange="calSetHome(this.value)" style="width:100%;padding:8px 10px;border:1px solid rgba(124,106,78,0.3);border-radius:8px;font-size:13px;background:#fff;color:#5C4E38">';
+  h += '<option value=""'+(!oneHome?' selected':'')+'>🏠 Tất cả các căn</option>';
+  HOMES.forEach(function(hh){ h += '<option value="'+hh.id+'"'+(calHomeId===hh.id?' selected':'')+'>'+hh.emoji+' '+hh.name+'</option>'; });
+  h += '</select></div>';
+  h += '<div style="font-size:11px;color:var(--t3);margin-bottom:8px">'+(oneHome?('Xem 1 căn · ngày trống hiện <b style="color:#3A6037">Trống</b>'):(vis.length+' booking · ngày ghi số căn còn trống'))+'</div>';
 
   // Grid
   h += '<div class="cal-grid">';
@@ -2567,9 +2581,13 @@ function renderCalendar() {
       else if (dateStr > ci && dateStr < co) evs.push({b:b, t:'stay'});
     }
 
+    // Tính trống: 1 căn → đêm đó căn này có khách không; tất cả → số căn còn trống
+    var freeList = oneHome ? (homeOccupied(calHomeId, dateStr) ? [] : [1]) : freeHomesOn(dateStr);
+    var isFree = oneHome ? (freeList.length>0) : (freeList.length>0);
+
     var hasCO = evs.some(function(e){return e.t==='cout';});
     var cellStyle = hasCO && !isToday ? 'border-color:rgba(184,92,74,0.45)' : '';
-    var clickAttr = evs.length > 0 ? ' onclick="showDayDetail(\''+dateStr+'\')" style="cursor:pointer;'+cellStyle+'"' : ' style="'+cellStyle+'"';
+    var clickAttr = (evs.length > 0 || (!oneHome && freeList.length>0)) ? ' onclick="showDayDetail(\''+dateStr+'\')" style="cursor:pointer;'+cellStyle+'"' : ' style="'+cellStyle+'"';
     h += '<div class="cal-cell'+(isToday?' today':'')+(evs.length>0?' has-events':'')+'"'+clickAttr+'>';
     h += '<div class="cal-day-num" style="'+(isToday?'color:#5C4E38;font-weight:800':'')+'">'+day+'</div>';
 
@@ -2585,6 +2603,13 @@ function renderCalendar() {
       h += '<div class="cal-ev '+ev.t+doneCls+'" title="'+tip+'">'+icon+' '+shortName+'</div>';
     }
     if (evs.length>3) h += '<div style="font-size:9px;color:var(--t3)">+'+( evs.length-3)+' nữa</div>';
+    // Nhãn TRỐNG
+    if (oneHome) {
+      if (isFree) h += '<div style="margin-top:2px;font-size:9.5px;font-weight:700;color:#3A6037;background:rgba(94,126,91,0.14);border-radius:4px;padding:1px 4px;text-align:center">🟢 Trống</div>';
+    } else if (freeList.length>0) {
+      var fnames = freeList.map(function(x){return x.emoji+x.name;}).join(', ');
+      h += '<div style="margin-top:2px;font-size:9px;font-weight:700;color:#3A6037;background:rgba(94,126,91,0.12);border-radius:4px;padding:1px 4px;text-align:center" title="Trống: '+fnames+'">🟢 '+freeList.length+' căn trống</div>';
+    }
     h += '</div>';
   }
   h += '</div>';
@@ -2595,6 +2620,7 @@ function renderCalendar() {
   h += '<span style="font-size:11px;display:flex;align-items:center;gap:5px;color:#B85C4A"><span style="width:8px;height:8px;border-radius:50%;background:#B85C4A;display:inline-block"></span>■ Trả nhà</span>';
   h += '<span style="font-size:11px;display:flex;align-items:center;gap:5px;color:#5A7A96"><span style="width:8px;height:8px;border-radius:50%;background:#5A7A96;display:inline-block"></span>· Đang ở</span>';
   h += '<span style="font-size:11px;display:flex;align-items:center;gap:5px;color:#9A8F7C;opacity:0.7"><span style="width:8px;height:8px;border-radius:50%;background:#9A8F7C;display:inline-block"></span>Mờ = đã trả (quá khứ)</span>';
+  h += '<span style="font-size:11px;display:flex;align-items:center;gap:5px;color:#3A6037">🟢 Trống = đêm chưa có khách</span>';
   h += '</div></div>';
   return h;
 }
@@ -3529,10 +3555,16 @@ function showDayDetail(dateStr) {
     return false;
   });
 
+  var freeH = freeHomesOn(dateStr);
+  var freeSection = freeH.length ? ('<div style="margin-bottom:14px"><div style="font-size:11px;font-weight:600;color:#3A6037;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:7px">🟢 Căn còn trống đêm này ('+freeH.length+'/'+HOMES.length+')</div>'
+    + freeH.map(function(h2){return '<span style="display:inline-block;background:rgba(94,126,91,0.12);color:#3A6037;border:1px solid rgba(94,126,91,0.3);border-radius:6px;padding:4px 9px;margin:0 6px 6px 0;font-size:12px;font-weight:600">'+h2.emoji+' '+h2.name+'</span>';}).join('')
+    + '</div>') : '';
+
   if (!dayBookings.length) {
     showModal(
       '<div class="mh"><div class="mt2">📅 ' + fD(dateStr) + '</div><button class="mc" onclick="closeModal()">✕</button></div>'
-      + '<div style="text-align:center;padding:30px;color:var(--t3)">Không có booking nào trong ngày này</div>'
+      + freeSection
+      + (freeH.length ? '' : '<div style="text-align:center;padding:30px;color:var(--t3)">Không có booking nào trong ngày này</div>')
       + '<div class="mfoot"><button class="btn btn-out" onclick="closeModal()">Đóng</button></div>',
       'sm'
     );
@@ -3552,6 +3584,8 @@ function showDayDetail(dateStr) {
   html += '<div style="background:rgba(90,122,150,0.08);border-radius:7px;padding:9px 11px;border:1px solid rgba(90,122,150,0.2);text-align:center"><div style="font-size:18px;font-weight:700;color:#5A7A96;font-family:\'Playfair Display\',serif">' + stayList.length + '</div><div style="font-size:10px;color:#5A7A96;text-transform:uppercase;letter-spacing:0.5px">· Đang ở</div></div>';
   html += '<div style="background:rgba(184,92,74,0.08);border-radius:7px;padding:9px 11px;border:1px solid rgba(184,92,74,0.25);text-align:center"><div style="font-size:18px;font-weight:700;color:#B85C4A;font-family:\'Playfair Display\',serif">' + coList.length + '</div><div style="font-size:10px;color:#B85C4A;text-transform:uppercase;letter-spacing:0.5px">■ Trả nhà</div></div>';
   html += '</div>';
+
+  html += freeSection;
 
   // Section: Nhận nhà
   if (ciList.length) {
