@@ -47,40 +47,52 @@ router.get('/', async (req, res) => {
   const prodByName = {};
   products.forEach(p => { prodByName[p.name] = p; });
 
-  // Bán ra: gom theo (templateId, homeId). soldAll = mọi thời điểm; soldMonth = trong tháng.
-  const soldAll = {};
-  const soldMonth = {};
+  // ── Sổ kho theo tháng: Tồn đầu + Nhập − Bán (± Điều chỉnh) = Tồn cuối ──
+  // Bán ra (từ Charge): tách trước tháng / trong tháng. Bỏ qua bán ở tương lai (sau tháng).
+  const soldBefore = {};   // bán trước [start]
+  const soldMonth = {};    // bán trong [start,end]
   for (const c of charges) {
     const p = prodByName[c.name];
     if (!p || !c.booking) continue;
     const hid = c.booking.homeId;
-    bump(soldAll, p.id, hid, c.qty);
     const attr = c.phase === 'CHECKIN' ? c.booking.checkIn : c.booking.checkOut;
     const d = attr ? new Date(attr) : null;
-    if (d && d >= start && d <= end) bump(soldMonth, p.id, hid, c.qty);
+    if (!d) continue;
+    if (d < start) bump(soldBefore, p.id, hid, c.qty);
+    else if (d <= end) bump(soldMonth, p.id, hid, c.qty);
+    // d > end: bỏ qua (chưa tính vào tháng này)
   }
 
-  // Nhập / điều chỉnh: gom theo (templateId, homeId).
-  const stockAll = {};       // tổng nhập + điều chỉnh mọi thời điểm
-  const importedMonth = {};  // chỉ IMPORT trong tháng
+  // Nhập / điều chỉnh (từ StockEntry): tách trước tháng / trong tháng.
+  const inBefore = {};        // net (IMPORT + ADJUST) trước [start]
+  const importedMonth = {};   // chỉ IMPORT trong tháng
+  const adjustMonth = {};     // chỉ ADJUST trong tháng (có thể âm)
   for (const e of entries) {
-    bump(stockAll, e.templateId, e.homeId, e.qty);
     const d = new Date(e.date);
-    if (e.type === 'IMPORT' && d >= start && d <= end) bump(importedMonth, e.templateId, e.homeId, e.qty);
+    if (d < start) bump(inBefore, e.templateId, e.homeId, e.qty);
+    else if (d <= end) {
+      if (e.type === 'ADJUST') bump(adjustMonth, e.templateId, e.homeId, e.qty);
+      else bump(importedMonth, e.templateId, e.homeId, e.qty);
+    }
+    // d > end: bỏ qua
   }
 
   const visibleHomes = homeFilter ? homes.filter(h => h.id === homeFilter) : homes;
 
   const result = products.map(p => {
     const rows = visibleHomes.map(h => {
+      const opening = ((inBefore[p.id]?.[h.id]) || 0) - ((soldBefore[p.id]?.[h.id]) || 0);
       const imported = (importedMonth[p.id]?.[h.id]) || 0;
       const sold = (soldMonth[p.id]?.[h.id]) || 0;
-      const onHand = ((stockAll[p.id]?.[h.id]) || 0) - ((soldAll[p.id]?.[h.id]) || 0);
+      const adjust = (adjustMonth[p.id]?.[h.id]) || 0;
+      const onHand = opening + imported + adjust - sold; // tồn cuối
       return {
         homeId: h.id,
-        onHand,
+        opening,
         imported,
         sold,
+        adjust,
+        onHand,
         low: p.lowStock > 0 && onHand <= p.lowStock
       };
     });
