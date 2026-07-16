@@ -131,6 +131,7 @@ model ChargeTemplate {
   packLabel  String  @default("thùng")// Tên đơn vị nhập (thùng / lốc / kiện)
   unitLabel  String  @default("cái")  // Tên đơn vị lẻ (chai / lon / gói)
   lowStock   Int     @default(0)      // Ngưỡng cảnh báo tồn thấp (theo đơn vị lẻ)
+  costPrice  Int     @default(0)      // Giá vốn / giá nhập 1 đơn vị lẻ (để tính lợi nhuận)
 
   stockEntries StockEntry[]
 
