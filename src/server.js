@@ -6,6 +6,10 @@ import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 import { authMiddleware } from './middleware/auth.js';
 import authRouter from './routes/auth.js';
@@ -35,12 +39,15 @@ app.use('/v1/auth/login', rateLimit({
 }));
 
 // ───── Health check ─────
-app.get('/', (req, res) => res.json({
+app.get('/health', (req, res) => res.json({
   ok: true,
   name: 'HomeStay Manager API',
   version: '1.0.0',
   time: new Date().toISOString()
 }));
+
+// ───── Serve web (public/index.html) ─────
+app.use(express.static(path.join(__dirname, '../public')));
 
 // ───── Public routes ─────
 app.use('/v1/auth', authRouter);
