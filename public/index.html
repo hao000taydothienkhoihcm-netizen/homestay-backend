@@ -3184,13 +3184,13 @@ function invBodyHtml(data){
       h += '</div>';
       if (r.low) h += '<div style="margin-top:8px;color:#B85C4A;font-size:12px">⚠️ Còn ≤ ngưỡng '+p.lowStock+' '+p.unitLabel+' — nên nhập thêm.</div>';
     } else {
-      h += '<table style="width:100%;border-collapse:collapse;font-size:13px">';
+      h += '<table style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed">';
       h += '<tr style="color:var(--t3);font-size:11px">'
-        +'<th style="text-align:left;padding:4px 6px">Căn</th>'
-        +'<th style="text-align:right;padding:4px 6px">Tồn tháng trước</th>'
-        +'<th style="text-align:right;padding:4px 6px">Nhập</th>'
-        +'<th style="text-align:right;padding:4px 6px">Bán</th>'
-        +'<th style="text-align:right;padding:4px 6px">Tồn cuối</th></tr>';
+        +'<th style="text-align:left;padding:3px 2px;width:30%">Căn</th>'
+        +'<th style="text-align:right;padding:3px 2px">Đầu kỳ</th>'
+        +'<th style="text-align:right;padding:3px 2px">Nhập</th>'
+        +'<th style="text-align:right;padding:3px 2px">Bán</th>'
+        +'<th style="text-align:right;padding:3px 2px">Cuối kỳ</th></tr>';
       p.rows.forEach(function(r){
         var hm = data.homes.find(function(x){return x.id===r.homeId;});
         h += '<tr style="border-top:1px solid rgba(124,106,78,0.12)">';
