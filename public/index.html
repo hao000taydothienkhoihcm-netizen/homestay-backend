@@ -418,8 +418,8 @@ textarea.fc{resize:vertical;min-height:60px}
         <h1 style="font-size:22px;color:#5C4E38">HomeStay Manager</h1>
         <p style="font-size:11px;color:var(--t3);margin-top:3px">Quản lý homestay chuyên nghiệp</p>
       </div>
-      <div class="fg"><label class="fl">Tên đăng nhập</label><input class="fc" id="l-un" value="admin" placeholder="username..." onkeydown="if(event.key==='Enter')doLogin()"/></div>
-      <div class="fg"><label class="fl">Mật khẩu</label><input type="password" class="fc" id="l-pw" value="admin123" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"/></div>
+      <div class="fg"><label class="fl">Tên đăng nhập</label><input class="fc" id="l-un" value="" placeholder="username..." onkeydown="if(event.key==='Enter')doLogin()"/></div>
+      <div class="fg"><label class="fl">Mật khẩu</label><input type="password" class="fc" id="l-pw" value="" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"/></div>
       <button class="login-btn" onclick="doLogin()">Đăng nhập →</button>
       <div id="l-err" style="color:var(--red);font-size:12px;margin-top:8px;text-align:center"></div>
     </div>
@@ -1521,9 +1521,20 @@ async function onLoginSuccess() {
   await loadAllData();
   setPage('dashboard');
   toast('Chào ' + CU.name, 'success', 2000);
+  armIdle();
 }
 
+
+// ===== Tu dong dang xuat sau 10 phut khong hoat dong =====
+var IDLE_MS=10*60*1000;var __idleTimer=null;
+function idleLogout(){stopIdle();try{toast('Đã tự đăng xuất do không hoạt động 10 phút','warn',4000);}catch(e){}doLogout();}
+function armIdle(){if(typeof CU==='undefined'||!CU)return;stopIdle();__idleTimer=setTimeout(idleLogout,IDLE_MS);}
+function stopIdle(){if(__idleTimer){clearTimeout(__idleTimer);__idleTimer=null;}}
+function __idleActivity(){if(typeof CU==='undefined'||!CU)return;armIdle();}
+['mousemove','mousedown','keydown','touchstart','scroll','click'].forEach(function(ev){window.addEventListener(ev,__idleActivity,{passive:true});});
+document.addEventListener('visibilitychange',function(){if(typeof CU==='undefined'||!CU)return;if(document.visibilityState==='visible')armIdle();});
 function doLogout() {
+  stopIdle();
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
   CU = null;
