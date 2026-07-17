@@ -1525,14 +1525,15 @@ async function onLoginSuccess() {
 }
 
 
-// ===== Tu dong dang xuat sau 10 phut khong hoat dong =====
-var IDLE_MS=10*60*1000;var __idleTimer=null;
-function idleLogout(){stopIdle();try{toast('Đã tự đăng xuất do không hoạt động 10 phút','warn',4000);}catch(e){}doLogout();}
-function armIdle(){if(typeof CU==='undefined'||!CU)return;stopIdle();__idleTimer=setTimeout(idleLogout,IDLE_MS);}
-function stopIdle(){if(__idleTimer){clearTimeout(__idleTimer);__idleTimer=null;}}
-function __idleActivity(){if(typeof CU==='undefined'||!CU)return;armIdle();}
+// ===== Tu dong dang xuat khi khong hoat dong =====
+var IDLE_MS=60*1000;var __idleLast=Date.now();var __idleInt=null;
+function idleLogout(){stopIdle();try{toast('Đã tự đăng xuất do không hoạt động','warn',4000);}catch(e){}doLogout();}
+function __idleCheck(){if(typeof CU==='undefined'||!CU){stopIdle();return;}if(Date.now()-__idleLast>=IDLE_MS)idleLogout();}
+function armIdle(){if(typeof CU==='undefined'||!CU)return;__idleLast=Date.now();if(!__idleInt)__idleInt=setInterval(__idleCheck,5000);}
+function stopIdle(){if(__idleInt){clearInterval(__idleInt);__idleInt=null;}}
+function __idleActivity(){if(typeof CU==='undefined'||!CU)return;__idleLast=Date.now();}
 ['mousemove','mousedown','keydown','touchstart','scroll','click'].forEach(function(ev){window.addEventListener(ev,__idleActivity,{passive:true});});
-document.addEventListener('visibilitychange',function(){if(typeof CU==='undefined'||!CU)return;if(document.visibilityState==='visible')armIdle();});
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')__idleCheck();});
 function doLogout() {
   stopIdle();
   localStorage.removeItem(TOKEN_KEY);
