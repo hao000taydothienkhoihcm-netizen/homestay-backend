@@ -3569,15 +3569,26 @@ function renderFinanceRevenue() {
   return h;
 }
 
+var EXP_F = { home:'all', mode:'all', month:'', day:'' };
+function _expDayKey(dt){ var d=new Date(dt); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function _expMonKey(dt){ var d=new Date(dt); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+function expFiltered(){ return EXPENSES.filter(function(e){ if(EXP_F.home==='none'){ if(e.homeId) return false; } else if(EXP_F.home!=='all'){ if(String(e.homeId)!==String(EXP_F.home)) return false; } if(EXP_F.mode==='month' && EXP_F.month){ if(_expMonKey(e.date)!==EXP_F.month) return false; } if(EXP_F.mode==='day' && EXP_F.day){ if(_expDayKey(e.date)!==EXP_F.day) return false; } return true; }); }
+function rerenderExp(){ var fc=document.getElementById('f-content'); if(fc) fc.innerHTML = renderFinanceExpense(); }
+function expSetHome(v){ EXP_F.home=v; rerenderExp(); }
+function expSetMode(v){ EXP_F.mode=v; if(v==='month'&&!EXP_F.month){ EXP_F.month=_expMonKey(new Date()); } if(v==='day'&&!EXP_F.day){ EXP_F.day=_expDayKey(new Date()); } rerenderExp(); }
+function expSetMonth(v){ EXP_F.month=v; rerenderExp(); }
+function expSetDay(v){ EXP_F.day=v; rerenderExp(); }
+function expResetFilter(){ EXP_F={home:'all',mode:'all',month:'',day:''}; rerenderExp(); }
 function renderFinanceExpense() {
+  var FE = expFiltered();
   var catColors = {'Điện nước':'#5A7A96','Dọn dẹp':'#5E7E5B','Sửa chữa':'#A07840','Vật tư':'#7A6890','Lương':'#B85C4A','Khác':'#B5A48A'};
   var byCat = {};
-  EXPENSES.forEach(function(e){ byCat[e.cat]=(byCat[e.cat]||0)+e.amount; });
-  var totalExp = EXPENSES.reduce(function(s,e){return s+e.amount;},0);
+  FE.forEach(function(e){ byCat[e.cat]=(byCat[e.cat]||0)+e.amount; });
+  var totalExp = FE.reduce(function(s,e){return s+e.amount;},0);
 
   // Group by month
   var byMonth = {};
-  EXPENSES.forEach(function(e){
+  FE.forEach(function(e){
     var d=new Date(e.date), k=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
     byMonth[k] = (byMonth[k]||0) + e.amount;
   });
@@ -3585,19 +3596,34 @@ function renderFinanceExpense() {
 
   var h = '';
 
+  var _eIS = 'padding:8px 12px;border:1px solid rgba(124,106,78,0.25);border-radius:8px;font-size:13px;font-family:inherit;background:var(--card);color:var(--t1)';
+  var _homeOptsF = '<option value="all"'+(EXP_F.home==='all'?' selected':'')+'>🏠 Tất cả các căn</option>';
+  _homeOptsF += '<option value="none"'+(EXP_F.home==='none'?' selected':'')+'>📋 Chi phí chung (không thuộc căn)</option>';
+  HOMES.forEach(function(hm){ _homeOptsF += '<option value="'+hm.id+'"'+(String(EXP_F.home)===String(hm.id)?' selected':'')+'>'+(hm.emoji||'🏡')+' '+hm.name+'</option>'; });
+  h += '<div class="stat-filter-bar" style="margin-bottom:14px"><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">';
+  h += '<span style="font-size:12px;font-weight:700;color:var(--t2)">🔎 Lọc:</span>';
+  h += '<select onchange="expSetHome(this.value)" style="'+_eIS+'">'+_homeOptsF+'</select>';
+  h += '<select onchange="expSetMode(this.value)" style="'+_eIS+'"><option value="all"'+(EXP_F.mode==='all'?' selected':'')+'>📆 Tất cả thời gian</option><option value="month"'+(EXP_F.mode==='month'?' selected':'')+'>📅 Theo tháng</option><option value="day"'+(EXP_F.mode==='day'?' selected':'')+'>📆 Theo ngày</option></select>';
+  if (EXP_F.mode==='month') h += '<input type="month" value="'+EXP_F.month+'" onchange="expSetMonth(this.value)" style="'+_eIS+'">';
+  if (EXP_F.mode==='day') h += '<input type="date" value="'+EXP_F.day+'" onchange="expSetDay(this.value)" style="'+_eIS+'">';
+  if (EXP_F.home!=='all' || EXP_F.mode!=='all') h += '<button class="btn btn-out btn-sm" onclick="expResetFilter()">✕ Bỏ lọc</button>';
+  h += '</div></div>';
+
   // Action bar
   h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding:0 4px">';
-  h += '<div style="font-size:13px;color:var(--t2)">Tổng <strong style="color:#B85C4A;font-size:15px">'+money(totalExp)+'</strong> · '+EXPENSES.length+' khoản chi</div>';
+  h += '<div style="font-size:13px;color:var(--t2)">Tổng <strong style="color:#B85C4A;font-size:15px">'+money(totalExp)+'</strong> · '+FE.length+' khoản chi</div>';
   h += '<div style="display:flex;gap:8px">';
   h += '<button class="btn btn-out btn-sm" onclick="exportExpensesExcel()" title="Xuất Excel">📥 Excel</button>';
   if (CU && CU.role==='admin') h += '<button class="btn btn-gold btn-sm" onclick="openAddExp()">+ Thêm chi phí</button>';
   h += '</div></div>';
 
-  if (!EXPENSES.length) {
+  if (!FE.length) {
     h += '<div class="stat-section"><div style="text-align:center;padding:50px 20px;color:var(--t3)">';
     h += '<div style="font-size:36px;margin-bottom:10px">💸</div>';
-    h += '<div style="font-size:14px;margin-bottom:4px">Chưa có khoản chi nào</div>';
-    h += '<div style="font-size:12px">Bấm "+ Thêm chi phí" để bắt đầu ghi nhận</div>';
+    var _noneMsg = EXPENSES.length ? 'Không có khoản chi khớp bộ lọc' : 'Chưa có khoản chi nào';
+    var _noneSub = EXPENSES.length ? 'Thử đổi lại bộ lọc căn / tháng / ngày' : 'Bấm "+ Thêm chi phí" để bắt đầu ghi nhận';
+    h += '<div style="font-size:14px;margin-bottom:4px">'+_noneMsg+'</div>';
+    h += '<div style="font-size:12px">'+_noneSub+'</div>';
     h += '</div></div>';
     return h;
   }
@@ -3640,10 +3666,10 @@ function renderFinanceExpense() {
 
   // Table chi tiết
   h += '<div class="stat-section">';
-  h += '<div class="stat-section-title"><h3>📋 Danh sách chi phí</h3><div class="sub-info">' + EXPENSES.length + ' khoản</div></div>';
+  h += '<div class="stat-section-title"><h3>📋 Danh sách chi phí</h3><div class="sub-info">' + FE.length + ' khoản</div></div>';
   h += '<div style="overflow-x:auto;max-height:500px;overflow-y:auto"><table class="stat-table" style="min-width:700px">';
   h += '<thead><tr><th>Ngày</th><th>Danh mục</th><th>Mô tả</th><th>Căn nhà</th><th class="num">Số tiền</th><th class="center">Thao tác</th></tr></thead><tbody>';
-  EXPENSES.slice().sort(function(a,b){return new Date(b.date)-new Date(a.date);}).forEach(function(e){
+  FE.slice().sort(function(a,b){return new Date(b.date)-new Date(a.date);}).forEach(function(e){
     var hm = gH(e.homeId);
     var col = catColors[e.cat]||'#B5A48A';
     h += '<tr>';
@@ -3659,7 +3685,7 @@ function renderFinanceExpense() {
     } else { h += '<span style="color:var(--t3);font-size:11px">—</span>'; }
     h += '</div></td></tr>';
   });
-  h += '<tr class="totals"><td colspan="4">Tổng ' + EXPENSES.length + ' khoản chi</td><td class="num" style="color:#B85C4A;font-size:14.5px">'+money(totalExp)+'</td><td></td></tr>';
+  h += '<tr class="totals"><td colspan="4">Tổng ' + FE.length + ' khoản chi</td><td class="num" style="color:#B85C4A;font-size:14.5px">'+money(totalExp)+'</td><td></td></tr>';
   h += '</tbody></table></div>';
   h += '</div>';
   return h;
