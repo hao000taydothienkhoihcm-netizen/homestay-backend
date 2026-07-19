@@ -5,6 +5,24 @@ import { checkBookingConflict, nights, stayTotal } from '../services/bookingServ
 
 const router = Router();
 
+// Map tên phụ thu → id mẫu (ChargeTemplate) để gắn liên kết cứng vào Charge.
+// Ưu tiên mẫu đang hoạt động khi trùng tên.
+async function templateIdByName(names) {
+  const uniq = [...new Set((names || []).map(n => String(n || '').trim()).filter(Boolean))];
+  if (!uniq.length) return {};
+  const tpls = await prisma.chargeTemplate.findMany({
+    where: { name: { in: uniq } },
+    select: { id: true, name: true, active: true }
+  });
+  const pick = {};
+  for (const t of tpls) {
+    if (!pick[t.name] || (t.active && !pick[t.name].active)) pick[t.name] = t;
+  }
+  const out = {};
+  for (const k in pick) out[k] = pick[k].id;
+  return out;
+}
+
 // ───── LIST ─────
 router.get('/', async (req, res) => {
   const { status, homeId, from, to, search } = req.query;
@@ -146,7 +164,8 @@ router.post('/', requireRole('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
     notes: notes || null
   };
   if (chargesArr.length) {
-    data.charges = { create: chargesArr };
+    const tidMap = await templateIdByName(chargesArr.map(c => c.name));
+    data.charges = { create: chargesArr.map(c => ({ ...c, templateId: tidMap[c.name] || null })) };
   }
   // Nhập bù lịch sử: tạo booking đã nhận / đã trả → ghi nhận đã thu đủ tiền phòng
   // (sau khi trừ giảm giá) để doanh thu vào thẳng mục Thống kê.
@@ -224,6 +243,8 @@ router.patch('/:id', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
       }));
     updateData.checkinCharges = chargesArr.filter(c => c.phase === 'CHECKIN').reduce((s, c) => s + c.amount, 0);
     updateData.chargesTotal = chargesArr.filter(c => c.phase === 'CHECKOUT').reduce((s, c) => s + c.amount, 0);
+    const tidMap = await templateIdByName(chargesArr.map(c => c.name));
+    chargesArr = chargesArr.map(c => ({ ...c, templateId: tidMap[c.name] || null }));
   }
 
   // Recalculate totalAmount nếu đổi ngày/nhà
@@ -321,6 +342,7 @@ router.post('/:id/checkout', async (req, res) => {
 
   const chargesArr = (canEditCharges && Array.isArray(charges)) ? charges : [];
   const chargesTotal = chargesArr.reduce((s, c) => s + (parseInt(c.unit) || 0) * (parseInt(c.qty) || 1), 0);
+  const tidMap = canEditCharges ? await templateIdByName(chargesArr.map(c => c.name)) : {};
 
   // Transaction: (nếu được phép) xóa charges cũ + tạo mới, rồi update booking
   const updated = await prisma.$transaction(async (tx) => {
@@ -341,7 +363,8 @@ router.post('/:id/checkout', async (req, res) => {
             unit: parseInt(c.unit) || 0,
             qty: parseInt(c.qty) || 1,
             amount: (parseInt(c.unit) || 0) * (parseInt(c.qty) || 1),
-            phase: 'CHECKOUT'
+            phase: 'CHECKOUT',
+            templateId: tidMap[String(c.name || '').trim()] || null
           }))
         });
       }

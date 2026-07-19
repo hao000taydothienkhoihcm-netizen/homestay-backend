@@ -48,9 +48,10 @@ router.get('/', async (req, res) => {
   const { start, end, label } = monthBounds(month);
   const homeFilter = homeId ? parseInt(homeId) : null;
 
-  const [products, homes, entries, charges] = await Promise.all([
+  const [allProducts, homes, entries, charges] = await Promise.all([
+    // Lấy CẢ món đã ngừng bán (active:false) — nếu còn lịch sử nhập/bán thì vẫn phải hiện.
     prisma.chargeTemplate.findMany({
-      where: { type: 'QUICK', trackStock: true, active: true },
+      where: { type: 'QUICK', trackStock: true },
       orderBy: { id: 'asc' }
     }),
     prisma.home.findMany({ where: { active: true }, orderBy: { id: 'asc' } }),
@@ -60,15 +61,21 @@ router.get('/', async (req, res) => {
     })
   ]);
 
+  const prodById = {};
   const prodByName = {};
-  products.forEach(p => { prodByName[p.name] = p; });
+  // Ưu tiên mẫu đang hoạt động khi trùng tên (khớp theo tên chỉ dùng cho charge cũ chưa có templateId).
+  allProducts.forEach(p => {
+    prodById[p.id] = p;
+    if (!prodByName[p.name] || (p.active && !prodByName[p.name].active)) prodByName[p.name] = p;
+  });
 
   // ── Sổ kho theo tháng: Tồn đầu + Nhập − Bán (± Điều chỉnh) = Tồn cuối ──
   // Bán ra (từ Charge): tách trước tháng / trong tháng. Bỏ qua bán ở tương lai (sau tháng).
   const soldBefore = {};   // bán trước [start]
   const soldMonth = {};    // bán trong [start,end]
   for (const c of charges) {
-    const p = prodByName[c.name];
+    // Khớp theo liên kết cứng templateId trước; charge cũ (chưa có id) mới dò theo tên.
+    const p = (c.templateId && prodById[c.templateId]) || prodByName[c.name];
     if (!p || !c.booking) continue;
     const hid = c.booking.homeId;
     const attr = c.phase === 'CHECKIN' ? c.booking.checkIn : c.booking.checkOut;
@@ -95,6 +102,11 @@ router.get('/', async (req, res) => {
 
   const visibleHomes = homeFilter ? homes.filter(h => h.id === homeFilter) : homes;
 
+  // Món ngừng bán chỉ hiện nếu còn lịch sử (đã nhập/điều chỉnh hoặc đã bán) — tránh rác danh sách.
+  const hasHistory = (pid) =>
+    !!(soldBefore[pid] || soldMonth[pid] || inBefore[pid] || importedMonth[pid] || adjustMonth[pid]);
+  const products = allProducts.filter(p => p.active || hasHistory(p.id));
+
   const result = products.map(p => {
     const rows = visibleHomes.map(h => {
       const opening = ((inBefore[p.id]?.[h.id]) || 0) - ((soldBefore[p.id]?.[h.id]) || 0);
@@ -115,6 +127,7 @@ router.get('/', async (req, res) => {
     return {
       id: p.id,
       name: p.name,
+      active: p.active,   // false = món đã ngừng bán nhưng còn lịch sử kho
       amount: p.amount,
       unitLabel: p.unitLabel,
       packLabel: p.packLabel,
