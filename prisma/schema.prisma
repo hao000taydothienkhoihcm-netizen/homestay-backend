@@ -109,7 +109,14 @@ model Charge {
   amount    Int      // = unit × qty
   phase     ChargePhase @default(CHECKOUT)  // CHECKIN = thu lúc nhận nhà, CHECKOUT = thu lúc trả nhà
 
+  // Liên kết cứng tới mặt hàng/mẫu phụ thu (để báo cáo kho khớp theo ID, không lệ thuộc tên).
+  // Nullable + SetNull: xoá mẫu KHÔNG xoá lịch sử phụ thu; chỉ gỡ liên kết.
+  templateId Int?
+  template   ChargeTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
   createdAt DateTime @default(now())
+
+  @@index([templateId])
 }
 
 enum ChargePhase {
@@ -134,6 +141,7 @@ model ChargeTemplate {
   costPrice  Int     @default(0)      // Giá vốn / giá nhập 1 đơn vị lẻ (để tính lợi nhuận)
 
   stockEntries StockEntry[]
+  charges      Charge[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
