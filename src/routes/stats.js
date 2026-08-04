@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
-import { actualReceived, stillOwed } from '../services/bookingService.js';
+import { actualReceived, stillOwed, roomRevenue } from '../services/bookingService.js';
 
 const router = Router();
 
@@ -22,6 +22,7 @@ router.get('/dashboard', async (req, res) => {
     return d >= mStart && d <= mEnd;
   });
   const mReceived = mBookings.reduce((s, b) => s + actualReceived(b), 0);
+  const mRoomRevenue = mBookings.reduce((s, b) => s + roomRevenue(b), 0);
   const mExp = expenses.reduce((s, e) => s + e.amount, 0);
 
   const active = allBookings.filter(b => b.status !== 'CHECKEDOUT');
@@ -30,6 +31,7 @@ router.get('/dashboard', async (req, res) => {
 
   res.json({
     monthlyReceived: mReceived,
+    monthlyRoomRevenue: mRoomRevenue,   // chỉ tiền phòng (cọc + thu khi nhận nhà)
     monthlyExpense: mExp,
     profit: mReceived - mExp,
     pending,
@@ -65,6 +67,7 @@ router.get('/monthly', async (req, res) => {
       label: `T${d.getMonth() + 1}`,
       bookings: bookings.length,
       revenue: bookings.reduce((s, b) => s + actualReceived(b), 0),
+      roomRevenue: bookings.reduce((s, b) => s + roomRevenue(b), 0),
       expense: expenses.reduce((s, e) => s + e.amount, 0)
     });
   }
@@ -88,6 +91,7 @@ router.get('/by-home', async (req, res) => {
       doneBookings: done.length,
       activeBookings: active.length,
       received: h.bookings.reduce((s, b) => s + actualReceived(b), 0),
+      roomRevenue: h.bookings.reduce((s, b) => s + roomRevenue(b), 0),
       pending: active.reduce((s, b) => s + stillOwed(b), 0),
       holdingDeposit: active.reduce((s, b) => s + (b.deposit || 0), 0)
     };
@@ -133,6 +137,7 @@ router.get('/finance', async (req, res) => {
     expenses,
     summary: {
       totalReceived: bookings.reduce((s, b) => s + actualReceived(b), 0),
+      totalRoomRevenue: bookings.reduce((s, b) => s + roomRevenue(b), 0),
       totalExpense: expenses.reduce((s, e) => s + e.amount, 0),
       expenseByCategory
     }
