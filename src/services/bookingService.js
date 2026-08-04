@@ -93,6 +93,23 @@ export function actualReceived(b) {
 }
 
 /**
+ * Doanh số PHÒNG đã thực thu = cọc + tiền phòng thu khi nhận nhà.
+ * KHÔNG tính phụ thu (đồ tiêu thụ, phạt) — đó là khoản riêng.
+ * Giảm giá đã được trừ sẵn: lúc nhận nhà paidAtCheckIn = totalAmount − discount − deposit,
+ * nên KHÔNG trừ discount thêm lần nữa ở đây.
+ * Booking chưa nhận nhà chỉ tính phần cọc đã cầm.
+ */
+export function roomRevenue(b) {
+  const dep = b.deposit || 0;
+  let ci = b.paidAtCheckIn || 0;
+  // Dữ liệu cũ: đã trả nhà nhưng chưa ghi paidAtCheckIn → coi như tiền phòng đã thu đủ.
+  if (b.status === 'CHECKEDOUT' && !b.paidAtCheckIn && ci === 0) {
+    ci = Math.max(0, b.totalAmount - (b.discount || 0) - dep);
+  }
+  return dep + ci;
+}
+
+/**
  * Tiền còn phải thu (khi chưa trả nhà).
  * Nghĩa vụ = tiền phòng sau giảm + phụ thu nhận nhà + phụ thu trả nhà.
  * Đã thu = cọc + thu khi nhận nhà (tiền phòng) + phụ thu nhận nhà (nếu đã nhận nhà).
