@@ -1,0 +1,1150 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sabi Home — Mockup GĐ1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400&display=swap&subset=vietnamese,latin" rel="stylesheet">
+<style>
+:root{
+  --bg:#f4efe6; --card:#fffdf9; --ink:#3d352a; --muted:#8a7a5c;
+  --brown:#6b4f2a; --line:#e3d8c4; --gold:#c9a227; --pine:#4a6b52; --pine-d:#3c5843;
+  --red:#b4553f; --shadow:0 6px 22px rgba(80,60,30,.10);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:#ded2bd;line-height:1.5}
+h1,h2,h3,.serif,.title-lg,.logo,.money{font-family:'Lora',"Times New Roman",Georgia,serif;line-height:1.4}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+img{display:block}
+
+/* ---- top control bar ---- */
+.topbar{position:sticky;top:0;z-index:50;background:#2f2a21;color:#f4efe6;display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:10px 16px}
+.topbar .b{font-family:'Lora',"Times New Roman",Georgia,serif;letter-spacing:2px;font-size:15px}
+.topbar .b span{color:var(--gold)}
+.topbar .seg{display:flex;background:#453e31;border-radius:999px;padding:3px;margin-left:auto}
+.topbar .seg button{padding:6px 14px;border-radius:999px;font-size:13px;color:#cdbfa4}
+.topbar .seg button.on{background:var(--gold);color:#2f2a21;font-weight:600}
+.hint{width:100%;font-size:12px;color:#b6a888;padding-top:2px}
+
+/* ---- device frame ---- */
+.stage{display:flex;justify-content:center;padding:22px 12px 60px}
+.device{width:390px;max-width:100%;background:var(--bg);border-radius:34px;box-shadow:0 18px 50px rgba(0,0,0,.28);overflow:hidden;border:9px solid #17130d;position:relative}
+.device.web{width:1080px;border-radius:14px;border-width:12px}
+.notch{height:26px;background:#17130d;display:flex;justify-content:center;align-items:flex-end}
+.notch::after{content:"";width:120px;height:18px;background:#17130d;border-radius:0 0 14px 14px;margin-bottom:-1px;box-shadow:0 0 0 1px #17130d}
+.device.web .notch{display:none}
+.screen-wrap{height:760px;overflow-y:auto;overflow-x:hidden}
+.device.web .screen-wrap{height:680px}
+.screen-wrap::-webkit-scrollbar{width:0}
+
+/* screens hidden by default */
+.screen{display:none;padding-bottom:78px}
+.screen.active{display:block}
+.device.web .screen{padding-bottom:24px}
+
+/* ---- shared UI ---- */
+.pad{padding:16px}
+.app-head{display:flex;align-items:center;gap:10px;padding:14px 16px;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+.app-head .logo{font-family:'Lora',"Times New Roman",Georgia,serif;letter-spacing:2px;font-size:16px;color:var(--brown)}
+.app-head .logo span{color:var(--gold)}
+.back{font-size:22px;color:var(--muted);width:26px}
+.title-lg{font-family:'Lora',"Times New Roman",Georgia,serif;font-size:22px;color:var(--brown);line-height:1.35}
+.sub{color:var(--muted);font-size:13px}
+.label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;display:block}
+.field{width:100%;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:15px;color:var(--ink)}
+.row{display:flex;gap:10px}
+.row>*{flex:1}
+.btn{display:block;width:100%;text-align:center;background:var(--pine);color:#fff;padding:14px;border-radius:12px;font-size:15px;font-weight:600;box-shadow:var(--shadow)}
+.btn:active{background:var(--pine-d)}
+.btn.gold{background:var(--gold);color:#3a2f14}
+.btn.ghost{background:transparent;border:1.5px solid var(--pine);color:var(--pine);box-shadow:none}
+.btn.sm{padding:9px 14px;width:auto;display:inline-block;font-size:13px}
+.chip{display:inline-flex;align-items:center;gap:5px;background:#efe7d6;color:var(--brown);border-radius:999px;padding:6px 12px;font-size:13px;cursor:pointer;user-select:none}
+.chip.on{background:var(--brown);color:#fff}
+select.field{-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236b4f2a' stroke-width='2'><path d='M6 9l6 6 6-6'/></svg>");background-repeat:no-repeat;background-position:right 12px center;padding-right:34px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
+.pill{display:inline-block;font-size:11px;padding:3px 9px;border-radius:999px;font-weight:600}
+.pill.free{background:#e3efe4;color:var(--pine-d)}
+.pill.hold{background:#fbeecb;color:#8a6d12}
+.pill.full{background:#f3ddd6;color:var(--red)}
+.photo{background:linear-gradient(135deg,#cdbb98,#a88b63);height:150px;display:flex;align-items:center;justify-content:center;font-size:40px;color:#fff8ec}
+.money{font-family:'Lora',"Times New Roman",Georgia,serif;color:var(--brown);font-weight:700}
+
+/* ---- bottom tab (mobile) ---- */
+.tabbar{position:absolute;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--line);display:flex;padding:8px 4px 12px}
+.device.web .tabbar{display:none}
+.tabbar button{flex:1;font-size:11px;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:3px}
+.tabbar button .i{font-size:20px}
+.tabbar button.on{color:var(--pine)}
+
+/* ---- web sidebar layout ---- */
+.web-shell{display:none}
+.device.web .web-shell{display:flex}
+.device.web .mob-head{display:none}
+.web-side{width:210px;flex-shrink:0;background:#2f2a21;color:#e9dcc4;min-height:680px;padding:18px 0}
+.web-side .wlogo{font-family:'Lora',"Times New Roman",Georgia,serif;letter-spacing:2px;font-size:18px;padding:6px 22px 18px;color:#fff}
+.web-side .wlogo span{color:var(--gold)}
+.web-side button{display:flex;gap:10px;align-items:center;width:100%;text-align:left;padding:12px 22px;color:#c9baa0;font-size:14px}
+.web-side button.on{background:#453e31;color:#fff;border-left:3px solid var(--gold)}
+.web-main{flex:1;padding:26px 30px;overflow-y:auto;max-height:680px}
+.device.web .screen{padding:0}
+.device.web .app-head{display:none}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+
+/* ---- price calendar grid ---- */
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-top:8px}
+.cal .dow{font-size:11px;color:var(--muted);text-align:center;padding-bottom:2px}
+.cal .d{aspect-ratio:1;border-radius:9px;border:1px solid var(--line);background:var(--card);display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:12px;gap:1px}
+.cal .d .p{font-size:9px;color:var(--pine-d);font-weight:600}
+.cal .d.free{background:#eef6ee;border-color:#cfe4d0}
+.cal .d.hold{background:#fbf1d6;border-color:#ecd9a3}
+.cal .d.full{background:#f3ddd6;border-color:#e6c3b8;color:#b08a80}
+.cal .d.full .p{color:#b4553f;text-decoration:line-through}
+.cal .d.wk .num{color:var(--red)}
+.cal .d.sel{outline:2px solid var(--pine);outline-offset:1px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:10px}
+.legend i{width:12px;height:12px;border-radius:3px;display:inline-block;margin-right:5px;vertical-align:-1px}
+
+/* host lock grid */
+.lockgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-top:8px}
+.lockgrid .d{aspect-ratio:1;border-radius:8px;border:1px solid var(--line);background:var(--card);display:flex;align-items:center;justify-content:center;font-size:12px;cursor:pointer;user-select:none;position:relative}
+.lockgrid .d.locked{background:#3d352a;color:#fff}
+.lockgrid .d.locked::after{content:"🔒";position:absolute;font-size:9px;bottom:1px;right:2px}
+
+.divider{height:1px;background:var(--line);margin:16px 0}
+.kv{display:flex;justify-content:space-between;padding:7px 0;font-size:14px;border-bottom:1px dotted var(--line)}
+.kv .k{color:var(--muted)}
+.src{display:flex;gap:10px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--card);margin-bottom:10px}
+.src .ic{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+.badge-ok{color:var(--pine);font-size:12px;font-weight:600}
+.toast{font-size:12px;color:var(--muted);text-align:center;margin-top:10px}
+.note-box{background:#efe7d6;border-left:3px solid var(--gold);border-radius:8px;padding:10px 12px;font-size:12.5px;color:#6b5f4c;line-height:1.6;margin-top:12px}
+.regrole{transition:.15s}
+.regrole.on{outline:2px solid var(--pine);outline-offset:-1px;background:#f0f4ee}
+.dup{border-radius:8px;padding:9px 11px;font-size:12.5px;line-height:1.55;margin-bottom:8px}
+.dup.ok{background:#eef4ec;border-left:3px solid var(--pine);color:var(--pine-d)}
+.dup.warn{background:#f8ece7;border-left:3px solid var(--red);color:#8f3b28}
+.imgslot{width:64px;height:64px;border:1px dashed var(--line);border-radius:10px;background:var(--card);display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:18px;color:var(--muted);cursor:pointer;gap:2px}
+.imgslot span{font-size:9px;letter-spacing:.3px}
+.imgslot.has{border-style:solid;border-color:var(--pine);background:#f0f4ee;color:var(--pine-d)}
+
+/* raised + tab */
+.tabbar button.mid .i{background:var(--pine);color:#fff;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-top:-16px;box-shadow:var(--shadow);font-size:22px}
+.tabbar button.mid.on{color:var(--pine)}
+
+/* margin summary */
+.msum{background:#f7f2e6;border:1px solid #e6d6b0;border-radius:12px;padding:12px 14px}
+.msum .l{display:flex;justify-content:space-between;font-size:13px;padding:3px 0}
+.msum .l .k{color:var(--muted)}
+.msum .tot{display:flex;justify-content:space-between;align-items:baseline;border-top:1px dashed #d8c7ab;margin-top:6px;padding-top:7px}
+
+/* guest doc (phiếu gửi khách) */
+.doc{background:#fff;border:1.5px solid #333;border-radius:6px;overflow:hidden;font-size:11.5px;color:#222}
+.doc .dt{display:flex;border-bottom:1.5px solid #333}
+.doc .dt .l{flex:1;text-align:center;padding:7px 8px;border-right:1.5px solid #333;font-weight:700;font-size:11px}
+.doc .dt .l small{font-weight:400;display:block;color:#444;font-size:10px}
+.doc .dt .r{width:42%;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:700;padding:6px}
+.doc .band{background:#e7ddc8;text-align:center;font-weight:700;padding:5px;border-bottom:1.5px solid #333}
+.doc .bd{display:flex}
+.doc .info{flex:1}
+.doc .ir{display:flex;border-bottom:1px solid #d8d0c0}
+.doc .ir .k{width:46%;padding:4px 8px;border-right:1px solid #d8d0c0;color:#333}
+.doc .ir .v{flex:1;padding:4px 8px;font-weight:600}
+.doc .ph{width:42%;border-left:1.5px solid #333;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,#5b5147,#2f2a21);color:#fff;font-size:26px}
+.doc .addr{padding:6px 8px;border-top:1.5px solid #333;border-bottom:1px solid #333}
+.doc .hot{padding:7px 8px;font-weight:700;border-bottom:1.5px solid #333;font-size:12.5px}
+.doc .rule{padding:5px 8px;border-bottom:1px solid #eee;font-size:11px;line-height:1.5}
+.doc .svc{padding:7px 8px;font-weight:700;font-size:11px;background:#faf6ec}
+
+/* host doc (phiếu gửi host) */
+.hdoc{background:#fffdf9;border:1px solid var(--line);border-radius:8px;padding:14px 16px;font-size:13px;white-space:pre-line;line-height:1.75;color:#2a2a2a;font-family:'Lora',"Times New Roman",Georgia,serif}
+.hdoc .ttl{text-align:center;font-weight:700;font-size:15px;color:var(--brown);letter-spacing:1px;margin-bottom:6px}
+[contenteditable="true"].editing{outline:2px dashed var(--gold);outline-offset:3px}
+
+/* Template B — NẰM ÊM ĐÀ LẠT (poster) */
+.tplB{background:#ede3d1;border:3px solid #2a2620;border-radius:16px;padding:14px;color:#2a2620;font-size:11.5px}
+.tplB .top{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #2a2620;padding-bottom:9px;margin-bottom:12px}
+.tplB .dots span{display:inline-block;width:8px;height:8px;border:1.5px solid #2a2620;border-radius:50%;margin-right:5px}
+.tplB .brand{font-weight:800;letter-spacing:1px;font-size:13px}
+.tplB .hero{display:flex;gap:12px;align-items:flex-start}
+.tplB .pic{width:38%;aspect-ratio:1;border:3px solid #2a2620;border-radius:16px;background:linear-gradient(135deg,#7a5c3e,#3a2c1d);flex-shrink:0}
+.tplB .htitle{font-weight:800;font-size:26px;line-height:1.3;letter-spacing:-.3px}
+.tplB .datepill{display:inline-block;background:#e5d29a;border-radius:999px;padding:6px 14px;font-weight:700;margin-top:10px;font-size:11px}
+.tplB .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.tplB .pill{display:inline-block;background:#e5d29a;border:1.5px solid #2a2620;border-radius:999px;padding:4px 14px;font-weight:800;font-size:11px;margin-bottom:6px}
+.tplB .box{border:1.5px solid #2a2620;border-radius:12px;padding:9px 11px}
+.tplB .kv{margin:3px 0}.tplB .kv b{font-weight:800}
+.tplB ul{margin:2px 0 0 15px;padding:0}.tplB li{margin-bottom:3px;font-size:10.5px;line-height:1.45}
+.tplB .foot{text-align:center;font-style:italic;margin-top:12px;font-size:12px}
+
+/* Template C — WOLF HOUSE (tối giản) */
+.tplC{background:#fff;border:1px solid #ddd;border-radius:8px;padding:16px 18px;color:#333;font-size:11.5px}
+.tplC .hd{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid #bbb;padding-bottom:12px;gap:10px}
+.tplC .wolf{font-family:'Lora',"Times New Roman",Georgia,serif;font-size:26px;letter-spacing:2px}
+.tplC .addr{font-weight:700;margin-top:6px;line-height:1.4}
+.tplC .pic{width:78px;height:78px;border-radius:50%;background:linear-gradient(135deg,#5b5147,#2a2620);flex-shrink:0}
+.tplC .cols{display:flex;gap:16px;margin-top:12px}
+.tplC .lft{flex:1}
+.tplC .sh{font-family:'Lora',"Times New Roman",Georgia,serif;font-size:15px;color:#555;margin:10px 0 5px;letter-spacing:.5px}
+.tplC .big{font-weight:800;font-size:13px}
+.tplC .notes{flex:1;border-left:2px dotted #bbb;padding-left:12px;font-size:10px;line-height:1.5}
+.tplC .foot{text-align:center;color:#999;font-size:10px;margin-top:14px}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="b">SABI<span>·</span>HOME <span style="font-size:11px;letter-spacing:1px;color:#b6a888">mockup GĐ1 · tông ấm v2</span></div>
+  <div class="seg" id="roleSeg">
+    <button data-role="sales" class="on">🧑‍💼 Sales</button>
+    <button data-role="host">🏠 Host</button>
+    <button data-role="admin">🛡️ Admin</button>
+  </div>
+  <div class="seg" id="viewSeg">
+    <button data-view="mobile" class="on">📱 Mobile</button>
+    <button data-view="web">💻 Web</button>
+  </div>
+  <div class="hint">2 tài khoản: <b>Sales</b> (tìm căn, tạo &amp; xuất phiếu) và <b>Host</b> (khai thông tin/quy định, xác nhận booking). Đổi Sales/Host để xem từng vai trò.</div>
+</div>
+
+<div class="stage">
+  <div class="device" id="device">
+    <div class="notch"></div>
+    <div class="screen-wrap">
+
+    <!-- WEB SIDEBAR (only web) -->
+    <div class="web-shell" style="display:none">
+      <div class="web-side" id="webSide">
+        <div class="wlogo">SABI<span>·</span>HOME</div>
+        <button data-go="search" class="on"><span>🔍</span> Tìm villa trống</button>
+        <button data-go="results"><span>🏡</span> Danh sách villa</button>
+        <button data-go="create"><span>➕</span> Tạo booking (Sales)</button>
+        <button data-go="detail"><span>📋</span> Chi tiết villa</button>
+        <button data-go="hold"><span>🕒</span> Giữ chỗ / Đặt</button>
+        <button data-go="mybk"><span>🧾</span> Booking của tôi</button>
+        <div style="height:1px;background:#453e31;margin:12px 22px"></div>
+        <button data-go="host"><span>👤</span> Trang Host</button>
+        <button data-go="login"><span>🔑</span> Đăng nhập</button>
+      </div>
+      <div class="web-main" id="webMain"><!-- screens cloned here at runtime --></div>
+    </div>
+
+    <!-- MOBILE SCREENS -->
+    <div id="mobRoot">
+
+      <!-- 1. SEARCH -->
+      <section class="screen active" data-screen="search">
+        <div class="app-head mob-head"><div class="logo">SABI<span>·</span>HOME</div>
+          <button class="btn sm ghost" style="margin-left:auto" onclick="go('login')">Đăng nhập</button></div>
+        <div class="pad">
+          <div class="title-lg">Tìm villa còn trống</div>
+          <div class="sub" style="margin-bottom:16px">Nhập ngày &amp; số khách — xem ngay căn nào còn phòng, giá thật theo ngày.</div>
+
+          <label class="label">Ngày nhận</label>
+          <input class="field" value="Th 6, 24/07/2026" readonly style="margin-bottom:12px">
+          <label class="label">Ngày trả</label>
+          <input class="field" value="CN, 26/07/2026 · 2 đêm" readonly style="margin-bottom:12px">
+          <label class="label">Khu vực (phường Đà Lạt)</label>
+          <select class="field" id="fWard" style="margin-bottom:12px">
+            <option value="">Tất cả phường</option>
+            <option>Xuân Hương - Đà Lạt</option>
+            <option>Cam Ly - Đà Lạt</option>
+            <option>Lâm Viên - Đà Lạt</option>
+            <option>Xuân Trường - Đà Lạt</option>
+            <option>Lang Biang - Đà Lạt</option>
+          </select>
+
+          <div class="row" style="margin-bottom:12px">
+            <div style="flex:1">
+              <label class="label">Số khách</label>
+              <select class="field" id="fGuest">
+                <option value="0">Bất kỳ</option>
+                <option value="2">2+ khách</option>
+                <option value="4">4+ khách</option>
+                <option value="6">6+ khách</option>
+                <option value="8">8+ khách</option>
+                <option value="10">10+ khách</option>
+              </select>
+            </div>
+            <div style="flex:1">
+              <label class="label">Phòng ngủ</label>
+              <select class="field" id="fBeds">
+                <option value="0">Bất kỳ</option>
+                <option value="1">1+ phòng</option>
+                <option value="2">2+ phòng</option>
+                <option value="3">3+ phòng</option>
+                <option value="4">4+ phòng</option>
+              </select>
+            </div>
+          </div>
+
+          <label class="label">Khoảng giá / đêm (giá host nhận)</label>
+          <select class="field" id="fPrice" style="margin-bottom:10px">
+            <option value="0-99">Tất cả mức giá</option>
+            <option value="0-1">Dưới 1 triệu</option>
+            <option value="1-2">1 – 2 triệu</option>
+            <option value="2-3">2 – 3 triệu</option>
+            <option value="3-99">Trên 3 triệu</option>
+          </select>
+          <div class="row" style="margin-bottom:6px">
+            <input class="field" id="fPmin" inputmode="decimal" placeholder="Từ (triệu)">
+            <input class="field" id="fPmax" inputmode="decimal" placeholder="Đến (triệu)">
+          </div>
+          <div class="sub" style="margin-bottom:16px">Hoặc tự nhập khoảng giá theo triệu — ví dụ 2 và 5 = 2–5 triệu. Nhập tay sẽ ưu tiên hơn mức chọn nhanh.</div>
+
+          <label class="label">Tiện ích</label>
+          <div id="fAmen" style="margin:4px 0 14px;display:flex;flex-wrap:wrap;gap:8px">
+            <span class="chip" data-am="pool" onclick="toggleAmen(this)">🏊 Hồ bơi</span>
+            <span class="chip" data-am="bbq" onclick="toggleAmen(this)">🔥 BBQ</span>
+            <span class="chip" data-am="park" onclick="toggleAmen(this)">🚗 Đậu xe</span>
+            <span class="chip" data-am="pet" onclick="toggleAmen(this)">🐶 Thú cưng</span>
+            <span class="chip" data-am="kitchen" onclick="toggleAmen(this)">🍳 Bếp</span>
+            <span class="chip" data-am="wash" onclick="toggleAmen(this)">🧺 Máy giặt</span>
+          </div>
+
+          <label class="label">Sắp xếp kết quả</label>
+          <select class="field" id="fSort" style="margin-bottom:16px">
+            <option value="price-asc">Giá thấp → cao</option>
+            <option value="price-desc">Giá cao → thấp</option>
+            <option value="guest-desc">Sức chứa lớn nhất</option>
+            <option value="new">Mới đăng nhất</option>
+          </select>
+
+          <button class="btn" onclick="doSearch()">Tìm villa trống →</button>
+
+          <div class="note-box"><b>Hơn đối thủ:</b> lịch trống ở đây là <b>cam kết thật</b> từ hệ thống quản lý căn nội bộ — không phải copy chậm từ sheet của host.</div>
+        </div>
+      </section>
+
+      <!-- 2. RESULTS -->
+      <section class="screen" data-screen="results">
+        <div class="app-head mob-head"><button class="back" onclick="go('search')">‹</button>
+          <div><div style="font-weight:600" id="resCount">Đang lọc…</div><div class="sub" id="resSub">24–26/07 · Đà Lạt</div></div></div>
+        <div class="pad" style="padding-top:12px">
+          <div id="resFilters" style="display:flex;gap:8px;overflow:auto;padding-bottom:12px;flex-wrap:wrap"></div>
+          <div id="resultList"></div>
+        </div>
+      </section>
+
+      <!-- 3. DETAIL -->
+      <section class="screen" data-screen="detail">
+        <div class="app-head mob-head"><button class="back" onclick="go('results')">‹</button>
+          <div style="font-weight:600">Sabi Pine Villa</div>
+          <button class="btn sm gold" style="margin-left:auto" onclick="alert('Đã sao chép link gửi khách:\n\nsabihome.vn/v/sabi-pine  ·  24–26/07  ·  2.980.000đ/đêm')">↗ Gửi khách</button></div>
+        <div class="photo" style="height:190px">🌲🏡</div>
+        <div style="display:flex;gap:6px;padding:8px 16px 0;overflow:auto">
+          <div class="photo" style="height:56px;width:78px;border-radius:8px;font-size:20px;flex:0 0 auto">🛏️</div>
+          <div class="photo" style="height:56px;width:78px;border-radius:8px;font-size:20px;flex:0 0 auto;background:linear-gradient(135deg,#a9b89a,#6e8467)">🌿</div>
+          <div class="photo" style="height:56px;width:78px;border-radius:8px;font-size:20px;flex:0 0 auto;background:linear-gradient(135deg,#c7a98a,#967a52)">🍳</div>
+          <div class="photo" style="height:56px;width:78px;border-radius:8px;font-size:20px;flex:0 0 auto;background:linear-gradient(135deg,#a8a487,#6f6a4a)">🛁</div>
+        </div>
+        <div class="pad">
+          <div class="title-lg">Sabi Pine Villa</div>
+          <div class="sub">Phường 8, Đà Lạt · 3 phòng ngủ · tối đa 8 khách · ⭐ 4.9</div>
+          <div style="margin:10px 0"><span class="chip">🏊 Hồ bơi</span> <span class="chip">🔥 BBQ</span> <span class="chip">🚗 Chỗ đậu xe</span></div>
+
+          <div class="divider"></div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <b class="serif" style="font-size:16px;color:var(--brown)">Lịch &amp; giá theo ngày</b>
+            <span class="sub">Tháng 7 / 2026</span>
+          </div>
+          <div class="cal" id="calDetail"></div>
+          <div class="legend">
+            <span><i style="background:#cfe4d0"></i>Còn trống</span>
+            <span><i style="background:#ecd9a3"></i>Đang giữ chỗ</span>
+            <span><i style="background:#e6c3b8"></i>Hết</span>
+            <span style="color:var(--red)">Số đỏ = cuối tuần (giá cao hơn)</span>
+          </div>
+
+          <div class="note-box">Đã chọn <b>24 → 26/07</b> · 2 đêm (1 thường + 1 cuối tuần) = <b class="money">5.960.000đ</b></div>
+
+          <div class="divider"></div>
+          <b class="serif" style="font-size:16px;color:var(--brown)">Thông tin căn (Host khai)</b>
+          <div class="src" style="margin-top:8px"><div class="ic" style="background:#e3efe4">📍</div>
+            <div style="flex:1"><b style="font-size:13px">Địa chỉ</b><div class="sub">68 Nguyễn Chí Thanh, P. Xuân Hương, Đà Lạt</div></div></div>
+          <div class="src"><div class="ic" style="background:#fbeecb">☎️</div>
+            <div style="flex:1"><b style="font-size:13px">Quản gia đón khách</b><div class="sub">0385122345</div></div></div>
+          <div class="src"><div class="ic" style="background:#ece2d0">📋</div>
+            <div style="flex:1"><b style="font-size:13px">Quy định</b><div class="sub">Nhận 14h / trả 12h · không karaoke sau 21h30 · quá người +300k · không thú cưng · cọc 50%.</div></div></div>
+          <div class="sub" style="margin-top:6px">Sales dùng đúng thông tin này để tạo phiếu — không phải hỏi host qua Zalo.</div>
+
+          <div class="row" style="margin-top:14px">
+            <button class="btn ghost" onclick="go('hold')">🕒 Giữ chỗ 30′</button>
+            <button class="btn" onclick="go('hold')">Đặt ngay</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. HOLD / BOOK -->
+      <section class="screen" data-screen="hold">
+        <div class="app-head mob-head"><button class="back" onclick="go('detail')">‹</button><div style="font-weight:600">Xác nhận giữ chỗ</div></div>
+        <div class="pad">
+          <div class="card" style="padding:16px">
+            <div style="display:flex;gap:12px;align-items:center">
+              <div class="photo" style="height:60px;width:60px;border-radius:12px;font-size:24px">🌲</div>
+              <div><b>Sabi Pine Villa</b><div class="sub">Đà Lạt · 24–26/07 · 2 đêm · 4 khách</div></div>
+            </div>
+            <div class="divider"></div>
+            <div class="kv"><span class="k">2.980.000 × 1 đêm thường</span><span class="money">2.980.000đ</span></div>
+            <div class="kv"><span class="k">2.980.000 × 1 đêm cuối tuần</span><span class="money">2.980.000đ</span></div>
+            <div class="kv"><span class="k">Phí dịch vụ</span><span class="money">0đ</span></div>
+            <div style="display:flex;justify-content:space-between;margin-top:12px">
+              <b>Tổng</b><b class="money" style="font-size:20px">5.960.000đ</b></div>
+          </div>
+
+          <div style="text-align:center;margin:18px 0 6px">
+            <div class="sub">Giữ chỗ tạm có hiệu lực trong</div>
+            <div class="serif" style="font-size:34px;color:var(--red)" id="countdown">29:58</div>
+            <div class="sub">Chống 2 sales giữ trùng 1 căn cùng lúc</div>
+          </div>
+          <div class="note-box" style="margin-bottom:14px">Giữ chỗ <b>chỉ khoá tạm ngày</b> — <b>không nhập thông tin khách</b> ở đây. Khách do bạn tự trao đổi bên ngoài (Zalo/điện thoại). Thông tin khách chỉ ghi khi <b>tạo phiếu</b>, sau khi host duyệt.</div>
+          <button class="btn gold" id="btnHold" onclick="holdConfirm()">Giữ chỗ &amp; báo host</button>
+
+          <div id="holdDone" style="display:none;margin-top:16px">
+            <div class="card" style="padding:16px;border:1px solid var(--pine);background:#f0f4ee">
+              <b class="serif" style="color:var(--pine-d)">✓ Đã giữ chỗ — liên hệ host để chốt</b>
+              <div class="divider"></div>
+              <div style="display:flex;gap:12px;align-items:center">
+                <div class="photo" style="height:46px;width:46px;border-radius:12px;font-size:20px">🏠</div>
+                <div style="flex:1"><b>Chủ căn · Sabi Pine Villa</b><div class="sub">☎️ 0385 122 345</div></div>
+              </div>
+              <div class="row" style="margin-top:12px">
+                <button class="btn sm gold" onclick="alert('(Demo) Đang gọi cho host…')">📞 Gọi host</button>
+                <button class="btn sm ghost" onclick="alert('(Demo) Mở Zalo host…')">💬 Zalo host</button>
+              </div>
+            </div>
+            <div class="toast" style="margin-top:10px">🔔 Đã gửi thông báo về tài khoản host — chờ host bấm <b>Duyệt</b>.</div>
+            <div class="note-box"><b>Bước tiếp:</b> host duyệt xong, bạn vào <b>Thêm booking</b> để ghi chi tiết khách &amp; xuất phiếu (khách + host).</div>
+            <button class="btn" style="margin-top:10px" onclick="go('create')">→ Thêm booking (sau khi host duyệt)</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. MY BOOKINGS -->
+      <section class="screen" data-screen="mybk">
+        <div class="app-head mob-head"><div class="logo">SABI<span>·</span>HOME</div><div style="margin-left:auto;font-weight:600">Booking của tôi</div></div>
+        <div class="pad">
+          <div class="card" style="padding:14px;margin-bottom:12px">
+            <div style="display:flex;justify-content:space-between"><b>Sabi Pine Villa</b><span class="pill hold">Đang giữ chỗ</span></div>
+            <div class="sub">24–26/07 · 2 đêm · 5.960.000đ</div>
+            <div class="sub" style="color:var(--red);margin-top:4px">⏳ Còn 28 phút để xác nhận</div>
+          </div>
+          <div class="card" style="padding:14px;margin-bottom:12px">
+            <div style="display:flex;justify-content:space-between"><b>Villa Thông Reo</b><span class="pill free">Đã xác nhận</span></div>
+            <div class="sub">02–03/08 · 1 đêm · 2.400.000đ</div>
+          </div>
+          <div class="card" style="padding:14px;opacity:.7">
+            <div style="display:flex;justify-content:space-between"><b>An Homestay</b><span class="pill full">Đã trả phòng</span></div>
+            <div class="sub">10–12/06 · 2 đêm · 3.800.000đ</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6. HOST -->
+      <section class="screen" data-screen="host">
+        <div class="app-head mob-head"><div class="logo" style="color:var(--pine)">SABI · HOST</div><div style="margin-left:auto" class="sub">Chào, chủ căn 👋</div></div>
+        <div class="pad">
+          <div class="grid2" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+            <div class="card" style="padding:12px"><div class="sub">Căn của tôi</div><b class="serif" style="font-size:22px;color:var(--brown)">3</b></div>
+            <div class="card" style="padding:12px"><div class="sub">Booking tháng này</div><b class="serif" style="font-size:22px;color:var(--pine)">11</b></div>
+          </div>
+          <button class="btn gold" style="margin-bottom:14px" onclick="go('addhome')">➕ Thêm căn nhà (chờ admin duyệt)</button>
+
+          <b class="serif" style="font-size:16px;color:var(--brown)">1 · Nạp lịch tự động</b>
+          <div class="sub" style="margin-bottom:8px">Chọn 1 cách — hệ thống tự đồng bộ ngày đã đặt.</div>
+          <div class="src"><div class="ic" style="background:#e3efe4">📅</div>
+            <div style="flex:1"><b style="font-size:14px">Link iCal (.ics)</b><div class="sub">Airbnb / Booking / Google Calendar</div></div>
+            <span class="badge-ok">✓ Đã nối</span></div>
+          <div class="src"><div class="ic" style="background:#fbeecb">📝</div>
+            <div style="flex:1"><b style="font-size:14px">Google Apps Script</b><div class="sub">Dán đoạn script — đẩy lịch sạch</div></div>
+            <button class="btn sm ghost" onclick="alert('(Demo) Hiện hướng dẫn dán script vào Google Sheet của host.')">Cài</button></div>
+          <div class="src"><div class="ic" style="background:#ece2d0">📊</div>
+            <div style="flex:1"><b style="font-size:14px">Link Google Sheet</b><div class="sub">Đọc ô tô màu = ngày đã đặt</div></div>
+            <button class="btn sm ghost" onclick="alert('(Demo) Dán link Google Sheet công khai của bạn.')">Dán link</button></div>
+          <div class="toast">Đồng bộ gần nhất: 5 phút trước · 24 ngày đã khoá từ iCal</div>
+
+          <div class="divider"></div>
+          <b class="serif" style="font-size:16px;color:var(--brown)">2 · Bấm khoá ngày thủ công</b>
+          <div class="sub" style="margin-bottom:6px">Chạm ngày để khoá/mở (khách nhà, bảo trì…). <b>Tháng 7/2026</b></div>
+          <div class="lockgrid" id="lockGrid"></div>
+          <button class="btn" style="margin-top:14px" onclick="alert('(Demo) Đã lưu ngày khoá. Khách sẽ không đặt được các ngày này.')">Lưu thay đổi</button>
+          <div class="note-box"><b>An toàn:</b> nếu 1 lần đồng bộ đổi &gt; 30% số ngày, hệ thống chuyển sang <b>“cần bạn duyệt”</b> thay vì ghi đè — tránh mất lịch do sheet lỗi.</div>
+
+          <div class="divider"></div>
+          <b class="serif" style="font-size:16px;color:var(--brown)">3 · Thông tin &amp; quy định của căn</b>
+          <div class="sub" style="margin-bottom:10px">Host chỉ khai thông tin — <b>tạo &amp; thiết kế phiếu là bên Sales</b>. Sales sẽ tự lấy các mục này vào phiếu.</div>
+          <label class="label">Tên căn</label>
+          <input class="field" value="Sabi Home" style="margin-bottom:10px">
+          <label class="label">Địa chỉ / vị trí</label>
+          <input class="field" value="68 Nguyễn Chí Thanh, P. Xuân Hương, TP Đà Lạt" style="margin-bottom:10px">
+          <label class="label">Hotline quản gia (đón khách)</label>
+          <input class="field" value="0385122345" style="margin-bottom:10px">
+          <label class="label">Quy định của căn</label>
+          <textarea class="field" id="hostRules" rows="6" style="resize:vertical;line-height:1.6">- Nhận phòng 14h, trả phòng 12h.
+- Cọc giữ chỗ 50%; huỷ trong 7 ngày trước nhận phòng: mất cọc.
+- Dời lịch báo trước 5 ngày, tuỳ tình trạng còn trống.
+- Không hát karaoke / mở nhạc lớn sau 21h30.
+- Quá số người phụ thu 300k/người; không nhận thú cưng.</textarea>
+          <button class="btn sm gold" style="margin-top:8px" onclick="alert('(Demo) Đã lưu thông tin &amp; quy định căn. Sales sẽ tự lấy vào phiếu booking.')">💾 Lưu thông tin căn</button>
+          <div class="note-box">Host <b>không tạo/thiết kế phiếu</b> ở đây. Mẫu phiếu &amp; việc xuất phiếu cho từng khách nằm ở <b>tài khoản Sales</b>.</div>
+
+          <div class="divider"></div>
+          <b class="serif" style="font-size:16px;color:var(--brown)">4 · Yêu cầu giữ chỗ chờ bạn duyệt</b>
+          <div class="sub" style="margin-bottom:8px">Sales giữ 1 khoảng ngày cho khách của họ. Bạn bấm <b>Duyệt</b> thì lịch mới <b>khoá</b> → chống trùng căn. <b>Chưa có thông tin khách</b> — khách do sales tự trao đổi bên ngoài.</div>
+          <div class="card" style="padding:14px">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start">
+              <div><b class="serif" style="color:var(--brown)">Sales: Trần Văn A</b>
+                <div class="sub">Sabi Pine Villa · 14h 11/08 → 12h 13/08/2026 · 2 đêm</div>
+                <div class="sub">Host nhận: <b style="color:var(--pine-d)">9.000.000đ</b></div></div>
+              <span class="badge-ok" style="background:#fbeecb;color:#8a6d1f">Chờ duyệt</span>
+            </div>
+            <div class="row" style="margin-top:12px">
+              <button class="btn gold" onclick="alert('(Demo) Bạn đã duyệt. Lịch 11–13/08 khoá tạm cho sales. Sales sẽ tạo phiếu & gửi bạn phiếu HOST qua Zalo để chốt.')">✓ Duyệt &amp; khoá lịch</button>
+              <button class="btn ghost" onclick="alert('(Demo) Đã từ chối. Sales sẽ được báo để đổi ngày/căn.')">Từ chối</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TẠO BOOKING (SALES) -->
+      <section class="screen" data-screen="create">
+        <div class="app-head mob-head"><button class="back" onclick="go('search')">‹</button><div style="font-weight:600">Tạo booking</div><span class="sub" style="margin-left:auto">Sales / CTV</span></div>
+        <div class="pad">
+          <div class="title-lg">Thêm booking (sau khi host duyệt)</div>
+          <div class="sub" style="margin-bottom:14px">Chỉ ghi ở bước này khi host đã <b>duyệt giữ chỗ</b>. Nhập 1 lần — xuất 2 phiếu: 1 gửi <b>khách</b> (giá bán), 1 gửi <b>host</b> (giá net, đã trừ phí sales). Mẫu phiếu &amp; quy định <b>tự lấy từ căn</b> (host đã khai) — khỏi hỏi Zalo.</div>
+
+          <label class="label">Villa</label>
+          <input class="field" value="Sabi Home · 68 Nguyễn Chí Thanh, P.1 Đà Lạt" readonly style="margin-bottom:12px">
+          <div class="row" style="margin-bottom:12px">
+            <div><label class="label">Nhận phòng</label><input class="field" value="14h · 11/08/2026" readonly></div>
+            <div><label class="label">Trả phòng</label><input class="field" value="12h · 13/08/2026" readonly></div>
+          </div>
+          <div class="row" style="margin-bottom:12px">
+            <div><label class="label">Khách</label><input class="field" value="Ms. Chou Lee" readonly></div>
+            <div><label class="label">SĐT</label><input class="field" value="0903958985" readonly></div>
+          </div>
+          <div class="row" style="margin-bottom:12px">
+            <div><label class="label">Số khách</label><input class="field" value="8 người" readonly></div>
+            <div><label class="label">Số đêm</label><input class="field" value="2 đêm" readonly></div>
+          </div>
+
+          <div class="divider"></div>
+          <b class="serif" style="font-size:15px;color:var(--brown)">Giá &amp; phí sales</b>
+          <div class="row" style="margin:8px 0 12px">
+            <div><label class="label">Giá KHÁCH / đêm</label><input class="field" value="5.000.000đ" readonly></div>
+            <div><label class="label">Giá HOST / đêm</label><input class="field" value="4.500.000đ" readonly></div>
+          </div>
+          <div class="row" style="margin-bottom:14px">
+            <div><label class="label">Cọc đã nhận</label><input class="field" value="5.000.000đ" readonly></div>
+            <div><label class="label">Còn lại (khách)</label><input class="field" value="5.000.000đ" readonly></div>
+          </div>
+
+          <div class="msum">
+            <div class="l"><span class="k">Khách trả (2 đêm)</span><b class="money">10.000.000đ</b></div>
+            <div class="l"><span class="k">Host nhận (2 đêm)</span><b class="money">9.000.000đ</b></div>
+            <div class="tot"><b style="color:var(--pine-d)">💰 Phí sales / môi giới</b><b class="money" style="color:var(--pine-d);font-size:17px">+1.000.000đ</b></div>
+          </div>
+
+          <div class="row" style="margin-top:14px">
+            <button class="btn ghost" id="btnGuest" onclick="setDoc('guest')">📄 Phiếu KHÁCH</button>
+            <button class="btn ghost" id="btnHost" onclick="setDoc('host')">🏠 Phiếu HOST</button>
+          </div>
+          <div id="tplRow" style="display:flex;gap:8px;align-items:center;margin-top:10px">
+            <span class="label" style="margin:0;flex-shrink:0">Mẫu theo căn</span>
+            <select class="field" id="tplSel" style="flex:1;padding:9px 10px" onchange="renderDoc()">
+              <option value="A">THER TRIPS DALAT — bảng</option>
+              <option value="B">NẰM ÊM ĐÀ LẠT — poster</option>
+              <option value="C">WOLF HOUSE — tối giản</option>
+            </select>
+            <button class="btn sm ghost" id="btnEdit" onclick="toggleEdit()" style="flex-shrink:0">✏️ Sửa</button>
+          </div>
+          <div id="docPreview" style="margin-top:14px"></div>
+          <div class="row" style="margin-top:12px">
+            <button class="btn gold" onclick="alert('(Demo) Xuất PDF/PNG phiếu để gửi.')">⬇ Xuất PDF/PNG</button>
+            <button class="btn" onclick="alert('(Demo) Gửi phiếu qua Zalo / Messenger.')">↗ Gửi</button>
+          </div>
+          <div class="note-box"><b>Mỗi nhà một mẫu:</b> phiếu host tự lấy đúng địa chỉ, số phòng, SĐT quản gia &amp; cách trình bày riêng của từng căn. Phí sales = giá khách − giá host, hệ thống tự tính &amp; <b>ẩn khỏi phiếu gửi host</b>.</div>
+
+          <div class="divider"></div>
+          <b class="serif" style="font-size:16px;color:var(--brown)">⚙️ Thiết lập mẫu phiếu cho căn (Sales)</b>
+          <div class="sub" style="margin-bottom:10px">Làm 1 lần cho mỗi căn. Chọn 1 trong 3 cách — mẫu lưu theo căn, mọi booking sau tự dùng.</div>
+
+          <div class="grid2" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+            <div class="card" style="padding:12px;cursor:pointer" onclick="hostTplMode('auto')">
+              <div style="font-size:20px">⚡</div>
+              <b style="font-size:13px">Tự động từ trường</b>
+              <div class="sub">Không cần thiết kế. Điền trường → hệ thống tự xuất phiếu gọn.</div>
+            </div>
+            <div class="card" style="padding:12px;cursor:pointer" onclick="hostTplMode('import')">
+              <div style="font-size:20px">📤</div>
+              <b style="font-size:13px">Tải form căn lên</b>
+              <div class="sub">Tải phiếu cũ của căn (ảnh/PDF/Word) → hệ thống đọc &amp; vẽ lại.</div>
+            </div>
+            <div class="card" style="padding:12px;cursor:pointer" onclick="hostTplMode('design')">
+              <div style="font-size:20px">🎨</div>
+              <b style="font-size:13px">Tự thiết kế</b>
+              <div class="sub">Tự dàn phiếu, thêm tối đa 3 ảnh.</div>
+            </div>
+          </div>
+
+          <div id="hostImport" style="display:none;margin-top:12px">
+            <div style="border:2px dashed var(--line);border-radius:12px;padding:22px;text-align:center;background:var(--bg);cursor:pointer" onclick="hostFakeUpload()">
+              <div style="font-size:30px">🗂️</div>
+              <b style="font-size:14px">Kéo thả hoặc bấm chọn file phiếu của căn</b>
+              <div class="sub">Nhận ảnh chụp phiếu, PDF, hoặc file Word/Excel</div>
+            </div>
+            <div id="hostImportBusy" class="toast" style="display:none">⏳ Đang đọc file &amp; vẽ lại mẫu…</div>
+          </div>
+
+          <div id="hostDesign" style="display:none;margin-top:12px">
+            <label class="label">Ảnh của phiếu (tối đa 3 tấm — để nhẹ dung lượng)</label>
+            <div id="imgSlots" style="display:flex;gap:8px;margin-bottom:10px"></div>
+            <div class="sub">Ảnh lưu trên CDN, hệ thống chỉ giữ đường dẫn nên rất nhẹ. Kéo bố cục &amp; sửa chữ ở khung xem trước bên dưới.</div>
+          </div>
+
+          <div id="hostTplWrap" style="display:none;margin-top:12px">
+            <div class="src" style="align-items:center">
+              <div class="ic" style="background:#e3efe4">🎨</div>
+              <div style="flex:1"><b style="font-size:13px" id="hostTplTitle">Mẫu của căn này</b><div class="sub" id="hostTplNote">Sửa trực tiếp rồi Lưu — mọi booking của căn sẽ tự dùng mẫu này.</div></div>
+              <button class="btn sm ghost" id="btnHostEdit" onclick="toggleHostEdit()">✏️ Sửa</button>
+            </div>
+            <div id="hostTplPreview" style="margin-top:10px"></div>
+            <div class="row" style="margin-top:12px">
+              <button class="btn gold" onclick="alert('(Demo) Đã lưu mẫu phiếu cho căn này. Mọi booking của căn sẽ dùng mẫu này.')">💾 Lưu mẫu cho căn</button>
+              <button class="btn ghost" onclick="hostTplMode(null)">Huỷ</button>
+            </div>
+          </div>
+
+          <div class="note-box"><b>Giới hạn 3 ảnh/căn</b> (các form thực tế chỉ dùng 1–2 ảnh) để tiết kiệm dung lượng. Đây là việc của <b>Sales</b> — host không đụng tới.</div>
+        </div>
+      </section>
+
+      <!-- ĐĂNG KÝ TÀI KHOẢN (Host / Sales) -->
+      <section class="screen" data-screen="register">
+        <div class="app-head mob-head"><button class="back" onclick="go('login')">‹</button><div style="font-weight:600">Đăng ký tài khoản</div></div>
+        <div class="pad">
+          <div class="title-lg">Bạn là?</div>
+          <div class="sub" style="margin-bottom:12px">Chọn vai trò. Mọi đăng ký đều <b>chờ admin duyệt</b> mới dùng được.</div>
+          <div class="grid2" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div class="card regrole on" data-role="host" onclick="pickReg('host')" style="padding:14px;cursor:pointer">
+              <div style="font-size:24px">🏠</div><b style="font-size:14px">Host (chủ căn)</b><div class="sub">Đăng nhà, khai quy định, xác nhận booking.</div></div>
+            <div class="card regrole" data-role="sales" onclick="pickReg('sales')" style="padding:14px;cursor:pointer">
+              <div style="font-size:24px">🧑‍💼</div><b style="font-size:14px">Sales / CTV</b><div class="sub">Xem lịch, báo khách, tạo &amp; xuất phiếu.</div></div>
+          </div>
+          <label class="label" style="margin-top:14px">Họ tên</label><input class="field" placeholder="Nguyễn Văn A" style="margin-bottom:10px">
+          <label class="label">Số điện thoại</label><input class="field" placeholder="09xx xxx xxx" style="margin-bottom:10px">
+          <label class="label">Email (tuỳ chọn)</label><input class="field" placeholder="email@…" style="margin-bottom:12px">
+          <div id="regHostExtra">
+            <div class="note-box">Là Host: bước tiếp theo bạn <b>khai căn nhà</b> (địa chỉ, ảnh, thông tin). Hệ thống <b>kiểm tra trùng căn</b> rồi gửi admin duyệt.</div>
+            <button class="btn gold" onclick="go('addhome')">Tiếp: khai căn nhà →</button>
+          </div>
+          <div id="regSalesExtra" style="display:none">
+            <button class="btn" onclick="alert('(Demo) Đã gửi đăng ký Sales. Chờ admin duyệt — bạn sẽ nhận thông báo khi được duyệt.')">Gửi đăng ký · chờ admin duyệt</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- THÊM / ĐĂNG KÝ CĂN NHÀ (Host) -->
+      <section class="screen" data-screen="addhome">
+        <div class="app-head mob-head"><button class="back" onclick="go('register')">‹</button><div style="font-weight:600">Thêm căn nhà</div><span class="sub" style="margin-left:auto">→ chờ admin duyệt</span></div>
+        <div class="pad">
+          <div class="title-lg">Khai thông tin căn</div>
+          <div class="sub" style="margin-bottom:12px">Hệ thống tự <b>kiểm tra trùng</b> với các căn đã có — tránh 1 nhà đăng 2 lần hoặc 2 người tranh 1 căn.</div>
+          <label class="label">Tên căn</label>
+          <input class="field" id="ahName" placeholder="VD: Sabi Pine Villa" oninput="checkDup()" style="margin-bottom:10px">
+          <label class="label">Địa chỉ</label>
+          <input class="field" id="ahAddr" placeholder="Số nhà, phường, TP" oninput="checkDup()" style="margin-bottom:8px">
+          <div id="dupBox"></div>
+          <div class="row" style="margin:10px 0">
+            <div><label class="label">Số phòng ngủ</label><input class="field" placeholder="3"></div>
+            <div><label class="label">Tối đa khách</label><input class="field" placeholder="8"></div>
+          </div>
+          <div class="row" style="margin-bottom:10px">
+            <div><label class="label">Giá thường/đêm</label><input class="field" placeholder="2.400.000đ"></div>
+            <div><label class="label">Giá cuối tuần/đêm</label><input class="field" placeholder="2.980.000đ"></div>
+          </div>
+          <label class="label">Mô tả chi tiết</label>
+          <textarea class="field" rows="4" placeholder="Vị trí, tiện nghi (hồ bơi, BBQ, chỗ đậu xe…), điểm nổi bật…" style="margin-bottom:10px;resize:vertical"></textarea>
+          <label class="label">Hình ảnh căn (tối đa 8 tấm)</label>
+          <div id="homeImgSlots" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px"></div>
+          <div class="sub" style="margin-bottom:12px">Ảnh lưu trên CDN, DB chỉ giữ đường dẫn cho nhẹ.</div>
+          <button class="btn gold" onclick="alert('(Demo) Đã gửi căn nhà. Chờ admin duyệt — nếu nghi trùng, admin kiểm tra trước khi duyệt.')">Gửi căn · chờ admin duyệt</button>
+          <div class="note-box"><b>Chống trùng căn:</b> khi nhập tên/địa chỉ, hệ thống so với danh sách căn đã có. Giống quá ngưỡng → cảnh báo &amp; buộc admin kiểm tra, không tự đăng.</div>
+        </div>
+      </section>
+
+      <!-- ADMIN: DUYỆT ĐĂNG KÝ -->
+      <section class="screen" data-screen="admin">
+        <div class="app-head mob-head"><div class="logo" style="color:var(--pine)">SABI · ADMIN</div><div class="sub" style="margin-left:auto">Duyệt đăng ký</div></div>
+        <div class="pad">
+          <div class="grid2" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+            <div class="card" style="padding:12px"><div class="sub">Chờ duyệt tài khoản</div><b class="serif" style="font-size:22px;color:var(--brown)">2</b></div>
+            <div class="card" style="padding:12px"><div class="sub">Chờ duyệt căn</div><b class="serif" style="font-size:22px;color:var(--pine)">2</b></div>
+          </div>
+
+          <b class="serif" style="font-size:16px;color:var(--brown)">Tài khoản chờ duyệt</b>
+          <div class="card" style="padding:12px;margin-top:8px">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px"><div><b>🏠 Wolf House</b><div class="sub">Host · 0903 958 985</div></div><span class="badge-ok" style="background:#fbeecb;color:#8a6d1f;padding:3px 10px;border-radius:999px;white-space:nowrap;flex:0 0 auto">Chờ</span></div>
+            <div class="row" style="margin-top:10px"><button class="btn gold" onclick="alert('(Demo) Đã duyệt Host Wolf House.')">✓ Duyệt</button><button class="btn ghost" onclick="alert('(Demo) Đã từ chối.')">Từ chối</button></div>
+          </div>
+          <div class="card" style="padding:12px;margin-top:8px">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px"><div><b>🧑‍💼 Trần Văn A</b><div class="sub">Sales / CTV · 0912 345 678</div></div><span class="badge-ok" style="background:#fbeecb;color:#8a6d1f;padding:3px 10px;border-radius:999px;white-space:nowrap;flex:0 0 auto">Chờ</span></div>
+            <div class="row" style="margin-top:10px"><button class="btn gold" onclick="alert('(Demo) Đã duyệt Sales Trần Văn A.')">✓ Duyệt</button><button class="btn ghost" onclick="alert('(Demo) Đã từ chối.')">Từ chối</button></div>
+          </div>
+
+          <div class="divider"></div>
+          <b class="serif" style="font-size:16px;color:var(--brown)">Căn nhà chờ duyệt</b>
+          <div class="card" style="padding:12px;margin-top:8px">
+            <div><b>🏡 Villa Thông Xanh</b><div class="sub">12 Trần Hưng Đạo, P.10 · 4PN · 8 ảnh</div></div>
+            <div class="toast" style="background:#e3efe4;color:var(--pine-d)">✓ Không thấy trùng căn nào.</div>
+            <div class="row" style="margin-top:10px"><button class="btn gold" onclick="alert('(Demo) Đã duyệt căn Villa Thông Xanh — lên marketplace.')">✓ Duyệt</button><button class="btn ghost" onclick="alert('(Demo) Đã từ chối.')">Từ chối</button></div>
+          </div>
+          <div class="card" style="padding:12px;margin-top:8px;border-color:var(--red)">
+            <div><b>🏡 Sabi Pine 2</b><div class="sub">P.8 Đà Lạt · 3PN · 5 ảnh</div></div>
+            <div class="note-box" style="border-color:var(--red);background:#f6e3dd;margin:8px 0 0"><b style="color:var(--red)">⚠️ Nghi trùng:</b> giống <b>Sabi Pine Villa</b> đã có (cùng P.8). Kiểm tra chủ sở hữu trước khi duyệt.</div>
+            <div class="row" style="margin-top:10px"><button class="btn ghost" onclick="alert('(Demo) So sánh 2 căn: địa chỉ, ảnh, chủ sở hữu.')">🔍 Xem đối chiếu</button><button class="btn" onclick="alert('(Demo) Đã từ chối căn nghi trùng.')">Từ chối</button></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 7. LOGIN -->
+      <section class="screen" data-screen="login">
+        <div class="pad" style="padding-top:60px;text-align:center">
+          <div class="serif" style="font-size:30px;letter-spacing:3px;color:var(--brown)">SABI · HOME</div>
+          <div class="sub" style="margin-bottom:34px">Villa &amp; homestay Đà Lạt — đặt nhanh, giữ chỗ thật</div>
+          <div style="text-align:left">
+            <label class="label">Số điện thoại</label>
+            <input class="field" placeholder="09xx xxx xxx" style="margin-bottom:14px">
+            <button class="btn" onclick="alert('(Demo) Gửi mã OTP qua SMS/Zalo.')">Nhận mã OTP</button>
+            <button class="btn gold" style="margin-top:10px" onclick="go('register')">Đăng ký Host / Sales</button>
+            <div style="text-align:center;margin:16px 0;color:var(--muted);font-size:13px">— hoặc —</div>
+            <button class="btn ghost" onclick="go('search')">Vào xem không cần đăng nhập</button>
+          </div>
+          <div class="note-box" style="text-align:left">Đăng nhập bằng SĐT + OTP (giống đối thủ) — nhẹ, không cần mật khẩu. Đăng ký <b>Host</b> hoặc <b>Sales</b> đều <b>chờ admin duyệt</b> mới hoạt động.</div>
+        </div>
+      </section>
+
+      </div><!-- /mobRoot -->
+    </div><!-- /screen-wrap -->
+
+    <!-- MOBILE TABBAR -->
+    <div class="tabbar" id="tabbar">
+      <button data-go="search" class="on"><span class="i">🔍</span>Tìm</button>
+      <button data-go="results"><span class="i">🏡</span>Villa</button>
+      <button data-go="create" class="mid"><span class="i">➕</span>Tạo</button>
+      <button data-go="mybk"><span class="i">🧾</span>Booking</button>
+      <button data-go="host"><span class="i">👤</span>Host</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------- data ---------- */
+var villas=[
+ {n:"Villa Thông Reo",ward:"Xuân Hương - Đà Lạt",note:"1.2km trung tâm",g:6,beds:3,pn:2400000,p:"2.400.000",st:"free",e:"🌲",bg:"linear-gradient(135deg,#8fae86,#5d7a55)",amen:["bbq","park","pet"]},
+ {n:"Sabi Pine Villa",ward:"Lâm Viên - Đà Lạt",note:"hồ bơi · ⭐4.9",g:8,beds:3,pn:2980000,p:"2.980.000",st:"free",e:"🏡",bg:"linear-gradient(135deg,#cdbb98,#a88b63)",amen:["pool","bbq","park"]},
+ {n:"An Homestay",ward:"Cam Ly - Đà Lạt",note:"gần chợ đêm",g:4,beds:2,pn:1500000,p:"1.500.000",st:"hold",e:"🏠",bg:"linear-gradient(135deg,#c7a98a,#9c7c5b)",amen:["kitchen","park"]},
+ {n:"Mộc Lam House",ward:"Xuân Trường - Đà Lạt",note:"view đồi",g:5,beds:2,pn:1900000,p:"1.900.000",st:"free",e:"⛰️",bg:"linear-gradient(135deg,#a8a487,#6f6a4a)",amen:["bbq","pet","wash"]},
+ {n:"Suối Vàng Retreat",ward:"Lang Biang - Đà Lạt",note:"đoàn lớn · view rừng",g:12,beds:4,pn:3600000,p:"3.600.000",st:"free",e:"🌄",bg:"linear-gradient(135deg,#7f9e86,#4f6b57)",amen:["pool","bbq","park","wash"]},
+ {n:"Cỏ Hồng Studio",ward:"Xuân Hương - Đà Lạt",note:"cặp đôi · gần Hồ Xuân Hương",g:2,beds:1,pn:950000,p:"950.000",st:"free",e:"🌿",bg:"linear-gradient(135deg,#b8b48f,#82805f)",amen:["kitchen","wash"]}
+];
+var AMEN={pool:"🏊 Hồ bơi",bbq:"🔥 BBQ",park:"🚗 Đậu xe",pet:"🐶 Thú cưng",kitchen:"🍳 Bếp",wash:"🧺 Máy giặt"};
+/* filter state */
+var F={ward:"",guest:0,beds:0,pmin:0,pmax:99,amen:[],sort:"price-asc"};
+function toggleAmen(el){
+  var k=el.getAttribute("data-am"); el.classList.toggle("on");
+  var i=F.amen.indexOf(k); if(i<0)F.amen.push(k); else F.amen.splice(i,1);
+}
+function fval(id){var e=document.getElementById(id);return e?e.value:"";}
+function doSearch(){
+  F.ward=fval("fWard");
+  F.guest=+fval("fGuest")||0;
+  F.beds=+fval("fBeds")||0;
+  var cmin=parseFloat((fval("fPmin")||"").replace(",",".").replace(/[^0-9.]/g,""));
+  var cmax=parseFloat((fval("fPmax")||"").replace(",",".").replace(/[^0-9.]/g,""));
+  if(!isNaN(cmin)||!isNaN(cmax)){F.pmin=isNaN(cmin)?0:cmin;F.pmax=isNaN(cmax)?99:cmax;}
+  else{var pr=(fval("fPrice")||"0-99").split("-");F.pmin=+pr[0];F.pmax=+pr[1];}
+  if(F.pmax<F.pmin){var t=F.pmin;F.pmin=F.pmax;F.pmax=t;}
+  F.sort=fval("fSort")||"price-asc";
+  go("results");
+}
+function money(p){return p+"đ";}
+function filterVillas(){
+  var list=villas.filter(function(v){
+    if(F.ward && v.ward!==F.ward)return false;
+    if(F.guest && v.g<F.guest)return false;
+    if(F.beds && v.beds<F.beds)return false;
+    var tr=v.pn/1000000;
+    if(tr<F.pmin)return false;
+    if(F.pmax<99 && tr>F.pmax)return false;
+    if(F.amen.length && !F.amen.every(function(a){return v.amen.indexOf(a)>=0;}))return false;
+    return true;
+  });
+  var s=F.sort;
+  list.sort(function(a,b){
+    if(s=="price-asc")return a.pn-b.pn;
+    if(s=="price-desc")return b.pn-a.pn;
+    if(s=="guest-desc")return b.g-a.g;
+    return 0;
+  });
+  return list;
+}
+function filterSummary(){
+  var t=[]; var SORTL={"price-asc":"Giá thấp → cao","price-desc":"Giá cao → thấp","guest-desc":"Sức chứa lớn nhất","new":"Mới đăng nhất"};
+  t.push(SORTL[F.sort]+" ✓");
+  if(F.ward)t.push("📍 "+F.ward);
+  if(F.guest)t.push("👥 "+F.guest+"+ khách");
+  if(F.beds)t.push("🛏 "+F.beds+"+ phòng");
+  if(F.pmin>0||F.pmax<99){var lbl=F.pmax>=99?("từ "+F.pmin+"tr"):(F.pmin<=0?("dưới "+F.pmax+"tr"):(F.pmin+"–"+F.pmax+"tr"));t.push("💰 "+lbl);}
+  F.amen.forEach(function(a){t.push(AMEN[a]);});
+  return t;
+}
+function renderResults(){
+  var list=filterVillas(), h="";
+  list.forEach(function(v){
+    var pill=v.st=="hold"?'<span class="pill hold">1 ngày đang giữ</span>':'<span class="pill free">Còn trống</span>';
+    var chips=v.amen.map(function(a){return '<span class="chip" style="font-size:11px;padding:4px 9px;cursor:default">'+AMEN[a]+'</span>';}).join(" ");
+    h+='<div class="card" style="margin-bottom:14px" onclick="go(\'detail\')">'
+      +'<div class="photo" style="background:'+v.bg+'">'+v.e+'</div>'
+      +'<div style="padding:12px 14px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center"><b>'+v.n+'</b>'+pill+'</div>'
+      +'<div class="sub">'+v.ward+' · '+v.beds+' phòng ngủ · tối đa '+v.g+' khách</div>'
+      +(chips?'<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">'+chips+'</div>':'')
+      +'<div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:8px">'
+      +'<span class="money" style="font-size:17px">'+money(v.p)+'</span><span class="sub">/ đêm</span></div>'
+      +'</div></div>';
+  });
+  if(!list.length)h='<div class="note-box" style="text-align:center">Không có villa nào khớp bộ lọc. Thử nới khoảng giá hoặc bỏ bớt tiện ích.</div>';
+  var lst=document.getElementById("resultList"); if(lst)lst.innerHTML=h;
+  var c=document.getElementById("resCount"); if(c)c.textContent=list.length+" villa còn trống";
+  var sub=document.getElementById("resSub"); if(sub)sub.textContent="24–26/07 · "+(F.ward||"Đà Lạt");
+  var rf=document.getElementById("resFilters");
+  if(rf)rf.innerHTML=filterSummary().map(function(x){return '<span class="chip" style="cursor:default">'+x+'</span>';}).join("");
+}
+/* price calendar */
+function renderCal(){
+  var el=document.getElementById('calDetail'); if(!el)return;
+  var dows=["T2","T3","T4","T5","T6","T7","CN"]; var h="";
+  dows.forEach(function(d){h+='<div class="dow">'+d+'</div>';});
+  // July 2026 starts Wednesday (offset)
+  for(var i=0;i<2;i++)h+='<div></div>';
+  for(var day=1;day<=31;day++){
+    var dow=(day+2)%7; // 0=T2
+    var wk=(dow==5||dow==6);
+    var price=wk?"2.98tr":"2.4tr";
+    var cls="d free", num=day;
+    if(day>=20&&day<=23){cls="d full";price="—";}
+    else if(day==27||day==28){cls="d hold";}
+    if(wk)cls+=" wk";
+    if(day==24||day==25){cls+=" sel";}
+    h+='<div class="'+cls+'"><span class="num">'+num+'</span><span class="p">'+price+'</span></div>';
+  }
+  el.innerHTML=h;
+}
+/* host lock grid */
+function renderLock(){
+  var el=document.getElementById('lockGrid'); if(!el)return; var h="";
+  for(var i=0;i<2;i++)h+='<div></div>';
+  for(var day=1;day<=31;day++){
+    var locked=(day>=20&&day<=23)?" locked":"";
+    h+='<div class="d'+locked+'" onclick="this.classList.toggle(\'locked\')">'+day+'</div>';
+  }
+  el.innerHTML=h;
+}
+
+/* ---------- booking docs ---------- */
+var docMode='guest', editMode=false;
+var B={guest:'Ms. Chou Lee',phone:'0903958985',ci:'14h 11/08/2026',co:'12h 13/08/2026',
+  ciShort:'11/07/2026',coShort:'13/07/2026',nights:'02 đêm',guests:'8 người',bookDate:'05/07/2026',
+  villa:'Sabi Home',addr:'68 Nguyễn Chí Thanh, P.1, Đà Lạt',hotline:'0385122345',
+  total:'10.000.000',dep:'5.000.000',rem:'5.000.000',note:'Kê 1 nệm (phụ thu 200k)'};
+function tplA(){return '<div class="doc">'
+ +'<div class="dt"><div class="l">THER TRIPS DALAT<small>Booking Villa Đà Lạt</small><small>Hotline: 0962 786 506 · 0787 563 539</small></div>'
+ +'<div class="r">PHIẾU XÁC NHẬN BOOKING</div></div>'
+ +'<div class="band">Thông tin khách hàng</div>'
+ +'<div class="bd"><div class="info">'
+ +'<div class="ir"><div class="k">Tên</div><div class="v">Ms. Chou Lee</div></div>'
+ +'<div class="ir"><div class="k">Sđt</div><div class="v">0903958985</div></div>'
+ +'<div class="ir"><div class="k">Check-in</div><div class="v">14h 11/08/2026</div></div>'
+ +'<div class="ir"><div class="k">Check-out</div><div class="v">12h 13/08/2026</div></div>'
+ +'<div class="ir"><div class="k">Giá villa/home</div><div class="v">10.000.000đ</div></div>'
+ +'<div class="ir"><div class="k">Tổng 1 đêm</div><div class="v">5.000.000đ</div></div>'
+ +'<div class="ir"><div class="k">Đã nhận cọc</div><div class="v">5.000.000đ</div></div>'
+ +'<div class="ir"><div class="k">Phần còn lại</div><div class="v">5.000.000đ</div></div>'
+ +'<div class="ir"><div class="k">Số lượng</div><div class="v">8 người</div></div>'
+ +'</div><div class="ph">🏡<div style="font-size:11px;font-weight:700;margin-top:6px;letter-spacing:1px">SABI HOME</div></div></div>'
+ +'<div class="addr">🏠 Địa chỉ: 68 Nguyễn Chí Thanh, P. Xuân Hương, TP Đà Lạt</div>'
+ +'<div class="hot">📞 Hotline: 0385122345 — quản gia (liên hệ nhận nhà)</div>'
+ +'<div class="rule">• Đi đúng số người; phát sinh +250.000đ/người lớn ngày thường; không quá 10 người.</div>'
+ +'<div class="rule">❌ Booking không hoàn hủy · Check-in/out đúng giờ thoả thuận.</div>'
+ +'<div class="rule">✔ Mang CMND/CCCD/Passport để đăng ký lưu trú · Không hát karaoke, giữ trật tự sau 22h.</div>'
+ +'<div class="rule">📌 Không mang thú cưng (phụ thu 2.000.000đ) · Nghiêm cấm chất gây nghiện.</div>'
+ +'<div class="rule">✔ Tự dọn sau khi nấu nướng, hoặc thu phí dọn 500.000–1.000.000đ/lần.</div>'
+ +'<div class="svc">Dịch vụ kèm: BBQ nướng lẩu ship tận nơi · Thuê xe máy–ô tô · Đưa đón sân bay · Loa kẹo kéo…</div>'
+ +'</div>';}
+function hostDoc(){return '<div class="hdoc"><div class="ttl">XÁC NHẬN THÔNG TIN THUÊ HOME</div>'
+ +'ĐỊA CHỈ: 68 Nguyễn Chí Thanh, P.1, Đà Lạt\n'
+ +'Liên hệ nhận nhà: 0385122345\n'
+ +'------------------------------------\n'
+ +'• THÔNG TIN KHÁCH: Ms. Chou Lee\n'
+ +'Sđt: 0903958985\n'
+ +'- Số khách tiêu chuẩn: 8\n'
+ +'- Giao chìa nguyên căn: 03 phòng\n'
+ +'………………………………………\n'
+ +'* Nhận phòng: 14h ngày 11/8/2026\n'
+ +'* Ngày trả: 12h ngày 13/8/2026\n'
+ +'- Tổng 1 đêm: 4.500.000 VND\n'
+ +'- Đã nhận cọc: 4.500.000 VND\n'
+ +'- Còn thanh toán khi nhận nhà: 4.500.000 VND\n'
+ +'(Quý khách vui lòng thanh toán ngay khi nhận nhà)</div>';}
+/* Template B — NẰM ÊM ĐÀ LẠT */
+function tplB(){return '<div class="tplB">'
+ +'<div class="top"><div class="dots"><span></span><span></span><span></span></div><div class="brand">NẰM ÊM ĐÀ LẠT</div></div>'
+ +'<div class="hero"><div class="pic"></div><div style="flex:1">'
+ +'<div class="htitle">XÁC NHẬN<br>ĐẶT PHÒNG</div>'
+ +'<div class="datepill">NGÀY ĐẶT PHÒNG: '+B.bookDate+'</div></div></div>'
+ +'<div class="grid">'
+ +'<div class="sec"><div class="pill">THÔNG TIN VILLA</div><div class="box">'
+ +'<div class="kv"><b>Mã căn:</b> '+B.villa+'</div><div class="kv"><b>Địa chỉ:</b> '+B.addr+'</div>'
+ +'<div class="kv"><b>Hotline:</b> Quản Gia '+B.hotline+'</div></div></div>'
+ +'<div class="sec"><div class="pill">THÔNG TIN KHÁCH</div><div class="box">'
+ +'<div class="kv"><b>Người đặt:</b> '+B.guest+'</div><div class="kv"><b>SĐT:</b> '+B.phone+'</div>'
+ +'<div class="kv"><b>Số khách:</b> '+B.guests+'</div></div></div>'
+ +'<div class="sec"><div class="pill">THÔNG TIN LƯU TRÚ</div><div class="box">'
+ +'<div class="kv"><b>Nhận phòng:</b> '+B.ci+'</div><div class="kv"><b>Trả phòng:</b> '+B.co+'</div>'
+ +'<div class="kv"><b>Lưu trú:</b> '+B.nights+'</div><div class="kv"><b>Ghi chú:</b> '+B.note+'</div></div></div>'
+ +'<div class="sec"><div class="pill">THÔNG TIN THANH TOÁN</div><div class="box">'
+ +'<div class="kv"><b>Tổng tiền:</b> '+B.total+' VND</div><div class="kv"><b>Đã đặt cọc:</b> '+B.dep+' VND</div>'
+ +'<div class="kv"><b>Còn lại:</b> '+B.rem+' VND</div><div class="kv" style="font-style:italic;font-size:10px">(Thanh toán khi check-in)</div></div></div>'
+ +'</div>'
+ +'<div class="sec"><div class="pill">QUY ĐỊNH LƯU TRÚ</div><div class="box"><ul>'
+ +'<li>Đem CCCD/Passport để đăng ký lưu trú.</li>'
+ +'<li>Villa ở khu dân cư — giữ trật tự sau 22h; ồn ào Phường phạt, khách tự chịu.</li>'
+ +'<li>Nghiêm cấm chất kích thích, gây nghiện; không mang chất dễ cháy nổ.</li>'
+ +'<li><b>BOOKING ĐÃ LẬP: KHÔNG HOÀN HỦY – KHÔNG DỜI NGÀY – KHÔNG HOÀN CỌC.</b></li>'
+ +'<li>Dùng sân BBQ &amp; bếp giữ vệ sinh; phụ thu dọn 300.000–500.000đ.</li>'
+ +'<li>Phát sinh thêm người: 250k/người/ngày (bé &gt;6 tuổi tính như người lớn).</li>'
+ +'</ul></div></div>'
+ +'<div class="foot">Kính chúc quý khách một kỳ nghỉ vui vẻ!</div></div>';}
+
+/* Template C — WOLF HOUSE */
+function tplC(){return '<div class="tplC">'
+ +'<div class="hd"><div><div class="wolf">WOLF HOUSE</div>'
+ +'<div class="addr">Địa chỉ:<br>'+B.addr+'</div></div><div class="pic"></div></div>'
+ +'<div class="cols"><div class="lft">'
+ +'<div class="sh">THÔNG TIN ĐÓN KHÁCH</div><div class="big">Hotline: '+B.hotline+'</div><div style="font-size:10px">(Vui lòng gọi trước 30 phút)</div>'
+ +'<div class="sh">THÔNG TIN KHÁCH HÀNG</div><div class="big">'+B.guest+'</div><div>SĐT: '+B.phone+'</div><div>Số lượng: '+B.guests+'</div>'
+ +'<div class="sh">LỊCH TRÌNH LƯU TRÚ</div><div class="big">Check-in: '+B.ci+'</div><div class="big">Check-out: '+B.co+'</div>'
+ +'<div class="sh">THÔNG TIN THANH TOÁN</div><div>Tổng tiền: <b>'+B.total+' đồng</b></div><div>Đã cọc: '+B.dep+' đồng</div><div>Còn lại: '+B.rem+' đồng</div>'
+ +'</div><div class="notes"><div class="sh" style="margin-top:0">GHI CHÚ</div>'
+ +'- Thanh toán phần còn lại khi check-in.<br>'
+ +'- Home giao nguyên căn, tự bảo vệ tài sản; mất mát home không chịu trách nhiệm.<br>'
+ +'- Không hoàn cọc, không huỷ cọc. Chỉ hỗ trợ dời căn khi cơ sở đóng cửa.<br>'
+ +'- Trả nhà sớm vẫn trả đủ tiền hợp đồng.<br>'
+ +'- Đi đúng số người; quá số phụ thu 300k/người.<br>'
+ +'- Rửa chén sau khi dùng bếp, nếu không phụ phí 500k.<br>'
+ +'- Khu yên tĩnh, giữ trật tự sau 22h; không hát karaoke, mở nhạc lớn sau 21h30.<br>'
+ +'- Nghiêm cấm chất kích thích/gây nghiện/dễ cháy nổ; không nhận thú cưng.<br>'
+ +'- Mọi vi phạm bị công an phạt, khách chịu trách nhiệm.</div></div>'
+ +'<div class="foot">Cảm ơn bạn đã tin tưởng và lựa chọn Wolf House. Chúc chuyến đi như ý!</div></div>';}
+
+function guestDoc(){var t=(document.getElementById('tplSel')||{}).value||'A';return t==='B'?tplB():t==='C'?tplC():tplA();}
+function renderDoc(){
+  var el=document.getElementById('docPreview'); if(!el)return;
+  el.innerHTML = docMode==='host'?hostDoc():guestDoc();
+  if(editMode&&el.firstElementChild){el.firstElementChild.setAttribute('contenteditable','true');el.firstElementChild.classList.add('editing');}
+  var g=document.getElementById('btnGuest'), h=document.getElementById('btnHost'), tr=document.getElementById('tplRow');
+  if(g&&h){
+    g.style.background=docMode==='guest'?'var(--pine)':'transparent'; g.style.color=docMode==='guest'?'#fff':'var(--pine)';
+    h.style.background=docMode==='host'?'var(--pine)':'transparent';  h.style.color=docMode==='host'?'#fff':'var(--pine)';
+  }
+  if(tr)tr.style.display=docMode==='guest'?'flex':'none';
+}
+function setDoc(m){docMode=m;renderDoc();}
+function toggleEdit(){editMode=!editMode;var b=document.getElementById('btnEdit');if(b)b.textContent=editMode?'✓ Xong':'✏️ Sửa';renderDoc();}
+
+/* ---------- host: quy định + mẫu phiếu của căn (setup 1 lần) ---------- */
+var hostEdit=false, hostTplType=null, hostImgs=[];
+function hostPlain(){return '<div class="hdoc"><div class="ttl">PHIẾU XÁC NHẬN — '+B.villa.toUpperCase()+'</div>'
+ +'<div class="ln">Địa chỉ: '+B.addr+'</div><div class="ln">Hotline: '+B.hotline+'</div><div class="ln">— — —</div>'
+ +'<div class="ln">Khách: '+B.guest+' · '+B.phone+'</div><div class="ln">Số khách: '+B.guests+'</div>'
+ +'<div class="ln">Nhận: '+B.ci+'  ·  Trả: '+B.co+' ('+B.nights+')</div>'
+ +'<div class="ln">Tổng: '+B.total+'đ · Cọc: '+B.dep+'đ · Còn: '+B.rem+'đ</div>'
+ +'<div class="ln" style="margin-top:8px">QUY ĐỊNH: tự lấy từ mục 3 (Quy định của căn).</div></div>';}
+function hostImgSlot(i){var s=hostImgs[i];
+  return '<div onclick="hostAddImg('+i+')" style="width:64px;height:64px;border:1px dashed var(--line);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:'+(s?'var(--pine)':'var(--bg)')+';color:'+(s?'#fff':'var(--muted)')+';font-size:'+(s?'11px':'22px')+';text-align:center">'+(s?'🖼️ Ảnh '+(i+1):'＋')+'</div>';}
+function renderImgSlots(){var el=document.getElementById('imgSlots');if(!el)return;el.innerHTML=hostImgSlot(0)+hostImgSlot(1)+hostImgSlot(2);}
+function hostAddImg(i){if(hostImgs[i]){hostImgs[i]=null;}else{hostImgs[i]=true;}renderImgSlots();}
+function hostTplMode(mode){
+  hostTplType=mode;
+  var imp=document.getElementById('hostImport'), des=document.getElementById('hostDesign'), wrap=document.getElementById('hostTplWrap');
+  if(!imp||!wrap||!des)return;
+  imp.style.display='none';des.style.display='none';wrap.style.display='none';
+  if(mode==='import'){imp.style.display='block';return;}
+  if(mode==='design'){des.style.display='block';renderImgSlots();
+    document.getElementById('hostTplTitle').textContent='Bản thiết kế của căn';
+    document.getElementById('hostTplNote').textContent='Kéo bố cục & sửa chữ. Ảnh tối đa 3 tấm ở trên.';
+    wrap.style.display='block';renderHostTpl();return;}
+  if(mode==='auto'){
+    document.getElementById('hostTplTitle').textContent='Phiếu tự sinh từ trường';
+    document.getElementById('hostTplNote').textContent='Không cần thiết kế — hệ thống tự dựng gọn từ thông tin booking.';
+    wrap.style.display='block';renderHostTpl();return;}
+}
+function hostFakeUpload(){
+  var busy=document.getElementById('hostImportBusy'); if(busy)busy.style.display='block';
+  setTimeout(function(){
+    if(busy)busy.style.display='none';
+    document.getElementById('hostTplTitle').textContent='Đã vẽ lại từ file bạn tải lên ✓';
+    document.getElementById('hostTplNote').textContent='Hệ thống bóc chữ & bố cục từ phiếu cũ. Kiểm tra và sửa chỗ nào chưa đúng.';
+    document.getElementById('hostTplWrap').style.display='block';
+    renderHostTpl();
+    document.getElementById('hostTplWrap').scrollIntoView({behavior:'smooth',block:'center'});
+  },1200);
+}
+function renderHostTpl(){
+  var el=document.getElementById('hostTplPreview'); if(!el)return;
+  el.innerHTML = hostTplType==='auto'?hostPlain() : hostTplType==='design'?tplB() : tplC();
+  if(hostEdit&&el.firstElementChild){el.firstElementChild.setAttribute('contenteditable','true');el.firstElementChild.classList.add('editing');}
+}
+function toggleHostEdit(){hostEdit=!hostEdit;var b=document.getElementById('btnHostEdit');if(b)b.textContent=hostEdit?'✓ Xong':'✏️ Sửa';renderHostTpl();}
+
+/* ---------- navigation ---------- */
+var isWeb=false;
+function setActive(name){
+  document.querySelectorAll('#mobRoot .screen').forEach(function(s){
+    s.classList.toggle('active', s.dataset.screen===name);
+  });
+  document.querySelectorAll('#tabbar button').forEach(function(b){b.classList.toggle('on',b.dataset.go===name);});
+  document.querySelectorAll('#webSide button').forEach(function(b){b.classList.toggle('on',b.dataset.go===name);});
+  if(isWeb){ // move active screen node into web-main
+    var node=document.querySelector('#mobRoot .screen[data-screen="'+name+'"]');
+    var main=document.getElementById('webMain');
+    main.innerHTML=''; var clone=node.cloneNode(true); clone.classList.add('active'); main.appendChild(clone);
+    renderCal(); renderLock(); renderResults();
+  }
+  renderDoc();
+  document.querySelector('.screen-wrap').scrollTop=0;
+}
+function go(name){ setActive(name); }
+
+/* ---------- role (2 tài khoản: Sales / Host) ---------- */
+var role='sales';
+var NAV={
+ sales:{def:'search',
+   tabs:[['search','🔍','Tìm'],['results','🏡','Villa'],['create','➕','Tạo','mid'],['mybk','🧾','Booking']],
+   side:[['search','🔍','Tìm villa trống'],['results','🏡','Danh sách villa'],['create','➕','Tạo booking'],['detail','📋','Chi tiết villa'],['hold','🕒','Giữ chỗ / Đặt'],['mybk','🧾','Booking của tôi'],['login','🔑','Đăng nhập']]},
+ host:{def:'host',
+   tabs:[['host','🏠','Quản lý căn'],['addhome','➕','Thêm căn'],['login','🔑','Tài khoản']],
+   side:[['host','🏠','Quản lý căn & quy định'],['addhome','➕','Thêm căn nhà'],['register','📝','Đăng ký'],['login','🔑','Đăng nhập']]},
+ admin:{def:'admin',
+   tabs:[['admin','🛡️','Duyệt'],['login','🔑','Tài khoản']],
+   side:[['admin','🛡️','Duyệt đăng ký & căn'],['login','🔑','Đăng nhập']]}
+};
+function buildNav(){
+  var cfg=NAV[role];
+  document.getElementById('tabbar').innerHTML=cfg.tabs.map(function(t){
+    return '<button data-go="'+t[0]+'"'+(t[3]?' class="'+t[3]+'"':'')+'><span class="i">'+t[1]+'</span>'+t[2]+'</button>';
+  }).join('');
+  document.getElementById('webSide').innerHTML='<div class="wlogo">SABI<span>·</span>HOME</div>'+cfg.side.map(function(t){
+    return '<button data-go="'+t[0]+'"><span>'+t[1]+'</span> '+t[2]+'</button>';
+  }).join('');
+  document.querySelectorAll('#tabbar button,#webSide button').forEach(function(b){b.onclick=function(){go(b.dataset.go);};});
+}
+function setRole(r){
+  role=r;
+  document.querySelectorAll('#roleSeg button').forEach(function(x){x.classList.toggle('on',x.dataset.role===r);});
+  buildNav();
+  setActive(NAV[r].def);
+}
+document.querySelectorAll('#roleSeg button').forEach(function(b){
+  b.onclick=function(){setRole(b.dataset.role);};
+});
+
+/* view toggle */
+document.querySelectorAll('#viewSeg button').forEach(function(b){
+  b.onclick=function(){
+    document.querySelectorAll('#viewSeg button').forEach(function(x){x.classList.remove('on');});
+    b.classList.add('on');
+    var dev=document.getElementById('device');
+    isWeb=(b.dataset.view==='web');
+    dev.classList.toggle('web',isWeb);
+    document.querySelector('.web-shell').style.display=isWeb?'flex':'none';
+    document.getElementById('mobRoot').style.display=isWeb?'none':'block';
+    var cur=document.querySelector('#webSide button.on');
+    setActive(isWeb?(cur?cur.dataset.go:NAV[role].def):NAV[role].def);
+  };
+});
+buildNav();
+
+/* countdown */
+setInterval(function(){
+  var c=document.getElementById('countdown'); if(!c)return;
+  var parts=c.textContent.split(':'); var s=(+parts[0])*60+(+parts[1]); if(s>0)s--;
+  c.textContent=String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+},1000);
+
+/* ---------- Giữ chỗ (Sales) — không nhập thông tin khách ---------- */
+function holdConfirm(){
+  var d=document.getElementById('holdDone'); if(d)d.style.display='block';
+  var b=document.getElementById('btnHold'); if(b){b.textContent='✓ Đã giữ chỗ';b.disabled=true;b.style.opacity='.6';}
+}
+
+/* ---------- Đăng ký (host / sales) ---------- */
+function pickReg(r){
+  document.querySelectorAll('.regrole').forEach(function(x){x.classList.toggle('on',x.dataset.role===r);});
+  var h=document.getElementById('regHostExtra'), s=document.getElementById('regSalesExtra');
+  if(h)h.style.display=(r==='host')?'block':'none';
+  if(s)s.style.display=(r==='sales')?'block':'none';
+}
+
+/* ---------- Thêm căn – check trùng ---------- */
+var KNOWN=[
+  {n:'sabi pine villa', a:'8'}, {n:'villa thông reo', a:'3'},
+  {n:'sabi home', a:'nguyễn chí thanh'}, {n:'mộc lam house', a:'mộc lam'},
+  {n:'an homestay', a:'an homestay'}
+];
+function norm(s){return (s||'').toLowerCase().replace(/\s+/g,' ').trim();}
+function checkDup(){
+  var box=document.getElementById('dupBox'); if(!box)return;
+  var nm=norm(document.getElementById('ahName').value);
+  var ad=norm(document.getElementById('ahAddr').value);
+  if(!nm && !ad){box.innerHTML='';return;}
+  var hit=null;
+  KNOWN.forEach(function(k){
+    if(!nm)return;
+    var a=k.n, b=nm;
+    if(a.indexOf(b)>-1||b.indexOf(a)>-1){hit=k;}
+    else if(ad && k.a && (ad.indexOf(k.a)>-1)){hit=k;}
+  });
+  if(hit){
+    box.innerHTML='<div class="dup warn">⚠️ Nghi trùng với căn <b>'+hit.n.replace(/\b\w/g,function(c){return c.toUpperCase();})+'</b> đã có trên hệ thống. Admin sẽ đối chiếu khi duyệt.</div>';
+  }else{
+    box.innerHTML='<div class="dup ok">✓ Chưa thấy căn nào trùng — có thể gửi cho admin duyệt.</div>';
+  }
+}
+
+/* ---------- Ảnh căn (tối đa 8) ---------- */
+var homeImgs=[];
+function homeImgSlot(i){
+  var has=homeImgs[i];
+  return '<div class="imgslot'+(has?' has':'')+'" onclick="homeAddImg('+i+')">'+(has?'🖼️<span>Ảnh '+(i+1)+'</span>':'＋<span>Thêm</span>')+'</div>';
+}
+function renderHomeImgSlots(){
+  var w=document.getElementById('homeImgSlots'); if(!w)return;
+  var n=Math.min(homeImgs.length+1,8); var html='';
+  for(var i=0;i<n;i++)html+=homeImgSlot(i);
+  w.innerHTML=html;
+  var c=document.getElementById('homeImgCount'); if(c)c.textContent=homeImgs.length+'/8 ảnh';
+}
+function homeAddImg(i){
+  if(homeImgs.length>=8){alert('Tối đa 8 ảnh / căn.');return;}
+  homeImgs[i]=true; renderHomeImgSlots();
+}
+
+renderResults(); renderCal(); renderLock(); renderDoc(); renderHomeImgSlots();
+</script>
+</body>
+</html>
