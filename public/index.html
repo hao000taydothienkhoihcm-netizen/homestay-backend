@@ -864,6 +864,8 @@ const RL={admin:'Admin',manager:'Quản lý',staff:'Nhân viên'};
 const RB={admin:'b-admin',manager:'b-manager',staff:'b-staff'};
 let RULES = [];   // Loaded from API: GET /charge-templates?type=RULE
 let QUICK = [];   // Loaded from API: GET /charge-templates?type=QUICK
+// Tra đơn vị lẻ (chai/lon/gói…) của 1 món tiêu thụ theo tên; mặc định "cái"
+function unitOf(name){ var q=(QUICK||[]).find(function(x){return x.name===name;}); return (q&&q.unitLabel)||'cái'; }
 const EMOJIS=['🏡','🌿','🌊','🏠','🌺','🏔','🌴','🌸','🏕','🌻','🏘','🌾'];
 
 let CU = null; // current user
@@ -2421,8 +2423,8 @@ function _renderCO() {
   const prevWater=document.getElementById('co-water')?.value||b.water||'';
   const prevNote=document.getElementById('co-note')?.value||b.inspNote||'';
   const rulesBtns=RULES.map(r=>'<button class="btn btn-xs btn-danger" onclick="addCharge(\''+r.name.replace(/'/g,"\\'")+'\','+r.amount+',1)">'+r.name+' ('+mS(r.amount)+')</button>').join('');
-  const quickBtns=QUICK.map(function(r){var eid='qty-'+r.name.replace(/[^a-zA-Z0-9]/g,'');var stepBtn='width:24px;height:24px;padding:0;border:1px solid rgba(124,106,78,0.3);background:#fff;border-radius:5px;font-size:15px;font-weight:700;color:#5C4E38;line-height:1;cursor:pointer;flex:none';return '<div style="display:inline-flex;align-items:center;gap:4px;background:#F1EEE3;padding:4px 7px;border-radius:6px;border:1px solid rgba(124,106,78,0.2);margin:2px"><span style="font-size:11px;color:#2E2416">'+r.name+'</span><span style="font-size:10px;color:var(--t3)">'+money(r.amount)+'/cái</span><button type="button" style="'+stepBtn+'" onclick="stepQty(\''+eid+'\',-1)">−</button><input type="number" min="1" value="1" id="'+eid+'" style="width:38px;padding:3px 5px;background:#fff;border:1px solid rgba(124,106,78,0.3);border-radius:4px;font-size:11px;text-align:center"/><button type="button" style="'+stepBtn+'" onclick="stepQty(\''+eid+'\',1)">+</button><button class="btn btn-xs btn-sky" style="padding:2px 9px;margin-left:2px" onclick="addCharge(\''+r.name.replace(/'/g,"\\'")+'\','+r.amount+',parseInt(document.getElementById(\''+eid+'\').value)||1)">Thêm</button></div>';}).join('');
-  const chargeList=_charges.length?_charges.map(function(c){var qtyDisp=c.qty&&c.qty>1?' (× '+c.qty+' = '+money(c.unit||c.amount)+'/cái)':'';return '<div class="ci-item"><span>'+c.name+'<span style="font-size:10px;color:var(--t3)">'+qtyDisp+'</span></span><div style="display:flex;gap:7px;align-items:center"><span style="color:#B85C4A;font-weight:600">'+money(c.amount)+'</span><button class="btn btn-xs btn-danger" onclick="rmCharge('+c.id+')">✕</button></div></div>';}).join(''):'<div style="color:var(--t3);font-size:11px;padding:5px 0">Chưa có phụ thu</div>';
+  const quickBtns=QUICK.map(function(r){var eid='qty-'+r.name.replace(/[^a-zA-Z0-9]/g,'');var stepBtn='width:24px;height:24px;padding:0;border:1px solid rgba(124,106,78,0.3);background:#fff;border-radius:5px;font-size:15px;font-weight:700;color:#5C4E38;line-height:1;cursor:pointer;flex:none';return '<div style="display:inline-flex;align-items:center;gap:4px;background:#F1EEE3;padding:4px 7px;border-radius:6px;border:1px solid rgba(124,106,78,0.2);margin:2px"><span style="font-size:11px;color:#2E2416">'+r.name+'</span><span style="font-size:10px;color:var(--t3)">'+money(r.amount)+'/'+(r.unitLabel||'cái')+'</span><button type="button" style="'+stepBtn+'" onclick="stepQty(\''+eid+'\',-1)">−</button><input type="number" min="1" value="1" id="'+eid+'" style="width:38px;padding:3px 5px;background:#fff;border:1px solid rgba(124,106,78,0.3);border-radius:4px;font-size:11px;text-align:center"/><button type="button" style="'+stepBtn+'" onclick="stepQty(\''+eid+'\',1)">+</button><button class="btn btn-xs btn-sky" style="padding:2px 9px;margin-left:2px" onclick="addCharge(\''+r.name.replace(/'/g,"\\'")+'\','+r.amount+',parseInt(document.getElementById(\''+eid+'\').value)||1)">Thêm</button></div>';}).join('');
+  const chargeList=_charges.length?_charges.map(function(c){var qtyDisp=c.qty&&c.qty>1?' (× '+c.qty+' = '+money(c.unit||c.amount)+'/'+unitOf(c.name)+')':'';return '<div class="ci-item"><span>'+c.name+'<span style="font-size:10px;color:var(--t3)">'+qtyDisp+'</span></span><div style="display:flex;gap:7px;align-items:center"><span style="color:#B85C4A;font-weight:600">'+money(c.amount)+'</span><button class="btn btn-xs btn-danger" onclick="rmCharge('+c.id+')">✕</button></div></div>';}).join(''):'<div style="color:var(--t3);font-size:11px;padding:5px 0">Chưa có phụ thu</div>';
   showModal(
     '<div class="mh"><div class="mt2">🔑 Kiểm tra & Trả nhà</div><button class="mc" onclick="closeModal()">✕</button></div>'
     +'<div style="background:#F1EEE3;border-radius:8px;padding:11px 13px;margin-bottom:13px;border:1px solid rgba(124,106,78,0.2);display:flex;justify-content:space-between;align-items:center">'
@@ -4094,7 +4096,7 @@ function renderCharges() {
     QUICK.forEach(function(q, i) {
       h += '<tr><td style="color:var(--t3);font-size:10px">#' + (i + 1) + '</td>'
         + '<td><span style="font-weight:500">' + q.name + '</span></td>'
-        + '<td style="font-weight:600;color:#5A7A96">' + money(q.amount) + '<span style="font-size:10px;color:var(--t3);font-weight:400">/cái</span></td>'
+        + '<td style="font-weight:600;color:#5A7A96">' + money(q.amount) + '<span style="font-size:10px;color:var(--t3);font-weight:400">/' + (q.unitLabel||'cái') + '</span></td>'
         + '<td><div style="display:flex;gap:4px">'
         + '<button class="btn btn-xs btn-out" onclick="openEditQuick(' + q.id + ')">✏️</button>'
         + '<button class="btn btn-xs btn-danger" onclick="delQuick(' + q.id + ')">🗑</button>'
@@ -4181,10 +4183,12 @@ function _quickModal(q) {
     '<div class="mh"><div class="mt2">' + (isEdit ? '✏️ Sửa' : '➕ Thêm') + ' mục tiêu thụ</div><button class="mc" onclick="closeModal()">✕</button></div>'
     + '<div class="fg"><label class="fl">Tên mục *</label>'
     + '<input class="fc" id="qk-name" value="' + (q ? q.name : '') + '" placeholder="VD: Nước ngọt (lon), Mì gói..."/></div>'
-    + '<div class="fg"><label class="fl">Đơn giá / 1 cái (đ) *</label>'
+    + '<div class="fg"><label class="fl">Đơn vị lẻ (chai, lon, gói…) *</label>'
+    + '<input class="fc" id="qk-unit" value="' + (q ? (q.unitLabel||'cái') : 'cái') + '" placeholder="VD: chai, lon, gói, ly"/></div>'
+    + '<div class="fg"><label class="fl">Đơn giá / 1 đơn vị (đ) *</label>'
     + '<input type="text" inputmode="numeric" class="fc" id="qk-amount" value="' + (q ? numVal(q.amount) : '') + '" placeholder="VD: 15.000" oninput="fmtNumInput(this)"/></div>'
     + '<div style="background:rgba(90,122,150,0.06);border-radius:7px;padding:9px 12px;font-size:11px;color:#5A7A96;border:1px solid rgba(90,122,150,0.15);margin-bottom:11px">'
-    + '💡 Khi trả nhà, quản gia sẽ nhập số lượng. VD: đơn giá 15k × 3 cái = 45k'
+    + '💡 Khi trả nhà, quản gia sẽ nhập số lượng. VD: nước suối 15k × 3 chai = 45k'
     + '</div>'
     + '<div class="mfoot"><button class="btn btn-out" onclick="closeModal()">Hủy</button>'
     + '<button class="btn btn-gold" onclick="saveQuick(' + (isEdit ? q.id : 0) + ')">' + (isEdit ? 'Cập nhật' : 'Tạo') + '</button></div>',
@@ -4196,11 +4200,12 @@ function openEditQuick(id) { _quickModal(QUICK.find(function(q){return q.id===id
 async function saveQuick(id) {
   const name = document.getElementById('qk-name')?.value?.trim();
   const amount = parseNum(document.getElementById('qk-amount')?.value);
+  const unitLabel = (document.getElementById('qk-unit')?.value?.trim()) || 'cái';
   if (!name || !amount) { toast('Điền tên và đơn giá', 'warn'); return; }
   setLoading(true);
   try {
-    if (id) await api.patch('/charge-templates/' + id, { name, amount });
-    else await api.post('/charge-templates', { name, amount, type: 'QUICK' });
+    if (id) await api.patch('/charge-templates/' + id, { name, amount, unitLabel });
+    else await api.post('/charge-templates', { name, amount, type: 'QUICK', unitLabel });
     await reloadCharges();
     closeModal();
     toast(id ? 'Đã cập nhật' : 'Đã thêm mục tiêu thụ', 'success');
