@@ -4204,4 +4204,23 @@ async function saveExp(id){
   }
 }
 async function delExp(id){
-  if(!co
+  if(!confirm('Xóa chi phí này?')) return;
+  setLoading(true);
+  try {
+    await api.delete('/expenses/' + id);
+    await reloadExpenses();
+    toast('Đã xóa', 'success');
+    setPage(curPage);
+  } catch (e) {
+    toast(e.message, 'error');
+  } finally {
+    setLoading(false);
+  }
+}
+
+/* CAT constant if missing */
+if (typeof CAT === 'undefined') { var CAT = ['Điện nước','Dọn dẹp','Sửa chữa','Vật tư','Lương','Khác']; }
+/* end main script */
+</script>
+</body>
+</html>
