@@ -127,7 +127,8 @@ router.post('/', requireRole('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
   const home = await prisma.home.findUnique({ where: { id: parseInt(homeId) } });
   if (!home) return res.status(404).json({ error: 'Căn nhà không tồn tại' });
 
-  const totalAmount = stayTotal(home, checkIn, checkOut);
+  const holidays = await prisma.holiday.findMany();
+  const totalAmount = stayTotal(home, checkIn, checkOut, holidays);
 
   // Mọi quyền (ADMIN, MANAGER, STAFF) đều được nhập tiền cọc / giảm giá.
   const dep = parseInt(deposit) || 0;
@@ -250,7 +251,8 @@ router.patch('/:id', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
   // Recalculate totalAmount nếu đổi ngày/nhà
   if (homeId || checkIn || checkOut) {
     const home = await prisma.home.findUnique({ where: { id: updateData.homeId || existing.homeId } });
-    updateData.totalAmount = stayTotal(home, updateData.checkIn || existing.checkIn, updateData.checkOut || existing.checkOut);
+    const holidays = await prisma.holiday.findMany();
+    updateData.totalAmount = stayTotal(home, updateData.checkIn || existing.checkIn, updateData.checkOut || existing.checkOut, holidays);
   }
 
   // Trạng thái hiệu lực sau cập nhật (client gửi status mới, hoặc giữ nguyên).

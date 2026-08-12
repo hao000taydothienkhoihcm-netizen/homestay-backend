@@ -19,14 +19,16 @@ router.get('/:id', async (req, res) => {
 });
 
 router.post('/', requireRole('ADMIN'), async (req, res) => {
-  const { name, address, price, weekendPrice, maxGuests, emoji, desc } = req.body;
+  const { name, address, price, weekendPrice, holidayPrice, maxGuests, emoji, desc } = req.body;
   if (!name || !address || !price) return res.status(400).json({ error: 'Thiếu thông tin' });
 
   const wk = (weekendPrice === '' || weekendPrice == null) ? null : parseInt(weekendPrice);
+  const hol = (holidayPrice === '' || holidayPrice == null) ? null : parseInt(holidayPrice);
   const home = await prisma.home.create({
     data: {
       name, address, price: parseInt(price),
       weekendPrice: (wk && wk > 0) ? wk : null,
+      holidayPrice: (hol && hol > 0) ? hol : null,
       maxGuests: parseInt(maxGuests) || 8, emoji: emoji || '🏡', desc
     }
   });
@@ -35,7 +37,7 @@ router.post('/', requireRole('ADMIN'), async (req, res) => {
 
 router.patch('/:id', requireRole('ADMIN'), async (req, res) => {
   const id = parseInt(req.params.id);
-  const { name, address, price, weekendPrice, maxGuests, emoji, desc } = req.body;
+  const { name, address, price, weekendPrice, holidayPrice, maxGuests, emoji, desc } = req.body;
   const home = await prisma.home.update({
     where: { id },
     data: {
@@ -45,6 +47,10 @@ router.patch('/:id', requireRole('ADMIN'), async (req, res) => {
       ...(weekendPrice !== undefined && {
         weekendPrice: (weekendPrice === '' || weekendPrice == null || parseInt(weekendPrice) <= 0)
           ? null : parseInt(weekendPrice)
+      }),
+      ...(holidayPrice !== undefined && {
+        holidayPrice: (holidayPrice === '' || holidayPrice == null || parseInt(holidayPrice) <= 0)
+          ? null : parseInt(holidayPrice)
       }),
       ...(maxGuests !== undefined && { maxGuests: parseInt(maxGuests) }),
       ...(emoji !== undefined && { emoji }),

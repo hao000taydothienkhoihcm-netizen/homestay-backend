@@ -38,6 +38,7 @@ model Home {
   address   String
   price     Int      // VND/đêm (giá ngày thường T2–T5)
   weekendPrice Int?  // VND/đêm cuối tuần (T6, T7, CN). Null = dùng price
+  holidayPrice Int?  // VND/đêm ngày lễ (theo danh sách Holiday). Null = dùng giá cuối tuần
   maxGuests Int      @default(8)
   emoji     String   @default("🏡")
   desc      String?
@@ -48,6 +49,17 @@ model Home {
   bookings  Booking[]
   expenses  Expense[]
   stockEntries StockEntry[]
+}
+
+// ───── Ngày lễ (áp giá lễ cho mọi căn) ─────
+model Holiday {
+  id        Int      @id @default(autoincrement())
+  name      String   // VD: Tết Nguyên Đán, Lễ 30/4...
+  startDate DateTime @db.Date
+  endDate   DateTime @db.Date  // = startDate nếu chỉ 1 ngày
+  createdAt DateTime @default(now())
+
+  @@index([startDate, endDate])
 }
 
 // ───── Bookings ─────

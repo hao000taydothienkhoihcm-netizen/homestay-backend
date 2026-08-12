@@ -57,22 +57,55 @@ function isWeekendNight(date) {
   return d === 5 || d === 6 || d === 0;
 }
 
+/** Timestamp -> 'YYYY-MM-DD' theo UTC (khớp cách lưu @db.Date) */
+function ymdUTC(t) {
+  return new Date(t).toISOString().split('T')[0];
+}
+
 /**
- * Tổng tiền phòng theo 2 mức giá (ngày thường / cuối tuần).
- * Đếm từng đêm theo ngày nhận của đêm đó. Nếu home.weekendPrice trống -> dùng price.
+ * Chuẩn hoá danh sách ngày lễ về mảng {start:'YYYY-MM-DD', end:'YYYY-MM-DD'}.
+ * Nhận Holiday từ DB (startDate/endDate là Date) hoặc object đã có chuỗi.
  */
-export function stayTotal(home, checkIn, checkOut) {
+export function normalizeHolidays(holidays) {
+  if (!Array.isArray(holidays)) return [];
+  return holidays.map(h => {
+    const s = h.startDate || h.start;
+    const e = h.endDate || h.end || s;
+    return { start: ymdUTC(s), end: ymdUTC(e) };
+  });
+}
+
+/** Một đêm (theo ngày bắt đầu) có rơi vào ngày lễ nào không. */
+function isHolidayNight(t, holidayRanges) {
+  if (!holidayRanges || !holidayRanges.length) return false;
+  const d = ymdUTC(t);
+  return holidayRanges.some(r => d >= r.start && d <= r.end);
+}
+
+/**
+ * Tổng tiền phòng theo 3 mức giá. Ưu tiên: LỄ > CUỐI TUẦN > NGÀY THƯỜNG.
+ * - holidayPrice trống -> lùi về giá cuối tuần (mà cuối tuần trống thì về giá thường).
+ * - weekendPrice trống -> dùng giá thường.
+ * Đếm từng đêm theo ngày nhận của đêm đó. `holidays` = mảng Holiday (DB) hoặc [] .
+ */
+export function stayTotal(home, checkIn, checkOut, holidays = []) {
+  const base = home.price;
   const wkPrice = (home.weekendPrice != null && home.weekendPrice > 0)
-    ? home.weekendPrice : home.price;
+    ? home.weekendPrice : base;
+  const holPrice = (home.holidayPrice != null && home.holidayPrice > 0)
+    ? home.holidayPrice : wkPrice;
+  const ranges = normalizeHolidays(holidays);
   const start = new Date(checkIn);
   const end = new Date(checkOut);
   let total = 0, count = 0;
   // Duyệt từng đêm: từ ngày nhận đến trước ngày trả
   for (let t = start.getTime(); t < end.getTime(); t += 86400000) {
-    total += isWeekendNight(t) ? wkPrice : home.price;
+    if (isHolidayNight(t, ranges)) total += holPrice;
+    else if (isWeekendNight(t)) total += wkPrice;
+    else total += base;
     count++;
   }
-  if (count === 0) total = home.price; // an toàn: tối thiểu 1 đêm
+  if (count === 0) total = base; // an toàn: tối thiểu 1 đêm
   return total;
 }
 
