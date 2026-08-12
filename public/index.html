@@ -235,6 +235,17 @@ textarea.fc{resize:vertical;min-height:60px}
 .stat-kpi-trend{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;padding:2px 7px;border-radius:8px;margin-top:4px}
 .stat-kpi-trend.up{background:rgba(94,126,91,0.12);color:#3A6037}
 .stat-kpi-trend.down{background:rgba(184,92,74,0.12);color:#B85C4A}
+.stat-kpi.room{border-left:4px solid #5A7A96}
+.stat-kpi.room .stat-kpi-value{color:#4A6884}
+/* Khối tính công quản lý theo % doanh số phòng */
+.mgr-box{background:var(--card);border:1px solid rgba(124,106,78,0.18);border-left:4px solid #A07840;border-radius:12px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.mgr-box .mgr-l{flex:1;min-width:190px}
+.mgr-box .mgr-lb{font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:0.8px;font-weight:600}
+.mgr-box .mgr-note{font-size:11.5px;color:var(--t2);margin-top:3px}
+.mgr-box .mgr-in{display:flex;align-items:center;gap:6px}
+.mgr-box input{width:66px;padding:7px 9px;border:1px solid rgba(124,106,78,0.28);border-radius:8px;font-family:inherit;font-size:14px;font-weight:700;text-align:right;color:#2E2416;background:var(--el);font-variant-numeric:tabular-nums}
+.mgr-box input:focus{outline:2px solid #A07840;outline-offset:1px}
+.mgr-box .mgr-v{font-size:24px;font-weight:700;font-family:'Playfair Display',serif;color:#A07840;font-variant-numeric:tabular-nums lining-nums;font-feature-settings:"tnum","lnum"}
 
 .stat-filter-bar{background:var(--card);border:1px solid rgba(124,106,78,0.18);border-radius:12px;padding:14px 16px;margin-bottom:14px}
 .stat-filter-tabs{display:flex;gap:6px;flex-wrap:wrap}
@@ -700,9 +711,7 @@ async function apiCall(path, options = {}) {
       ...options.headers
     }
   });
-  const isLogin = path === '/auth/login';
-  // 401 ở màn khác = hết phiên → đăng xuất. Lúc đăng nhập thì để lỗi thật đi qua.
-  if (res.status === 401 && !isLogin) {
+  if (res.status === 401) {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
     showLogin();
@@ -845,6 +854,17 @@ function actualReceived(b) {
   }
   return dep + ci + chIn + chOut;
 }
+// Doanh số PHÒNG (chỉ tiền nhà) = cọc + tiền phòng thu khi nhận nhà.
+// KHÔNG gồm phụ thu. Giảm giá đã được trừ sẵn khi tính paidAtCheckIn → không trừ lần nữa.
+// Booking chưa nhận nhà chỉ tính phần cọc đã cầm.
+function roomRevenue(b) {
+  var dep = b.deposit||0;
+  var ci  = b.paidAtCheckIn||0;
+  if (b.status==='checkedout' && !b.paidAtCheckIn && ci===0) {
+    ci = Math.max(0, b.totalAmount - (b.discount||0) - dep);
+  }
+  return dep + ci;
+}
 // Còn lại chưa thu (gồm phụ thu nhận nhà + phụ thu trả nhà)
 function stillOwed(b) {
   if (b.status==='checkedout') return 0;
@@ -872,6 +892,8 @@ const RL={admin:'Admin',manager:'Quản lý',staff:'Nhân viên'};
 const RB={admin:'b-admin',manager:'b-manager',staff:'b-staff'};
 let RULES = [];   // Loaded from API: GET /charge-templates?type=RULE
 let QUICK = [];   // Loaded from API: GET /charge-templates?type=QUICK
+// Tra đơn vị lẻ (chai/lon/gói…) của 1 món tiêu thụ theo tên; mặc định "cái"
+function unitOf(name){ var q=(QUICK||[]).find(function(x){return x.name===name;}); return (q&&q.unitLabel)||'cái'; }
 const EMOJIS=['🏡','🌿','🌊','🏠','🌺','🏔','🌴','🌸','🏕','🌻','🏘','🌾'];
 
 let CU = null; // current user
@@ -1711,14 +1733,22 @@ function renderDashboard() {
   const coToday = BOOKINGS.filter(b=>b.checkOut===todayS&&b.status!=='checkedout');
   const ciToday = BOOKINGS.filter(b=>b.checkIn===todayS&&b.status==='confirmed');
   const active = BOOKINGS.filter(b=>['confirmed','checkedin','checkout-today'].includes(b.status));
-  const doneM = BOOKINGS.filter(b=>{const d=new Date(b.checkOut);return b.status==='checkedout'&&d.getMonth()===mn&&d.getFullYear()===yr;});
-  const mRev = doneM.reduce((s,b)=>s+b.totalAmount,0);
+  // Doanh thu tháng — đồng bộ với trang Thống kê: theo NGÀY NHẬN NHÀ, mọi trạng thái
+  const mBK = BOOKINGS.filter(b=>{
+    const d = new Date(b.checkIn);
+    return d.getMonth()===mn && d.getFullYear()===yr;
+  });
+  const mRev = mBK.reduce((s,b)=>s+actualReceived(b),0);           // thực thu (đã cầm về)
+  const mGross = mBK.reduce((s,b)=>s+Math.max(0,(b.totalAmount||0)-(b.discount||0))+((b.checkinCharges||0)+(b.chargesTotal||0)),0); // doanh số gồm phụ thu
+  const mRoomRev = mBK.reduce((s,b)=>s+roomRevenue(b),0);
   const mExp = EXPENSES.filter(e=>{const d=new Date(e.date);return d.getMonth()===mn&&d.getFullYear()===yr;}).reduce((s,e)=>s+e.amount,0);
   const pending = active.reduce((s,b)=>s+Math.max(0,b.totalAmount-(b.discount||0)-(b.deposit||0)),0);
   const occ = HOMES.filter(h=>['occupied','checkout'].includes(gHSt(h.id).st)).length;
 
-  let h = '<div class="sg4"'+(staff?' style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))"':'')+'>'
-    +(staff?'':'<div class="sc g"><div class="sl">Doanh thu tháng '+( mn+1)+'</div><div class="sv gold">'+mS(mRev)+'</div><div class="ss">Lợi nhuận: '+mS(mRev-mExp)+'</div></div>')
+  let h = '<div class="sg4" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">'
+    +(staff?'':'<div class="sc g"><div class="sl">Thực thu tháng '+( mn+1)+'</div><div class="sv gold">'+mS(mRev)+'</div><div class="ss">Đã cầm về · Lợi nhuận: '+mS(mRev-mExp)+'</div></div>')
+    +(staff?'':'<div class="sc g"><div class="sl">Doanh số tháng '+( mn+1)+'</div><div class="sv gold">'+mS(mGross)+'</div><div class="ss">Cả phụ thu &amp; phần chưa thu</div></div>')
+    +(staff?'':'<div class="sc b"><div class="sl">Doanh số phòng T'+(mn+1)+'</div><div class="sv blue">'+mS(mRoomRev)+'</div><div class="ss">Chỉ tiền nhà · công QL '+mgrPct+'%: '+mS(mRoomRev*mgrPct/100)+'</div></div>')
     +'<div class="sc b"><div class="sl">Đang có khách</div><div class="sv blue">'+occ+'/'+HOMES.length+' căn</div><div class="ss">'+active.length+' booking hoạt động</div></div>'
     +'<div class="sc r"><div class="sl">Trả nhà hôm nay</div><div class="sv red">'+coToday.length+'</div><div class="ss">'+ciToday.length+' nhận nhà hôm nay</div></div>'
     +'<div class="sc p"><div class="sl">Còn phải thu</div><div class="sv pur">'+mS(pending)+'</div><div class="ss">'+active.length+' booking active</div></div>'
@@ -2455,8 +2485,8 @@ function _renderCO() {
   const prevWater=document.getElementById('co-water')?.value||b.water||'';
   const prevNote=document.getElementById('co-note')?.value||b.inspNote||'';
   const rulesBtns=RULES.map(r=>'<button class="btn btn-xs btn-danger" onclick="addCharge(\''+r.name.replace(/'/g,"\\'")+'\','+r.amount+',1)">'+r.name+' ('+mS(r.amount)+')</button>').join('');
-  const quickBtns=QUICK.map(function(r){var eid='qty-'+r.name.replace(/[^a-zA-Z0-9]/g,'');var stepBtn='width:24px;height:24px;padding:0;border:1px solid rgba(124,106,78,0.3);background:#fff;border-radius:5px;font-size:15px;font-weight:700;color:#5C4E38;line-height:1;cursor:pointer;flex:none';return '<div style="display:inline-flex;align-items:center;gap:4px;background:#F1EEE3;padding:4px 7px;border-radius:6px;border:1px solid rgba(124,106,78,0.2);margin:2px"><span style="font-size:11px;color:#2E2416">'+r.name+'</span><span style="font-size:10px;color:var(--t3)">'+money(r.amount)+'/cái</span><button type="button" style="'+stepBtn+'" onclick="stepQty(\''+eid+'\',-1)">−</button><input type="number" min="1" value="1" id="'+eid+'" style="width:38px;padding:3px 5px;background:#fff;border:1px solid rgba(124,106,78,0.3);border-radius:4px;font-size:11px;text-align:center"/><button type="button" style="'+stepBtn+'" onclick="stepQty(\''+eid+'\',1)">+</button><button class="btn btn-xs btn-sky" style="padding:2px 9px;margin-left:2px" onclick="addCharge(\''+r.name.replace(/'/g,"\\'")+'\','+r.amount+',parseInt(document.getElementById(\''+eid+'\').value)||1)">Thêm</button></div>';}).join('');
-  const chargeList=_charges.length?_charges.map(function(c){var qtyDisp=c.qty&&c.qty>1?' (× '+c.qty+' = '+money(c.unit||c.amount)+'/cái)':'';return '<div class="ci-item"><span>'+c.name+'<span style="font-size:10px;color:var(--t3)">'+qtyDisp+'</span></span><div style="display:flex;gap:7px;align-items:center"><span style="color:#B85C4A;font-weight:600">'+money(c.amount)+'</span><button class="btn btn-xs btn-danger" onclick="rmCharge('+c.id+')">✕</button></div></div>';}).join(''):'<div style="color:var(--t3);font-size:11px;padding:5px 0">Chưa có phụ thu</div>';
+  const quickBtns=QUICK.map(function(r){var eid='qty-'+r.name.replace(/[^a-zA-Z0-9]/g,'');var stepBtn='width:24px;height:24px;padding:0;border:1px solid rgba(124,106,78,0.3);background:#fff;border-radius:5px;font-size:15px;font-weight:700;color:#5C4E38;line-height:1;cursor:pointer;flex:none';return '<div style="display:inline-flex;align-items:center;gap:4px;background:#F1EEE3;padding:4px 7px;border-radius:6px;border:1px solid rgba(124,106,78,0.2);margin:2px"><span style="font-size:11px;color:#2E2416">'+r.name+'</span><span style="font-size:10px;color:var(--t3)">'+money(r.amount)+'/'+(r.unitLabel||'cái')+'</span><button type="button" style="'+stepBtn+'" onclick="stepQty(\''+eid+'\',-1)">−</button><input type="number" min="1" value="1" id="'+eid+'" style="width:38px;padding:3px 5px;background:#fff;border:1px solid rgba(124,106,78,0.3);border-radius:4px;font-size:11px;text-align:center"/><button type="button" style="'+stepBtn+'" onclick="stepQty(\''+eid+'\',1)">+</button><button class="btn btn-xs btn-sky" style="padding:2px 9px;margin-left:2px" onclick="addCharge(\''+r.name.replace(/'/g,"\\'")+'\','+r.amount+',parseInt(document.getElementById(\''+eid+'\').value)||1)">Thêm</button></div>';}).join('');
+  const chargeList=_charges.length?_charges.map(function(c){var qtyDisp=c.qty&&c.qty>1?' (× '+c.qty+' = '+money(c.unit||c.amount)+'/'+unitOf(c.name)+')':'';return '<div class="ci-item"><span>'+c.name+'<span style="font-size:10px;color:var(--t3)">'+qtyDisp+'</span></span><div style="display:flex;gap:7px;align-items:center"><span style="color:#B85C4A;font-weight:600">'+money(c.amount)+'</span><button class="btn btn-xs btn-danger" onclick="rmCharge('+c.id+')">✕</button></div></div>';}).join(''):'<div style="color:var(--t3);font-size:11px;padding:5px 0">Chưa có phụ thu</div>';
   showModal(
     '<div class="mh"><div class="mt2">🔑 Kiểm tra & Trả nhà</div><button class="mc" onclick="closeModal()">✕</button></div>'
     +'<div style="background:#F1EEE3;border-radius:8px;padding:11px 13px;margin-bottom:13px;border:1px solid rgba(124,106,78,0.2);display:flex;justify-content:space-between;align-items:center">'
@@ -2705,6 +2735,22 @@ var statFilter = {
   from: null,
   to: null
 };
+// % công quản lý — tính trên tổng doanh số phòng. Lưu ở máy này, không đụng database.
+var mgrPct = (function(){
+  var v = parseFloat(localStorage.getItem('mgrPct'));
+  return (isNaN(v) || v < 0 || v > 100) ? 10 : v;
+})();
+function setMgrPct(v) {
+  var p = parseFloat(String(v).replace(',', '.'));
+  if (isNaN(p) || p < 0) p = 0;
+  if (p > 100) p = 100;
+  mgrPct = p;
+  localStorage.setItem('mgrPct', String(p));
+  var el = document.getElementById('mgr-amt');
+  if (el) el.textContent = money((window._statRoomRev || 0) * p / 100);
+  var eh = document.getElementById('mgr-amt-home');
+  if (eh) eh.textContent = money((window._homeRoomRev || 0) * p / 100);
+}
 function _initStatFilter() {
   if (!statFilter.monthYear) statFilter.monthYear = {month: mn, year: yr};
   if (!statFilter.year) statFilter.year = yr;
@@ -2743,8 +2789,9 @@ function openHomePerf(id) {
   var profit = received - totalExp;
   var nightsSum = bks.reduce(function(s,b){return s+nights(b.checkIn,b.checkOut);},0);
 
+  var roomRev = incCoc + incPhong;   // doanh số phòng = cọc + thu khi nhận nhà
   var incItems=[
-    {name:'🏠 Tiền phòng', amt:incPhong, col:'#3A6037'},
+    {name:'🏠 Tiền phòng (thu khi nhận nhà)', amt:incPhong, col:'#3A6037'},
     {name:'🔑 Tiền cọc', amt:incCoc, col:'#A07840'},
     {name:'➕ Phụ thu & phạt', amt:incPhu, col:'#7A6890'}
   ];
@@ -2763,6 +2810,18 @@ function openHomePerf(id) {
   h += '<div style="background:#F8F4EC;border:1px solid rgba(124,106,78,0.15);border-left:3px solid '+(profit>=0?'#3A6037':'#B85C4A')+';border-radius:10px;padding:11px 13px"><div style="font-size:10.5px;color:var(--t3);text-transform:uppercase;letter-spacing:0.6px;font-weight:600;margin-bottom:3px">📈 Lợi nhuận</div><div style="font-size:17px;font-weight:800;color:'+(profit>=0?'#3A6037':'#B85C4A')+';font-variant-numeric:tabular-nums">'+(profit>0?'+':'')+money(profit)+'</div></div>';
   h += '</div>';
   h += '<div style="font-size:11.5px;color:var(--t3);margin-bottom:16px">'+bks.length+' booking · '+nightsSum+' đêm'+(nightsSum?' · '+money(received/nightsSum)+'/đêm':'')+'</div>';
+
+  // Doanh số PHÒNG của căn này + công quản lý
+  window._homeRoomRev = roomRev;
+  h += '<div class="mgr-box" style="border-left-color:#5A7A96;margin-bottom:16px">';
+  h += '<div class="mgr-l"><div class="mgr-lb">🏠 Doanh số phòng</div>'
+    + '<div style="font-size:20px;font-weight:800;color:#4A6884;font-variant-numeric:tabular-nums;margin-top:2px">'+money(roomRev)+'</div>'
+    + '<div class="mgr-note">Cọc '+money(incCoc)+' + thu khi nhận nhà '+money(incPhong)+' · không tính phụ thu</div></div>';
+  h += '<div class="mgr-in"><span style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:0.6px;font-weight:600;margin-right:4px">Công QL</span>'
+    + '<input type="text" inputmode="decimal" value="'+mgrPct+'" oninput="setMgrPct(this.value)" aria-label="Phần trăm công quản lý"/>'
+    + '<span style="font-size:15px;font-weight:700;color:var(--t2)">%</span></div>';
+  h += '<div class="mgr-v" id="mgr-amt-home">'+money(roomRev*mgrPct/100)+'</div>';
+  h += '</div>';
 
   // Khoản THU — từng booking
   h += '<div style="font-size:12px;font-weight:700;color:#3A6037;margin-bottom:8px">💵 KHOẢN THU · '+bks.length+' booking</div>';
@@ -2929,6 +2988,12 @@ function renderStatistics() {
   }
 
   var totalReceived = bkInPeriod.reduce(function(s,b){return s+actualReceived(b);},0);
+  var totalRoomRev = bkInPeriod.reduce(function(s,b){return s+roomRevenue(b);},0);
+  // ── Doanh số GHI NHẬN (tính cả phần khách chưa trả) ──
+  var totalGrossRoom = bkInPeriod.reduce(function(s,b){return s+Math.max(0,(b.totalAmount||0)-(b.discount||0));},0);
+  var totalGrossCharges = bkInPeriod.reduce(function(s,b){return s+((b.checkinCharges||0)+(b.chargesTotal||0));},0);
+  var totalGross = totalGrossRoom + totalGrossCharges;
+  var totalUnpaid = Math.max(0, totalGross - totalReceived);
   var totalExp = expInPeriod.reduce(function(s,e){return s+e.amount;},0);
   var totalProfit = totalReceived - totalExp;
   window._statPeriod = {bkInPeriod: bkInPeriod, expInPeriod: expInPeriod, periodLabel: periodLabel};
@@ -2963,6 +3028,42 @@ function renderStatistics() {
   h += '<div class="stat-kpi profit"><div class="stat-kpi-label">📈 Doanh thu TB / booking</div>'
     + '<div class="stat-kpi-value">' + money(avgRevPerBk) + '</div>'
     + '<div class="stat-kpi-sub">' + (totalNights ? money(totalReceived/totalNights) + '/đêm' : '—') + '</div></div>';
+  h += '</div>';
+
+  // ───── ĐÃ THU: tách tiền phòng / phụ thu (đều là tiền đã cầm về) ─────
+  window._statRoomRev = totalRoomRev;
+  h += '<div class="stat-kpi-label" style="margin:4px 0 6px;font-weight:700;color:var(--t2)">✅ Đã cầm về (thực thu)</div>';
+  h += '<div class="stat-kpi-grid" style="grid-template-columns:1fr 1fr">';
+  h += '<div class="stat-kpi room"><div class="stat-kpi-label">🏠 Tiền phòng đã thu</div>'
+    + '<div class="stat-kpi-value">' + money(totalRoomRev) + '</div>'
+    + '<div class="stat-kpi-sub">Cọc + thu khi nhận nhà</div></div>';
+  h += '<div class="stat-kpi"><div class="stat-kpi-label">➕ Phụ thu đã thu</div>'
+    + '<div class="stat-kpi-value">' + money(totalReceived - totalRoomRev) + '</div>'
+    + '<div class="stat-kpi-sub">Phần còn lại của thực thu</div></div>';
+  h += '</div>';
+
+  // ───── GHI NHẬN: doanh số cả kỳ (tính luôn phần chưa thu) ─────
+  h += '<div class="stat-kpi-label" style="margin:14px 0 6px;font-weight:700;color:var(--t2)">📒 Doanh số ghi nhận (cả phần chưa thu)</div>';
+  h += '<div class="stat-kpi-grid" style="grid-template-columns:1fr 1fr">';
+  h += '<div class="stat-kpi room"><div class="stat-kpi-label">🏠 Doanh số phòng</div>'
+    + '<div class="stat-kpi-value">' + money(totalGrossRoom) + '</div>'
+    + '<div class="stat-kpi-sub">Tiền phòng cả kỳ − giảm giá</div></div>';
+  h += '<div class="stat-kpi green"><div class="stat-kpi-label">🧾 Gồm cả phụ thu</div>'
+    + '<div class="stat-kpi-value">' + money(totalGross) + '</div>'
+    + '<div class="stat-kpi-sub">Phòng + phụ thu &amp; phạt</div></div>';
+  h += '</div>';
+  h += '<div class="stat-kpi-grid" style="grid-template-columns:1fr">';
+  h += '<div class="stat-kpi ' + (totalUnpaid>0?'red':'') + '"><div class="stat-kpi-label">⏳ Còn phải thu</div>'
+    + '<div class="stat-kpi-value">' + money(totalUnpaid) + '</div>'
+    + '<div class="stat-kpi-sub">Doanh số gồm phụ thu − thực thu ' + money(totalReceived) + '</div></div>';
+  h += '</div>';
+
+  h += '<div class="mgr-box">';
+  h += '<div class="mgr-l"><div class="mgr-lb">👔 Công quản lý</div>'
+    + '<div class="mgr-note">Tính trên tổng doanh số phòng ' + money(totalRoomRev) + '</div></div>';
+  h += '<div class="mgr-in"><input type="text" inputmode="decimal" id="mgr-pct" value="' + mgrPct + '" '
+    + 'oninput="setMgrPct(this.value)" aria-label="Phần trăm công quản lý"/><span style="font-size:15px;font-weight:700;color:var(--t2)">%</span></div>';
+  h += '<div class="mgr-v" id="mgr-amt">' + money(totalRoomRev*mgrPct/100) + '</div>';
   h += '</div>';
 
   // ───── CHART ─────
@@ -3034,7 +3135,10 @@ function renderStatistics() {
   // Khoản thu: cọc + tiền phòng (thu khi nhận nhà) + phụ thu & phạt
   var incCoc=0, incPhong=0, incPhu=0;
   bkInPeriod.forEach(function(b){
-    var dep=b.deposit||0, ci=b.paidAtCheckIn||0, ch=b.chargesTotal||0;
+    var dep=b.deposit||0, ci=b.paidAtCheckIn||0;
+    // Phụ thu = phụ thu TRẢ nhà (khi đã trả) + phụ thu NHẬN nhà (khi đã nhận).
+    // Trước đây thiếu vế phụ thu nhận nhà nên 3 mục cộng lại không bằng Tổng thu.
+    var ch=(b.status==='checkedout'?(b.chargesTotal||0):0)+(isCheckedInWeb(b)?(b.checkinCharges||0):0);
     if (b.status==='checkedout' && !b.paidAtCheckIn && ci===0) ci=Math.max(0, b.totalAmount-(b.discount||0)-dep);
     incCoc+=dep; incPhong+=ci; incPhu+=ch;
   });
@@ -3100,7 +3204,8 @@ function renderStatistics() {
     var hBK = bkInPeriod.filter(function(b){return b.homeId===hm.id;});
     return {id:hm.id, emoji:hm.emoji, name:hm.name, cnt:hBK.length,
       nights:hBK.reduce(function(s,b){return s+nights(b.checkIn,b.checkOut);},0),
-      received:hBK.reduce(function(s,b){return s+actualReceived(b);},0)};
+      received:hBK.reduce(function(s,b){return s+actualReceived(b);},0),
+      roomRev:hBK.reduce(function(s,b){return s+roomRevenue(b);},0)};
   });
   var maxHR = Math.max.apply(null, byHomeP.map(function(h){return h.received;}).concat([1]));
 
@@ -3115,7 +3220,7 @@ function renderStatistics() {
       h += '<div class="home-perf-card" onclick="openHomePerf('+hm.id+')" style="cursor:pointer" title="Bấm để xem thu chi căn này">';
       h += '<div class="home-perf-head">';
       h += '<div><div class="home-perf-name">' + hm.emoji + ' ' + hm.name + ' <span style="font-size:11px;color:var(--t3);font-weight:400">›</span></div>';
-      h += '<div class="home-perf-meta">' + hm.cnt + ' booking · ' + hm.nights + ' đêm</div></div>';
+      h += '<div class="home-perf-meta">' + hm.cnt + ' booking · ' + hm.nights + ' đêm · 🏠 doanh số phòng ' + money(hm.roomRev) + '</div></div>';
       h += '<div><div class="home-perf-amt">' + money(hm.received) + '</div>';
       h += '<div class="home-perf-amt-meta">' + (hm.nights ? money(hm.received/hm.nights)+'/đêm' : '—') + '</div></div>';
       h += '</div>';
@@ -4137,7 +4242,7 @@ function renderCharges() {
     QUICK.forEach(function(q, i) {
       h += '<tr><td style="color:var(--t3);font-size:10px">#' + (i + 1) + '</td>'
         + '<td><span style="font-weight:500">' + q.name + '</span></td>'
-        + '<td style="font-weight:600;color:#5A7A96">' + money(q.amount) + '<span style="font-size:10px;color:var(--t3);font-weight:400">/cái</span></td>'
+        + '<td style="font-weight:600;color:#5A7A96">' + money(q.amount) + '<span style="font-size:10px;color:var(--t3);font-weight:400">/' + (q.unitLabel||'cái') + '</span></td>'
         + '<td><div style="display:flex;gap:4px">'
         + '<button class="btn btn-xs btn-out" onclick="openEditQuick(' + q.id + ')">✏️</button>'
         + '<button class="btn btn-xs btn-danger" onclick="delQuick(' + q.id + ')">🗑</button>'
@@ -4224,10 +4329,12 @@ function _quickModal(q) {
     '<div class="mh"><div class="mt2">' + (isEdit ? '✏️ Sửa' : '➕ Thêm') + ' mục tiêu thụ</div><button class="mc" onclick="closeModal()">✕</button></div>'
     + '<div class="fg"><label class="fl">Tên mục *</label>'
     + '<input class="fc" id="qk-name" value="' + (q ? q.name : '') + '" placeholder="VD: Nước ngọt (lon), Mì gói..."/></div>'
-    + '<div class="fg"><label class="fl">Đơn giá / 1 cái (đ) *</label>'
+    + '<div class="fg"><label class="fl">Đơn vị lẻ (chai, lon, gói…) *</label>'
+    + '<input class="fc" id="qk-unit" value="' + (q ? (q.unitLabel||'cái') : 'cái') + '" placeholder="VD: chai, lon, gói, ly"/></div>'
+    + '<div class="fg"><label class="fl">Đơn giá / 1 đơn vị (đ) *</label>'
     + '<input type="text" inputmode="numeric" class="fc" id="qk-amount" value="' + (q ? numVal(q.amount) : '') + '" placeholder="VD: 15.000" oninput="fmtNumInput(this)"/></div>'
     + '<div style="background:rgba(90,122,150,0.06);border-radius:7px;padding:9px 12px;font-size:11px;color:#5A7A96;border:1px solid rgba(90,122,150,0.15);margin-bottom:11px">'
-    + '💡 Khi trả nhà, quản gia sẽ nhập số lượng. VD: đơn giá 15k × 3 cái = 45k'
+    + '💡 Khi trả nhà, quản gia sẽ nhập số lượng. VD: nước suối 15k × 3 chai = 45k'
     + '</div>'
     + '<div class="mfoot"><button class="btn btn-out" onclick="closeModal()">Hủy</button>'
     + '<button class="btn btn-gold" onclick="saveQuick(' + (isEdit ? q.id : 0) + ')">' + (isEdit ? 'Cập nhật' : 'Tạo') + '</button></div>',
@@ -4239,11 +4346,12 @@ function openEditQuick(id) { _quickModal(QUICK.find(function(q){return q.id===id
 async function saveQuick(id) {
   const name = document.getElementById('qk-name')?.value?.trim();
   const amount = parseNum(document.getElementById('qk-amount')?.value);
+  const unitLabel = (document.getElementById('qk-unit')?.value?.trim()) || 'cái';
   if (!name || !amount) { toast('Điền tên và đơn giá', 'warn'); return; }
   setLoading(true);
   try {
-    if (id) await api.patch('/charge-templates/' + id, { name, amount });
-    else await api.post('/charge-templates', { name, amount, type: 'QUICK' });
+    if (id) await api.patch('/charge-templates/' + id, { name, amount, unitLabel });
+    else await api.post('/charge-templates', { name, amount, type: 'QUICK', unitLabel });
     await reloadCharges();
     closeModal();
     toast(id ? 'Đã cập nhật' : 'Đã thêm mục tiêu thụ', 'success');
@@ -4338,7 +4446,6 @@ async function delExp(id){
 
 /* CAT constant if missing */
 if (typeof CAT === 'undefined') { var CAT = ['Điện nước','Dọn dẹp','Sửa chữa','Vật tư','Lương','Khác']; }
-/* end main script */
 </script>
 </body>
 </html>
