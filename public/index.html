@@ -588,6 +588,15 @@ function formatPhone(p) {
   return n;
 }
 
+// SĐT bấm gọi được: trả về thẻ <a href="tel:..."> để 1 chạm mở màn quay số
+function telPhone(p) {
+  var n = normalizePhone(p);
+  if (!n) return '';
+  if (n.startsWith('+84')) n = '0' + n.slice(3);
+  else if (n.startsWith('84') && n.length === 11) n = '0' + n.slice(2);
+  return '<a href="tel:' + n + '" onclick="event.stopPropagation()" style="color:inherit;text-decoration:none;border-bottom:1px dashed currentColor" title="Bấm để gọi">' + formatPhone(p) + '</a>';
+}
+
 // Lấy thông báo lỗi cụ thể
 function getPhoneError(p) {
   var n = normalizePhone(p);
@@ -1778,7 +1787,7 @@ function renderDashboard() {
       h += '<div class="alert-co">'
         +'<div style="display:flex;justify-content:space-between;align-items:flex-start">'
         +'<div><div style="font-weight:700;font-size:14px">'+b.guest+' <span style="font-size:12px;font-weight:400;color:var(--t2)">→ '+hm.emoji+' '+hm.name+'</span></div>'
-        +'<div style="font-size:11px;color:var(--t2);margin-top:2px">📞 '+formatPhone(b.phone)+' · '+b.guests+' người · '+n+' đêm</div></div>'
+        +'<div style="font-size:11px;color:var(--t2);margin-top:2px">📞 '+telPhone(b.phone)+' · '+b.guests+' người · '+n+' đêm</div></div>'
         +'<button class="btn btn-ok btn-xs" onclick="openCO('+b.id+')">🔑 Kiểm tra & Trả nhà</button></div>'
         +'<div class="ag">'
         +'<div class="ag-f"><label>Nhận</label><span>'+fD(b.checkIn)+' <span class="tp">'+b.checkInTime+'</span></span></div>'
@@ -1799,7 +1808,7 @@ function renderDashboard() {
       h += '<div class="alert-ci">'
         +'<div style="display:flex;justify-content:space-between;align-items:flex-start">'
         +'<div><div style="font-weight:700;font-size:14px">'+b.guest+' <span style="font-size:12px;font-weight:400;color:var(--t2)">→ '+hm.emoji+' '+hm.name+'</span></div>'
-        +'<div style="font-size:11px;color:var(--t2);margin-top:2px">📞 '+formatPhone(b.phone)+' · '+b.guests+' người · '+n+' đêm</div></div>'
+        +'<div style="font-size:11px;color:var(--t2);margin-top:2px">📞 '+telPhone(b.phone)+' · '+b.guests+' người · '+n+' đêm</div></div>'
         +'<button class="btn btn-amber btn-xs" onclick="openCI('+b.id+')">📋 Nhận nhà & Thu tiền</button></div>'
         +'<div class="ag" style="grid-template-columns:repeat(3,1fr)">'
         +'<div class="ag-f"><label>Tiền nhà</label><span style="color:#5C4E38;font-weight:600">'+money(b.totalAmount)+'</span></div>'
@@ -1816,7 +1825,7 @@ function renderDashboard() {
   h += '<div class="card"><div class="ch"><div class="ct">📋 Booking gần đây</div><button class="btn btn-gold btn-xs" onclick="setPage(\'bookings\')">Xem tất cả</button></div><div class="tw"><table><thead><tr><th>Khách</th><th>Căn nhà</th><th>Nhận</th><th>Trả</th><th>Còn thu</th><th>TT</th></tr></thead><tbody>';
   [...BOOKINGS].sort((a,b)=>b.id-a.id).slice(0,5).forEach(b => {
     const hm=gH(b.homeId); const rem=Math.max(0,b.totalAmount-(b.discount||0)-(b.deposit||0));
-    h += '<tr><td><div style="font-weight:600">'+b.guest+'</div><div style="font-size:10px;color:var(--t2)">'+b.phone+'</div></td>'
+    h += '<tr><td><div style="font-weight:600">'+b.guest+'</div><div style="font-size:10px;color:var(--t2)">'+telPhone(b.phone)+'</div></td>'
       +'<td style="font-size:11px">'+hm.emoji+' '+hm.name+'</td>'
       +'<td><div style="font-size:11px">'+fD(b.checkIn)+'</div><span class="tp">'+b.checkInTime+'</span></td>'
       +'<td><div style="font-size:11px">'+fD(b.checkOut)+'</div><span class="tp out">'+b.checkOutTime+'</span></td>'
@@ -2006,7 +2015,7 @@ function bkCards(list) {
     h += '<div class="bk-guest-av">'+b.guest.charAt(0).toUpperCase()+'</div>';
     h += '<div class="bk-guest-info">';
     h += '<div class="bk-guest-name" title="'+b.guest+'">'+b.guest+'</div>';
-    h += '<div class="bk-guest-phone">📞 '+formatPhone(b.phone)+'</div>';
+    h += '<div class="bk-guest-phone">📞 '+telPhone(b.phone)+'</div>';
     h += '</div></div>';
     // Home
     h += '<div class="bk-home-row"><span class="em">'+hm.emoji+'</span><span style="font-weight:600">'+hm.name+'</span><span class="meta">'+n+' đêm · '+b.guests+' người</span></div>';
@@ -2064,7 +2073,7 @@ function bkRows(list) {
     var isCI = b.checkIn===todayS && b.status==='confirmed';
     t += '<tr style="'+(isCO||isCI?'background:rgba(184,92,74,0.04)':'')+'">';
     t += '<td style="color:var(--t3);font-size:10.5px;font-weight:600">#'+b.id+'</td>';
-    t += '<td><div style="font-weight:600">'+b.guest+'</div><div style="font-size:11px;color:var(--t3);margin-top:1px">'+b.phone+'</div></td>';
+    t += '<td><div style="font-weight:600">'+b.guest+'</div><div style="font-size:11px;color:var(--t3);margin-top:1px">'+telPhone(b.phone)+'</div></td>';
     t += '<td><div style="font-weight:500">'+hm.emoji+' '+hm.name+'</div><div style="font-size:10.5px;color:var(--t3);margin-top:1px">'+n+' đêm · '+b.guests+' người</div></td>';
     t += '<td class="center"><div style="font-size:12px;font-weight:500">'+fD(b.checkIn)+'</div><div style="font-size:10.5px;color:var(--t2);margin-top:1px">'+b.checkInTime+'</div></td>';
     t += '<td class="center"><div style="font-size:12px;font-weight:500">'+fD(b.checkOut)+'</div><div style="font-size:10.5px;color:var(--t2);margin-top:1px">'+b.checkOutTime+'</div></td>';
@@ -2393,7 +2402,7 @@ function openCI(id) {
   showModal(
     '<div class="mh"><div class="mt2">📋 Nhận nhà & Thu tiền còn lại</div><button class="mc" onclick="closeModal()">✕</button></div>'
     +'<div style="background:#F1EEE3;border-radius:8px;padding:11px 13px;margin-bottom:13px;border:1px solid rgba(124,106,78,0.2);display:flex;justify-content:space-between;align-items:center">'
-    +'<div><div style="font-weight:700;font-size:14px">'+b.guest+'</div><div style="font-size:11px;color:var(--t2);margin-top:2px">📞 '+formatPhone(b.phone)+' · '+hm.emoji+' '+hm.name+' · '+b.guests+' người</div></div>'
+    +'<div><div style="font-weight:700;font-size:14px">'+b.guest+'</div><div style="font-size:11px;color:var(--t2);margin-top:2px">📞 '+telPhone(b.phone)+' · '+hm.emoji+' '+hm.name+' · '+b.guests+' người</div></div>'
     +'<div style="text-align:right"><div style="font-size:10px;color:var(--t3)">Đặt '+n+' đêm</div><div style="font-size:13px;font-weight:600;color:#5C4E38">'+money(b.totalAmount)+'</div></div></div>'
     +'<div class="tbox"><div class="tbox-t">🕐 Giờ nhận nhà thực tế</div>'
     +'<div class="fr2">'
@@ -2465,7 +2474,7 @@ function _renderCO() {
   showModal(
     '<div class="mh"><div class="mt2">🔑 Kiểm tra & Trả nhà</div><button class="mc" onclick="closeModal()">✕</button></div>'
     +'<div style="background:#F1EEE3;border-radius:8px;padding:11px 13px;margin-bottom:13px;border:1px solid rgba(124,106,78,0.2);display:flex;justify-content:space-between;align-items:center">'
-    +'<div><div style="font-weight:700;font-size:14px">'+b.guest+'</div><div style="font-size:11px;color:var(--t2);margin-top:2px">📞 '+formatPhone(b.phone)+' · '+hm.emoji+' '+hm.name+' · '+b.guests+' người · '+n+' đêm</div></div>'
+    +'<div><div style="font-weight:700;font-size:14px">'+b.guest+'</div><div style="font-size:11px;color:var(--t2);margin-top:2px">📞 '+telPhone(b.phone)+' · '+hm.emoji+' '+hm.name+' · '+b.guests+' người · '+n+' đêm</div></div>'
     +'<div style="text-align:right"><div style="font-size:10px;color:var(--t3)">Nhận: <span class="tp">'+b.checkInTime+'</span></div><div style="font-size:10px;color:var(--t3);margin-top:2px">Trả: <span class="tp out">'+b.checkOutTime+'</span></div></div></div>'
     +'<div class="tbox"><div class="tbox-t">🕐 Giờ trả nhà thực tế</div>'
     +'<div class="fr2">'
@@ -2555,7 +2564,7 @@ function renderCheckinOut() {
     const hm=gH(b.homeId);const n=nights(b.checkIn,b.checkOut);const rem=Math.max(0,b.totalAmount-(b.discount||0)-(b.deposit||0));
     h+='<div class="alert-ci" style="margin-bottom:11px"><div style="display:flex;justify-content:space-between;align-items:flex-start">'
       +'<div><div style="font-weight:700;font-size:14px">'+b.guest+' <span style="font-size:12px;font-weight:400;color:var(--t2)">→ '+hm.emoji+' '+hm.name+'</span></div>'
-      +'<div style="font-size:11px;color:var(--t2);margin-top:2px">📞 '+formatPhone(b.phone)+' · '+b.guests+' người · '+n+' đêm · Giờ vào: <strong>'+b.checkInTime+'</strong></div></div>'
+      +'<div style="font-size:11px;color:var(--t2);margin-top:2px">📞 '+telPhone(b.phone)+' · '+b.guests+' người · '+n+' đêm · Giờ vào: <strong>'+b.checkInTime+'</strong></div></div>'
       +'<button class="btn btn-amber btn-sm" onclick="openCI('+b.id+')">📋 Nhận nhà & Thu tiền</button></div>'
       +'<div class="ag" style="grid-template-columns:repeat(3,1fr)">'
       +'<div class="ag-f"><label>Tiền nhà</label><span style="color:#5C4E38;font-weight:600">'+money(b.totalAmount)+'</span></div>'
@@ -2572,7 +2581,7 @@ function renderCheckinOut() {
     const extra=(b.charges||[]).reduce((s,c)=>s+c.amount,0);const rem=Math.max(0,b.totalAmount+extra-(b.discount||0)-(b.deposit||0));
     h+='<div class="alert-co" style="margin-bottom:11px"><div style="display:flex;justify-content:space-between;align-items:flex-start">'
       +'<div><div style="font-weight:700;font-size:14px">'+b.guest+' <span style="font-size:12px;font-weight:400;color:var(--t2)">→ '+hm.emoji+' '+hm.name+'</span></div>'
-      +'<div style="font-size:11px;color:var(--t2);margin-top:2px">📞 '+formatPhone(b.phone)+' · '+b.guests+' người · '+n+' đêm</div></div>'
+      +'<div style="font-size:11px;color:var(--t2);margin-top:2px">📞 '+telPhone(b.phone)+' · '+b.guests+' người · '+n+' đêm</div></div>'
       +'<button class="btn btn-ok btn-sm" onclick="openCO('+b.id+')">🔑 Kiểm tra & Trả nhà</button></div>'
       +'<div class="ag">'
       +'<div class="ag-f"><label>Nhận</label><span>'+fD(b.checkIn)+' <span class="tp">'+b.checkInTime+'</span></span></div>'
@@ -3671,7 +3680,7 @@ function renderFinanceRevenue() {
       var owed = stillOwed(b);
 
       h += '<tr>';
-      h += '<td><div style="font-weight:600">'+b.guest+'</div><div style="font-size:11px;color:var(--t3);margin-top:1px">'+b.phone+'</div></td>';
+      h += '<td><div style="font-weight:600">'+b.guest+'</div><div style="font-size:11px;color:var(--t3);margin-top:1px">'+telPhone(b.phone)+'</div></td>';
       h += '<td><div style="font-weight:500">'+hm.emoji+' '+hm.name+'</div></td>';
       h += '<td class="center"><div style="font-size:12px;font-weight:500">'+fD(b.checkIn)+' → '+fD(b.checkOut)+'</div><div style="font-size:11px;color:var(--t3);margin-top:1px">'+b.checkInTime+' / '+b.checkOutTime+'</div></td>';
       h += '<td class="center" style="color:#7C6A4E;font-weight:600">'+n+'</td>';
