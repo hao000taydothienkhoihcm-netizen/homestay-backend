@@ -1708,20 +1708,21 @@ function renderDashboard() {
   const coToday = BOOKINGS.filter(b=>b.checkOut===todayS&&b.status!=='checkedout');
   const ciToday = BOOKINGS.filter(b=>b.checkIn===todayS&&b.status==='confirmed');
   const active = BOOKINGS.filter(b=>['confirmed','checkedin','checkout-today'].includes(b.status));
-  const doneM = BOOKINGS.filter(b=>{const d=new Date(b.checkOut);return b.status==='checkedout'&&d.getMonth()===mn&&d.getFullYear()===yr;});
-  const mRev = doneM.reduce((s,b)=>s+b.totalAmount,0);
-  // Doanh số phòng tháng này — cùng cách chọn booking với /v1/stats/dashboard
+  // Doanh thu tháng — đồng bộ với trang Thống kê: theo NGÀY NHẬN NHÀ, mọi trạng thái
   const mBK = BOOKINGS.filter(b=>{
-    const d = new Date(b.status==='checkedout' ? b.checkOut : b.checkIn);
+    const d = new Date(b.checkIn);
     return d.getMonth()===mn && d.getFullYear()===yr;
   });
+  const mRev = mBK.reduce((s,b)=>s+actualReceived(b),0);           // thực thu (đã cầm về)
+  const mGross = mBK.reduce((s,b)=>s+Math.max(0,(b.totalAmount||0)-(b.discount||0))+((b.checkinCharges||0)+(b.chargesTotal||0)),0); // doanh số gồm phụ thu
   const mRoomRev = mBK.reduce((s,b)=>s+roomRevenue(b),0);
   const mExp = EXPENSES.filter(e=>{const d=new Date(e.date);return d.getMonth()===mn&&d.getFullYear()===yr;}).reduce((s,e)=>s+e.amount,0);
   const pending = active.reduce((s,b)=>s+Math.max(0,b.totalAmount-(b.discount||0)-(b.deposit||0)),0);
   const occ = HOMES.filter(h=>['occupied','checkout'].includes(gHSt(h.id).st)).length;
 
   let h = '<div class="sg4" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">'
-    +(staff?'':'<div class="sc g"><div class="sl">Doanh thu tháng '+( mn+1)+'</div><div class="sv gold">'+mS(mRev)+'</div><div class="ss">Lợi nhuận: '+mS(mRev-mExp)+'</div></div>')
+    +(staff?'':'<div class="sc g"><div class="sl">Thực thu tháng '+( mn+1)+'</div><div class="sv gold">'+mS(mRev)+'</div><div class="ss">Đã cầm về · Lợi nhuận: '+mS(mRev-mExp)+'</div></div>')
+    +(staff?'':'<div class="sc g"><div class="sl">Doanh số tháng '+( mn+1)+'</div><div class="sv gold">'+mS(mGross)+'</div><div class="ss">Cả phụ thu &amp; phần chưa thu</div></div>')
     +(staff?'':'<div class="sc b"><div class="sl">Doanh số phòng T'+(mn+1)+'</div><div class="sv blue">'+mS(mRoomRev)+'</div><div class="ss">Chỉ tiền nhà · công QL '+mgrPct+'%: '+mS(mRoomRev*mgrPct/100)+'</div></div>')
     +'<div class="sc b"><div class="sl">Đang có khách</div><div class="sv blue">'+occ+'/'+HOMES.length+' căn</div><div class="ss">'+active.length+' booking hoạt động</div></div>'
     +'<div class="sc r"><div class="sl">Trả nhà hôm nay</div><div class="sv red">'+coToday.length+'</div><div class="ss">'+ciToday.length+' nhận nhà hôm nay</div></div>'
@@ -2963,6 +2964,11 @@ function renderStatistics() {
 
   var totalReceived = bkInPeriod.reduce(function(s,b){return s+actualReceived(b);},0);
   var totalRoomRev = bkInPeriod.reduce(function(s,b){return s+roomRevenue(b);},0);
+  // ── Doanh số GHI NHẬN (tính cả phần khách chưa trả) ──
+  var totalGrossRoom = bkInPeriod.reduce(function(s,b){return s+Math.max(0,(b.totalAmount||0)-(b.discount||0));},0);
+  var totalGrossCharges = bkInPeriod.reduce(function(s,b){return s+((b.checkinCharges||0)+(b.chargesTotal||0));},0);
+  var totalGross = totalGrossRoom + totalGrossCharges;
+  var totalUnpaid = Math.max(0, totalGross - totalReceived);
   var totalExp = expInPeriod.reduce(function(s,e){return s+e.amount;},0);
   var totalProfit = totalReceived - totalExp;
   window._statPeriod = {bkInPeriod: bkInPeriod, expInPeriod: expInPeriod, periodLabel: periodLabel};
@@ -2999,15 +3005,32 @@ function renderStatistics() {
     + '<div class="stat-kpi-sub">' + (totalNights ? money(totalReceived/totalNights) + '/đêm' : '—') + '</div></div>';
   h += '</div>';
 
-  // ───── Tổng doanh số PHÒNG (chỉ tiền nhà) + công quản lý ─────
+  // ───── ĐÃ THU: tách tiền phòng / phụ thu (đều là tiền đã cầm về) ─────
   window._statRoomRev = totalRoomRev;
+  h += '<div class="stat-kpi-label" style="margin:4px 0 6px;font-weight:700;color:var(--t2)">✅ Đã cầm về (thực thu)</div>';
   h += '<div class="stat-kpi-grid" style="grid-template-columns:1fr 1fr">';
-  h += '<div class="stat-kpi room"><div class="stat-kpi-label">🏠 Tổng doanh số phòng</div>'
+  h += '<div class="stat-kpi room"><div class="stat-kpi-label">🏠 Tiền phòng đã thu</div>'
     + '<div class="stat-kpi-value">' + money(totalRoomRev) + '</div>'
-    + '<div class="stat-kpi-sub">Chỉ tiền nhà — không tính phụ thu</div></div>';
-  h += '<div class="stat-kpi"><div class="stat-kpi-label">➕ Phụ thu &amp; phạt</div>'
+    + '<div class="stat-kpi-sub">Cọc + thu khi nhận nhà</div></div>';
+  h += '<div class="stat-kpi"><div class="stat-kpi-label">➕ Phụ thu đã thu</div>'
     + '<div class="stat-kpi-value">' + money(totalReceived - totalRoomRev) + '</div>'
     + '<div class="stat-kpi-sub">Phần còn lại của thực thu</div></div>';
+  h += '</div>';
+
+  // ───── GHI NHẬN: doanh số cả kỳ (tính luôn phần chưa thu) ─────
+  h += '<div class="stat-kpi-label" style="margin:14px 0 6px;font-weight:700;color:var(--t2)">📒 Doanh số ghi nhận (cả phần chưa thu)</div>';
+  h += '<div class="stat-kpi-grid" style="grid-template-columns:1fr 1fr">';
+  h += '<div class="stat-kpi room"><div class="stat-kpi-label">🏠 Doanh số phòng</div>'
+    + '<div class="stat-kpi-value">' + money(totalGrossRoom) + '</div>'
+    + '<div class="stat-kpi-sub">Tiền phòng cả kỳ − giảm giá</div></div>';
+  h += '<div class="stat-kpi green"><div class="stat-kpi-label">🧾 Gồm cả phụ thu</div>'
+    + '<div class="stat-kpi-value">' + money(totalGross) + '</div>'
+    + '<div class="stat-kpi-sub">Phòng + phụ thu &amp; phạt</div></div>';
+  h += '</div>';
+  h += '<div class="stat-kpi-grid" style="grid-template-columns:1fr">';
+  h += '<div class="stat-kpi ' + (totalUnpaid>0?'red':'') + '"><div class="stat-kpi-label">⏳ Còn phải thu</div>'
+    + '<div class="stat-kpi-value">' + money(totalUnpaid) + '</div>'
+    + '<div class="stat-kpi-sub">Doanh số gồm phụ thu − thực thu ' + money(totalReceived) + '</div></div>';
   h += '</div>';
 
   h += '<div class="mgr-box">';
