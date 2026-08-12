@@ -235,17 +235,6 @@ textarea.fc{resize:vertical;min-height:60px}
 .stat-kpi-trend{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;padding:2px 7px;border-radius:8px;margin-top:4px}
 .stat-kpi-trend.up{background:rgba(94,126,91,0.12);color:#3A6037}
 .stat-kpi-trend.down{background:rgba(184,92,74,0.12);color:#B85C4A}
-.stat-kpi.room{border-left:4px solid #5A7A96}
-.stat-kpi.room .stat-kpi-value{color:#4A6884}
-/* Khối tính công quản lý theo % doanh số phòng */
-.mgr-box{background:var(--card);border:1px solid rgba(124,106,78,0.18);border-left:4px solid #A07840;border-radius:12px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
-.mgr-box .mgr-l{flex:1;min-width:190px}
-.mgr-box .mgr-lb{font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:0.8px;font-weight:600}
-.mgr-box .mgr-note{font-size:11.5px;color:var(--t2);margin-top:3px}
-.mgr-box .mgr-in{display:flex;align-items:center;gap:6px}
-.mgr-box input{width:66px;padding:7px 9px;border:1px solid rgba(124,106,78,0.28);border-radius:8px;font-family:inherit;font-size:14px;font-weight:700;text-align:right;color:#2E2416;background:var(--el);font-variant-numeric:tabular-nums}
-.mgr-box input:focus{outline:2px solid #A07840;outline-offset:1px}
-.mgr-box .mgr-v{font-size:24px;font-weight:700;font-family:'Playfair Display',serif;color:#A07840;font-variant-numeric:tabular-nums lining-nums;font-feature-settings:"tnum","lnum"}
 
 .stat-filter-bar{background:var(--card);border:1px solid rgba(124,106,78,0.18);border-radius:12px;padding:14px 16px;margin-bottom:14px}
 .stat-filter-tabs{display:flex;gap:6px;flex-wrap:wrap}
@@ -518,31 +507,12 @@ function fDT(s) {
 function nights(a,b) { return Math.max(1,Math.ceil((new Date(b)-new Date(a))/86400000)); }
 // Đêm "cuối tuần" nếu tối bắt đầu rơi vào T6(5), T7(6) hoặc CN(0). Dùng UTC để khớp backend.
 function isWeekendNight(t){ var d=new Date(t).getUTCDay(); return d===5||d===6||d===0; }
-// 'YYYY-MM-DD' theo UTC (khớp cách backend lưu @db.Date)
-function ymdUTC(t){ return new Date(t).toISOString().split('T')[0]; }
-// Chuẩn hoá danh sách ngày lễ về {start,end} dạng 'YYYY-MM-DD'
-function normalizeHolidays(list){
-  if(!Array.isArray(list)) return [];
-  return list.map(function(h){ var s=h.startDate||h.start; var e=h.endDate||h.end||s; return {start:ymdUTC(s), end:ymdUTC(e)}; });
-}
-// Đêm (theo ngày nhận) có rơi vào ngày lễ không
-function isHolidayNight(t, ranges){
-  if(!ranges||!ranges.length) return false;
-  var d=ymdUTC(t); return ranges.some(function(r){ return d>=r.start && d<=r.end; });
-}
-// Tổng tiền phòng theo 3 mức giá (lễ > cuối tuần > ngày thường) — khớp backend stayTotal()
+// Tổng tiền phòng theo 2 mức giá (ngày thường / cuối tuần) — khớp backend stayTotal()
 function stayTotal(hm, ci, co){
   var wk=(hm.weekendPrice!=null && hm.weekendPrice>0)?hm.weekendPrice:hm.price;
-  var hol=(hm.holidayPrice!=null && hm.holidayPrice>0)?hm.holidayPrice:wk;
-  var ranges=normalizeHolidays(typeof HOLIDAYS!=='undefined'?HOLIDAYS:[]);
   var start=new Date(ci).getTime(), end=new Date(co).getTime();
   var total=0, count=0;
-  for(var t=start; t<end; t+=86400000){
-    if(isHolidayNight(t,ranges)) total+=hol;
-    else if(isWeekendNight(t)) total+=wk;
-    else total+=hm.price;
-    count++;
-  }
+  for(var t=start; t<end; t+=86400000){ total+=isWeekendNight(t)?wk:hm.price; count++; }
   if(count===0) total=hm.price;
   return total;
 }
@@ -586,15 +556,6 @@ function formatPhone(p) {
   if (n.length === 10) return n.slice(0,4) + ' ' + n.slice(4,7) + ' ' + n.slice(7);
   if (n.length === 11) return n.slice(0,4) + ' ' + n.slice(4,7) + ' ' + n.slice(7);
   return n;
-}
-
-// SĐT bấm gọi được: trả về thẻ <a href="tel:..."> để 1 chạm mở màn quay số
-function telPhone(p) {
-  var n = normalizePhone(p);
-  if (!n) return '';
-  if (n.startsWith('+84')) n = '0' + n.slice(3);
-  else if (n.startsWith('84') && n.length === 11) n = '0' + n.slice(2);
-  return '<a href="tel:' + n + '" onclick="event.stopPropagation()" style="color:inherit;text-decoration:none;border-bottom:1px dashed currentColor" title="Bấm để gọi">' + formatPhone(p) + '</a>';
 }
 
 // Lấy thông báo lỗi cụ thể
@@ -711,7 +672,9 @@ async function apiCall(path, options = {}) {
       ...options.headers
     }
   });
-  if (res.status === 401) {
+  const isLogin = path === '/auth/login';
+  // 401 ở màn khác = hết phiên → đăng xuất. Lúc đăng nhập thì để lỗi thật đi qua.
+  if (res.status === 401 && !isLogin) {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
     showLogin();
@@ -854,17 +817,6 @@ function actualReceived(b) {
   }
   return dep + ci + chIn + chOut;
 }
-// Doanh số PHÒNG (chỉ tiền nhà) = cọc + tiền phòng thu khi nhận nhà.
-// KHÔNG gồm phụ thu. Giảm giá đã được trừ sẵn khi tính paidAtCheckIn → không trừ lần nữa.
-// Booking chưa nhận nhà chỉ tính phần cọc đã cầm.
-function roomRevenue(b) {
-  var dep = b.deposit||0;
-  var ci  = b.paidAtCheckIn||0;
-  if (b.status==='checkedout' && !b.paidAtCheckIn && ci===0) {
-    ci = Math.max(0, b.totalAmount - (b.discount||0) - dep);
-  }
-  return dep + ci;
-}
 // Còn lại chưa thu (gồm phụ thu nhận nhà + phụ thu trả nhà)
 function stillOwed(b) {
   if (b.status==='checkedout') return 0;
@@ -892,14 +844,11 @@ const RL={admin:'Admin',manager:'Quản lý',staff:'Nhân viên'};
 const RB={admin:'b-admin',manager:'b-manager',staff:'b-staff'};
 let RULES = [];   // Loaded from API: GET /charge-templates?type=RULE
 let QUICK = [];   // Loaded from API: GET /charge-templates?type=QUICK
-// Tra đơn vị lẻ (chai/lon/gói…) của 1 món tiêu thụ theo tên; mặc định "cái"
-function unitOf(name){ var q=(QUICK||[]).find(function(x){return x.name===name;}); return (q&&q.unitLabel)||'cái'; }
 const EMOJIS=['🏡','🌿','🌊','🏠','🌺','🏔','🌴','🌸','🏕','🌻','🏘','🌾'];
 
 let CU = null; // current user
 let USERS = [];     // Loaded from GET /users (admin only)
 let HOMES = [];     // Loaded from GET /homes
-let HOLIDAYS = [];  // Loaded from GET /holidays (danh sách ngày lễ)
 let BOOKINGS = [];  // Loaded from GET /bookings
 let EXPENSES = [];  // Loaded from GET /expenses
 
@@ -1190,7 +1139,6 @@ async function loadAllData() {
   try {
     const promises = [
       api.get('/homes').then(r => HOMES = r.map(normalizeHome)),
-      api.get('/holidays').then(r => HOLIDAYS = r).catch(() => HOLIDAYS = []),
       api.get('/bookings').then(r => BOOKINGS = r.map(normalizeBooking)),
       api.get('/expenses').then(r => EXPENSES = r.map(normalizeExpense)),
       api.get('/charge-templates?type=RULE').then(r => RULES = r),
@@ -1214,9 +1162,6 @@ async function reloadBookings() {
 }
 async function reloadHomes() {
   try { HOMES = (await api.get('/homes')).map(normalizeHome); } catch (e) { toast(e.message, 'error'); }
-}
-async function reloadHolidays() {
-  try { HOLIDAYS = await api.get('/holidays'); } catch (e) { toast(e.message, 'error'); }
 }
 async function reloadExpenses() {
   try { EXPENSES = (await api.get('/expenses')).map(normalizeExpense); } catch (e) { toast(e.message, 'error'); }
@@ -1274,24 +1219,12 @@ function pricePreview(hmId, ci, co, dep, disc) {
   const n = nights(ci,co);
   if (n<=0) return '<div style="color:#B85C4A;font-size:11px;padding:5px 0">⚠ Ngày trả phải sau ngày nhận</div>';
   const total = stayTotal(hm, ci, co);
-  // Đếm số đêm lễ / cuối tuần / thường để hiển thị (ưu tiên Lễ > Cuối tuần > Thường)
-  const holRanges = normalizeHolidays(typeof HOLIDAYS!=='undefined'?HOLIDAYS:[]);
-  let wkN=0, holN=0, wdN=0;
-  { const s=new Date(ci).getTime(), e=new Date(co).getTime();
-    for(let t=s;t<e;t+=86400000){
-      if(isHolidayNight(t,holRanges)) holN++;
-      else if(isWeekendNight(t)) wkN++;
-      else wdN++;
-    } }
+  // Đếm số đêm cuối tuần để hiển thị (nếu căn có giá cuối tuần riêng)
+  let wkN=0; { const s=new Date(ci).getTime(), e=new Date(co).getTime(); for(let t=s;t<e;t+=86400000){ if(isWeekendNight(t)) wkN++; } }
   const hasWk = (hm.weekendPrice!=null && hm.weekendPrice>0 && hm.weekendPrice!==hm.price);
-  const hasHol = holN>0;
-  let breakdown='';
-  if(hasHol){
-    const parts=[]; parts.push(wdN+' thường'); if(wkN) parts.push(wkN+' cuối tuần'); parts.push(holN+' lễ');
-    breakdown=' <span style="color:#8A7A5E;font-size:11px;font-weight:500">('+parts.join(' + ')+')</span>';
-  } else if(hasWk){
-    breakdown=' <span style="color:#8A7A5E;font-size:11px;font-weight:500">('+wdN+' thường + '+wkN+' cuối tuần)</span>';
-  }
+  const breakdown = hasWk
+    ? ' <span style="color:#8A7A5E;font-size:11px;font-weight:500">('+(n-wkN)+' thường + '+wkN+' cuối tuần)</span>'
+    : '';
   const dc = Math.max(0, parseNum(disc));
   const net = Math.max(0, total - dc);      // tổng đơn sau giảm giá
   const d = parseNum(dep);
@@ -1574,7 +1507,12 @@ async function doLogin() {
     CU = normalizeUser(data.user);
     await onLoginSuccess();
   } catch (e) {
-    errEl.textContent = '⚠ ' + e.message;
+    const raw = e.message || '';
+    let msg = raw || 'Đăng nhập thất bại';
+    if (/khóa/i.test(raw)) msg = 'Tài khoản đã bị khóa';
+    else if (/mật khẩu/i.test(raw)) msg = 'Sai mật khẩu';
+    else if (/không tồn tại|tài khoản/i.test(raw)) msg = 'Tên đăng nhập sai';
+    errEl.textContent = '⚠ ' + msg;
   } finally {
     setLoading(false);
   }
@@ -1717,22 +1655,14 @@ function renderDashboard() {
   const coToday = BOOKINGS.filter(b=>b.checkOut===todayS&&b.status!=='checkedout');
   const ciToday = BOOKINGS.filter(b=>b.checkIn===todayS&&b.status==='confirmed');
   const active = BOOKINGS.filter(b=>['confirmed','checkedin','checkout-today'].includes(b.status));
-  // Doanh thu tháng — đồng bộ với trang Thống kê: theo NGÀY NHẬN NHÀ, mọi trạng thái
-  const mBK = BOOKINGS.filter(b=>{
-    const d = new Date(b.checkIn);
-    return d.getMonth()===mn && d.getFullYear()===yr;
-  });
-  const mRev = mBK.reduce((s,b)=>s+actualReceived(b),0);           // thực thu (đã cầm về)
-  const mGross = mBK.reduce((s,b)=>s+Math.max(0,(b.totalAmount||0)-(b.discount||0))+((b.checkinCharges||0)+(b.chargesTotal||0)),0); // doanh số gồm phụ thu
-  const mRoomRev = mBK.reduce((s,b)=>s+roomRevenue(b),0);
+  const doneM = BOOKINGS.filter(b=>{const d=new Date(b.checkOut);return b.status==='checkedout'&&d.getMonth()===mn&&d.getFullYear()===yr;});
+  const mRev = doneM.reduce((s,b)=>s+b.totalAmount,0);
   const mExp = EXPENSES.filter(e=>{const d=new Date(e.date);return d.getMonth()===mn&&d.getFullYear()===yr;}).reduce((s,e)=>s+e.amount,0);
   const pending = active.reduce((s,b)=>s+Math.max(0,b.totalAmount-(b.discount||0)-(b.deposit||0)),0);
   const occ = HOMES.filter(h=>['occupied','checkout'].includes(gHSt(h.id).st)).length;
 
-  let h = '<div class="sg4" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">'
-    +(staff?'':'<div class="sc g"><div class="sl">Thực thu tháng '+( mn+1)+'</div><div class="sv gold">'+mS(mRev)+'</div><div class="ss">Đã cầm về · Lợi nhuận: '+mS(mRev-mExp)+'</div></div>')
-    +(staff?'':'<div class="sc g"><div class="sl">Doanh số tháng '+( mn+1)+'</div><div class="sv gold">'+mS(mGross)+'</div><div class="ss">Cả phụ thu &amp; phần chưa thu</div></div>')
-    +(staff?'':'<div class="sc b"><div class="sl">Doanh số phòng T'+(mn+1)+'</div><div class="sv blue">'+mS(mRoomRev)+'</div><div class="ss">Chỉ tiền nhà · công QL '+mgrPct+'%: '+mS(mRoomRev*mgrPct/100)+'</div></div>')
+  let h = '<div class="sg4"'+(staff?' style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))"':'')+'>'
+    +(staff?'':'<div class="sc g"><div class="sl">Doanh thu tháng '+( mn+1)+'</div><div class="sv gold">'+mS(mRev)+'</div><div class="ss">Lợi nhuận: '+mS(mRev-mExp)+'</div></div>')
     +'<div class="sc b"><div class="sl">Đang có khách</div><div class="sv blue">'+occ+'/'+HOMES.length+' căn</div><div class="ss">'+active.length+' booking hoạt động</div></div>'
     +'<div class="sc r"><div class="sl">Trả nhà hôm nay</div><div class="sv red">'+coToday.length+'</div><div class="ss">'+ciToday.length+' nhận nhà hôm nay</div></div>'
     +'<div class="sc p"><div class="sl">Còn phải thu</div><div class="sv pur">'+mS(pending)+'</div><div class="ss">'+active.length+' booking active</div></div>'
@@ -1787,7 +1717,7 @@ function renderDashboard() {
       h += '<div class="alert-co">'
         +'<div style="display:flex;justify-content:space-between;align-items:flex-start">'
         +'<div><div style="font-weight:700;font-size:14px">'+b.guest+' <span style="font-size:12px;font-weight:400;color:var(--t2)">→ '+hm.emoji+' '+hm.name+'</span></div>'
-        +'<div style="font-size:11px;color:var(--t2);margin-top:2px">📞 '+telPhone(b.phone)+' · '+b.guests+' người · '+n+' đêm</div></div>'
+        +'<div style="font-size:11px;color:var(--t2);margin-top:2px">📞 '+formatPhone(b.phone)+' · '+b.guests+' người · '+n+' đêm</div></div>'
         +'<button class="btn btn-ok btn-xs" onclick="openCO('+b.id+')">🔑 Kiểm tra & Trả nhà</button></div>'
         +'<div class="ag">'
         +'<div class="ag-f"><label>Nhận</label><span>'+fD(b.checkIn)+' <span class="tp">'+b.checkInTime+'</span></span></div>'
@@ -1808,7 +1738,7 @@ function renderDashboard() {
       h += '<div class="alert-ci">'
         +'<div style="display:flex;justify-content:space-between;align-items:flex-start">'
         +'<div><div style="font-weight:700;font-size:14px">'+b.guest+' <span style="font-size:12px;font-weight:400;color:var(--t2)">→ '+hm.emoji+' '+hm.name+'</span></div>'
-        +'<div style="font-size:11px;color:var(--t2);margin-top:2px">📞 '+telPhone(b.phone)+' · '+b.guests+' người · '+n+' đêm</div></div>'
+        +'<div style="font-size:11px;color:var(--t2);margin-top:2px">📞 '+formatPhone(b.phone)+' · '+b.guests+' người · '+n+' đêm</div></div>'
         +'<button class="btn btn-amber btn-xs" onclick="openCI('+b.id+')">📋 Nhận nhà & Thu tiền</button></div>'
         +'<div class="ag" style="grid-template-columns:repeat(3,1fr)">'
         +'<div class="ag-f"><label>Tiền nhà</label><span style="color:#5C4E38;font-weight:600">'+money(b.totalAmount)+'</span></div>'
@@ -1825,7 +1755,7 @@ function renderDashboard() {
   h += '<div class="card"><div class="ch"><div class="ct">📋 Booking gần đây</div><button class="btn btn-gold btn-xs" onclick="setPage(\'bookings\')">Xem tất cả</button></div><div class="tw"><table><thead><tr><th>Khách</th><th>Căn nhà</th><th>Nhận</th><th>Trả</th><th>Còn thu</th><th>TT</th></tr></thead><tbody>';
   [...BOOKINGS].sort((a,b)=>b.id-a.id).slice(0,5).forEach(b => {
     const hm=gH(b.homeId); const rem=Math.max(0,b.totalAmount-(b.discount||0)-(b.deposit||0));
-    h += '<tr><td><div style="font-weight:600">'+b.guest+'</div><div style="font-size:10px;color:var(--t2)">'+telPhone(b.phone)+'</div></td>'
+    h += '<tr><td><div style="font-weight:600">'+b.guest+'</div><div style="font-size:10px;color:var(--t2)">'+b.phone+'</div></td>'
       +'<td style="font-size:11px">'+hm.emoji+' '+hm.name+'</td>'
       +'<td><div style="font-size:11px">'+fD(b.checkIn)+'</div><span class="tp">'+b.checkInTime+'</span></td>'
       +'<td><div style="font-size:11px">'+fD(b.checkOut)+'</div><span class="tp out">'+b.checkOutTime+'</span></td>'
@@ -2015,7 +1945,7 @@ function bkCards(list) {
     h += '<div class="bk-guest-av">'+b.guest.charAt(0).toUpperCase()+'</div>';
     h += '<div class="bk-guest-info">';
     h += '<div class="bk-guest-name" title="'+b.guest+'">'+b.guest+'</div>';
-    h += '<div class="bk-guest-phone">📞 '+telPhone(b.phone)+'</div>';
+    h += '<div class="bk-guest-phone">📞 '+formatPhone(b.phone)+'</div>';
     h += '</div></div>';
     // Home
     h += '<div class="bk-home-row"><span class="em">'+hm.emoji+'</span><span style="font-weight:600">'+hm.name+'</span><span class="meta">'+n+' đêm · '+b.guests+' người</span></div>';
@@ -2073,7 +2003,7 @@ function bkRows(list) {
     var isCI = b.checkIn===todayS && b.status==='confirmed';
     t += '<tr style="'+(isCO||isCI?'background:rgba(184,92,74,0.04)':'')+'">';
     t += '<td style="color:var(--t3);font-size:10.5px;font-weight:600">#'+b.id+'</td>';
-    t += '<td><div style="font-weight:600">'+b.guest+'</div><div style="font-size:11px;color:var(--t3);margin-top:1px">'+telPhone(b.phone)+'</div></td>';
+    t += '<td><div style="font-weight:600">'+b.guest+'</div><div style="font-size:11px;color:var(--t3);margin-top:1px">'+b.phone+'</div></td>';
     t += '<td><div style="font-weight:500">'+hm.emoji+' '+hm.name+'</div><div style="font-size:10.5px;color:var(--t3);margin-top:1px">'+n+' đêm · '+b.guests+' người</div></td>';
     t += '<td class="center"><div style="font-size:12px;font-weight:500">'+fD(b.checkIn)+'</div><div style="font-size:10.5px;color:var(--t2);margin-top:1px">'+b.checkInTime+'</div></td>';
     t += '<td class="center"><div style="font-size:12px;font-weight:500">'+fD(b.checkOut)+'</div><div style="font-size:10.5px;color:var(--t2);margin-top:1px">'+b.checkOutTime+'</div></td>';
@@ -2402,7 +2332,7 @@ function openCI(id) {
   showModal(
     '<div class="mh"><div class="mt2">📋 Nhận nhà & Thu tiền còn lại</div><button class="mc" onclick="closeModal()">✕</button></div>'
     +'<div style="background:#F1EEE3;border-radius:8px;padding:11px 13px;margin-bottom:13px;border:1px solid rgba(124,106,78,0.2);display:flex;justify-content:space-between;align-items:center">'
-    +'<div><div style="font-weight:700;font-size:14px">'+b.guest+'</div><div style="font-size:11px;color:var(--t2);margin-top:2px">📞 '+telPhone(b.phone)+' · '+hm.emoji+' '+hm.name+' · '+b.guests+' người</div></div>'
+    +'<div><div style="font-weight:700;font-size:14px">'+b.guest+'</div><div style="font-size:11px;color:var(--t2);margin-top:2px">📞 '+formatPhone(b.phone)+' · '+hm.emoji+' '+hm.name+' · '+b.guests+' người</div></div>'
     +'<div style="text-align:right"><div style="font-size:10px;color:var(--t3)">Đặt '+n+' đêm</div><div style="font-size:13px;font-weight:600;color:#5C4E38">'+money(b.totalAmount)+'</div></div></div>'
     +'<div class="tbox"><div class="tbox-t">🕐 Giờ nhận nhà thực tế</div>'
     +'<div class="fr2">'
@@ -2469,12 +2399,12 @@ function _renderCO() {
   const prevWater=document.getElementById('co-water')?.value||b.water||'';
   const prevNote=document.getElementById('co-note')?.value||b.inspNote||'';
   const rulesBtns=RULES.map(r=>'<button class="btn btn-xs btn-danger" onclick="addCharge(\''+r.name.replace(/'/g,"\\'")+'\','+r.amount+',1)">'+r.name+' ('+mS(r.amount)+')</button>').join('');
-  const quickBtns=QUICK.map(function(r){var eid='qty-'+r.name.replace(/[^a-zA-Z0-9]/g,'');var stepBtn='width:24px;height:24px;padding:0;border:1px solid rgba(124,106,78,0.3);background:#fff;border-radius:5px;font-size:15px;font-weight:700;color:#5C4E38;line-height:1;cursor:pointer;flex:none';return '<div style="display:inline-flex;align-items:center;gap:4px;background:#F1EEE3;padding:4px 7px;border-radius:6px;border:1px solid rgba(124,106,78,0.2);margin:2px"><span style="font-size:11px;color:#2E2416">'+r.name+'</span><span style="font-size:10px;color:var(--t3)">'+money(r.amount)+'/'+(r.unitLabel||'cái')+'</span><button type="button" style="'+stepBtn+'" onclick="stepQty(\''+eid+'\',-1)">−</button><input type="number" min="1" value="1" id="'+eid+'" style="width:38px;padding:3px 5px;background:#fff;border:1px solid rgba(124,106,78,0.3);border-radius:4px;font-size:11px;text-align:center"/><button type="button" style="'+stepBtn+'" onclick="stepQty(\''+eid+'\',1)">+</button><button class="btn btn-xs btn-sky" style="padding:2px 9px;margin-left:2px" onclick="addCharge(\''+r.name.replace(/'/g,"\\'")+'\','+r.amount+',parseInt(document.getElementById(\''+eid+'\').value)||1)">Thêm</button></div>';}).join('');
-  const chargeList=_charges.length?_charges.map(function(c){var qtyDisp=c.qty&&c.qty>1?' (× '+c.qty+' = '+money(c.unit||c.amount)+'/'+unitOf(c.name)+')':'';return '<div class="ci-item"><span>'+c.name+'<span style="font-size:10px;color:var(--t3)">'+qtyDisp+'</span></span><div style="display:flex;gap:7px;align-items:center"><span style="color:#B85C4A;font-weight:600">'+money(c.amount)+'</span><button class="btn btn-xs btn-danger" onclick="rmCharge('+c.id+')">✕</button></div></div>';}).join(''):'<div style="color:var(--t3);font-size:11px;padding:5px 0">Chưa có phụ thu</div>';
+  const quickBtns=QUICK.map(function(r){var eid='qty-'+r.name.replace(/[^a-zA-Z0-9]/g,'');var stepBtn='width:24px;height:24px;padding:0;border:1px solid rgba(124,106,78,0.3);background:#fff;border-radius:5px;font-size:15px;font-weight:700;color:#5C4E38;line-height:1;cursor:pointer;flex:none';return '<div style="display:inline-flex;align-items:center;gap:4px;background:#F1EEE3;padding:4px 7px;border-radius:6px;border:1px solid rgba(124,106,78,0.2);margin:2px"><span style="font-size:11px;color:#2E2416">'+r.name+'</span><span style="font-size:10px;color:var(--t3)">'+money(r.amount)+'/cái</span><button type="button" style="'+stepBtn+'" onclick="stepQty(\''+eid+'\',-1)">−</button><input type="number" min="1" value="1" id="'+eid+'" style="width:38px;padding:3px 5px;background:#fff;border:1px solid rgba(124,106,78,0.3);border-radius:4px;font-size:11px;text-align:center"/><button type="button" style="'+stepBtn+'" onclick="stepQty(\''+eid+'\',1)">+</button><button class="btn btn-xs btn-sky" style="padding:2px 9px;margin-left:2px" onclick="addCharge(\''+r.name.replace(/'/g,"\\'")+'\','+r.amount+',parseInt(document.getElementById(\''+eid+'\').value)||1)">Thêm</button></div>';}).join('');
+  const chargeList=_charges.length?_charges.map(function(c){var qtyDisp=c.qty&&c.qty>1?' (× '+c.qty+' = '+money(c.unit||c.amount)+'/cái)':'';return '<div class="ci-item"><span>'+c.name+'<span style="font-size:10px;color:var(--t3)">'+qtyDisp+'</span></span><div style="display:flex;gap:7px;align-items:center"><span style="color:#B85C4A;font-weight:600">'+money(c.amount)+'</span><button class="btn btn-xs btn-danger" onclick="rmCharge('+c.id+')">✕</button></div></div>';}).join(''):'<div style="color:var(--t3);font-size:11px;padding:5px 0">Chưa có phụ thu</div>';
   showModal(
     '<div class="mh"><div class="mt2">🔑 Kiểm tra & Trả nhà</div><button class="mc" onclick="closeModal()">✕</button></div>'
     +'<div style="background:#F1EEE3;border-radius:8px;padding:11px 13px;margin-bottom:13px;border:1px solid rgba(124,106,78,0.2);display:flex;justify-content:space-between;align-items:center">'
-    +'<div><div style="font-weight:700;font-size:14px">'+b.guest+'</div><div style="font-size:11px;color:var(--t2);margin-top:2px">📞 '+telPhone(b.phone)+' · '+hm.emoji+' '+hm.name+' · '+b.guests+' người · '+n+' đêm</div></div>'
+    +'<div><div style="font-weight:700;font-size:14px">'+b.guest+'</div><div style="font-size:11px;color:var(--t2);margin-top:2px">📞 '+formatPhone(b.phone)+' · '+hm.emoji+' '+hm.name+' · '+b.guests+' người · '+n+' đêm</div></div>'
     +'<div style="text-align:right"><div style="font-size:10px;color:var(--t3)">Nhận: <span class="tp">'+b.checkInTime+'</span></div><div style="font-size:10px;color:var(--t3);margin-top:2px">Trả: <span class="tp out">'+b.checkOutTime+'</span></div></div></div>'
     +'<div class="tbox"><div class="tbox-t">🕐 Giờ trả nhà thực tế</div>'
     +'<div class="fr2">'
@@ -2564,7 +2494,7 @@ function renderCheckinOut() {
     const hm=gH(b.homeId);const n=nights(b.checkIn,b.checkOut);const rem=Math.max(0,b.totalAmount-(b.discount||0)-(b.deposit||0));
     h+='<div class="alert-ci" style="margin-bottom:11px"><div style="display:flex;justify-content:space-between;align-items:flex-start">'
       +'<div><div style="font-weight:700;font-size:14px">'+b.guest+' <span style="font-size:12px;font-weight:400;color:var(--t2)">→ '+hm.emoji+' '+hm.name+'</span></div>'
-      +'<div style="font-size:11px;color:var(--t2);margin-top:2px">📞 '+telPhone(b.phone)+' · '+b.guests+' người · '+n+' đêm · Giờ vào: <strong>'+b.checkInTime+'</strong></div></div>'
+      +'<div style="font-size:11px;color:var(--t2);margin-top:2px">📞 '+formatPhone(b.phone)+' · '+b.guests+' người · '+n+' đêm · Giờ vào: <strong>'+b.checkInTime+'</strong></div></div>'
       +'<button class="btn btn-amber btn-sm" onclick="openCI('+b.id+')">📋 Nhận nhà & Thu tiền</button></div>'
       +'<div class="ag" style="grid-template-columns:repeat(3,1fr)">'
       +'<div class="ag-f"><label>Tiền nhà</label><span style="color:#5C4E38;font-weight:600">'+money(b.totalAmount)+'</span></div>'
@@ -2581,7 +2511,7 @@ function renderCheckinOut() {
     const extra=(b.charges||[]).reduce((s,c)=>s+c.amount,0);const rem=Math.max(0,b.totalAmount+extra-(b.discount||0)-(b.deposit||0));
     h+='<div class="alert-co" style="margin-bottom:11px"><div style="display:flex;justify-content:space-between;align-items:flex-start">'
       +'<div><div style="font-weight:700;font-size:14px">'+b.guest+' <span style="font-size:12px;font-weight:400;color:var(--t2)">→ '+hm.emoji+' '+hm.name+'</span></div>'
-      +'<div style="font-size:11px;color:var(--t2);margin-top:2px">📞 '+telPhone(b.phone)+' · '+b.guests+' người · '+n+' đêm</div></div>'
+      +'<div style="font-size:11px;color:var(--t2);margin-top:2px">📞 '+formatPhone(b.phone)+' · '+b.guests+' người · '+n+' đêm</div></div>'
       +'<button class="btn btn-ok btn-sm" onclick="openCO('+b.id+')">🔑 Kiểm tra & Trả nhà</button></div>'
       +'<div class="ag">'
       +'<div class="ag-f"><label>Nhận</label><span>'+fD(b.checkIn)+' <span class="tp">'+b.checkInTime+'</span></span></div>'
@@ -2719,22 +2649,6 @@ var statFilter = {
   from: null,
   to: null
 };
-// % công quản lý — tính trên tổng doanh số phòng. Lưu ở máy này, không đụng database.
-var mgrPct = (function(){
-  var v = parseFloat(localStorage.getItem('mgrPct'));
-  return (isNaN(v) || v < 0 || v > 100) ? 10 : v;
-})();
-function setMgrPct(v) {
-  var p = parseFloat(String(v).replace(',', '.'));
-  if (isNaN(p) || p < 0) p = 0;
-  if (p > 100) p = 100;
-  mgrPct = p;
-  localStorage.setItem('mgrPct', String(p));
-  var el = document.getElementById('mgr-amt');
-  if (el) el.textContent = money((window._statRoomRev || 0) * p / 100);
-  var eh = document.getElementById('mgr-amt-home');
-  if (eh) eh.textContent = money((window._homeRoomRev || 0) * p / 100);
-}
 function _initStatFilter() {
   if (!statFilter.monthYear) statFilter.monthYear = {month: mn, year: yr};
   if (!statFilter.year) statFilter.year = yr;
@@ -2773,9 +2687,8 @@ function openHomePerf(id) {
   var profit = received - totalExp;
   var nightsSum = bks.reduce(function(s,b){return s+nights(b.checkIn,b.checkOut);},0);
 
-  var roomRev = incCoc + incPhong;   // doanh số phòng = cọc + thu khi nhận nhà
   var incItems=[
-    {name:'🏠 Tiền phòng (thu khi nhận nhà)', amt:incPhong, col:'#3A6037'},
+    {name:'🏠 Tiền phòng', amt:incPhong, col:'#3A6037'},
     {name:'🔑 Tiền cọc', amt:incCoc, col:'#A07840'},
     {name:'➕ Phụ thu & phạt', amt:incPhu, col:'#7A6890'}
   ];
@@ -2794,18 +2707,6 @@ function openHomePerf(id) {
   h += '<div style="background:#F8F4EC;border:1px solid rgba(124,106,78,0.15);border-left:3px solid '+(profit>=0?'#3A6037':'#B85C4A')+';border-radius:10px;padding:11px 13px"><div style="font-size:10.5px;color:var(--t3);text-transform:uppercase;letter-spacing:0.6px;font-weight:600;margin-bottom:3px">📈 Lợi nhuận</div><div style="font-size:17px;font-weight:800;color:'+(profit>=0?'#3A6037':'#B85C4A')+';font-variant-numeric:tabular-nums">'+(profit>0?'+':'')+money(profit)+'</div></div>';
   h += '</div>';
   h += '<div style="font-size:11.5px;color:var(--t3);margin-bottom:16px">'+bks.length+' booking · '+nightsSum+' đêm'+(nightsSum?' · '+money(received/nightsSum)+'/đêm':'')+'</div>';
-
-  // Doanh số PHÒNG của căn này + công quản lý
-  window._homeRoomRev = roomRev;
-  h += '<div class="mgr-box" style="border-left-color:#5A7A96;margin-bottom:16px">';
-  h += '<div class="mgr-l"><div class="mgr-lb">🏠 Doanh số phòng</div>'
-    + '<div style="font-size:20px;font-weight:800;color:#4A6884;font-variant-numeric:tabular-nums;margin-top:2px">'+money(roomRev)+'</div>'
-    + '<div class="mgr-note">Cọc '+money(incCoc)+' + thu khi nhận nhà '+money(incPhong)+' · không tính phụ thu</div></div>';
-  h += '<div class="mgr-in"><span style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:0.6px;font-weight:600;margin-right:4px">Công QL</span>'
-    + '<input type="text" inputmode="decimal" value="'+mgrPct+'" oninput="setMgrPct(this.value)" aria-label="Phần trăm công quản lý"/>'
-    + '<span style="font-size:15px;font-weight:700;color:var(--t2)">%</span></div>';
-  h += '<div class="mgr-v" id="mgr-amt-home">'+money(roomRev*mgrPct/100)+'</div>';
-  h += '</div>';
 
   // Khoản THU — từng booking
   h += '<div style="font-size:12px;font-weight:700;color:#3A6037;margin-bottom:8px">💵 KHOẢN THU · '+bks.length+' booking</div>';
@@ -2972,12 +2873,6 @@ function renderStatistics() {
   }
 
   var totalReceived = bkInPeriod.reduce(function(s,b){return s+actualReceived(b);},0);
-  var totalRoomRev = bkInPeriod.reduce(function(s,b){return s+roomRevenue(b);},0);
-  // ── Doanh số GHI NHẬN (tính cả phần khách chưa trả) ──
-  var totalGrossRoom = bkInPeriod.reduce(function(s,b){return s+Math.max(0,(b.totalAmount||0)-(b.discount||0));},0);
-  var totalGrossCharges = bkInPeriod.reduce(function(s,b){return s+((b.checkinCharges||0)+(b.chargesTotal||0));},0);
-  var totalGross = totalGrossRoom + totalGrossCharges;
-  var totalUnpaid = Math.max(0, totalGross - totalReceived);
   var totalExp = expInPeriod.reduce(function(s,e){return s+e.amount;},0);
   var totalProfit = totalReceived - totalExp;
   window._statPeriod = {bkInPeriod: bkInPeriod, expInPeriod: expInPeriod, periodLabel: periodLabel};
@@ -3012,42 +2907,6 @@ function renderStatistics() {
   h += '<div class="stat-kpi profit"><div class="stat-kpi-label">📈 Doanh thu TB / booking</div>'
     + '<div class="stat-kpi-value">' + money(avgRevPerBk) + '</div>'
     + '<div class="stat-kpi-sub">' + (totalNights ? money(totalReceived/totalNights) + '/đêm' : '—') + '</div></div>';
-  h += '</div>';
-
-  // ───── ĐÃ THU: tách tiền phòng / phụ thu (đều là tiền đã cầm về) ─────
-  window._statRoomRev = totalRoomRev;
-  h += '<div class="stat-kpi-label" style="margin:4px 0 6px;font-weight:700;color:var(--t2)">✅ Đã cầm về (thực thu)</div>';
-  h += '<div class="stat-kpi-grid" style="grid-template-columns:1fr 1fr">';
-  h += '<div class="stat-kpi room"><div class="stat-kpi-label">🏠 Tiền phòng đã thu</div>'
-    + '<div class="stat-kpi-value">' + money(totalRoomRev) + '</div>'
-    + '<div class="stat-kpi-sub">Cọc + thu khi nhận nhà</div></div>';
-  h += '<div class="stat-kpi"><div class="stat-kpi-label">➕ Phụ thu đã thu</div>'
-    + '<div class="stat-kpi-value">' + money(totalReceived - totalRoomRev) + '</div>'
-    + '<div class="stat-kpi-sub">Phần còn lại của thực thu</div></div>';
-  h += '</div>';
-
-  // ───── GHI NHẬN: doanh số cả kỳ (tính luôn phần chưa thu) ─────
-  h += '<div class="stat-kpi-label" style="margin:14px 0 6px;font-weight:700;color:var(--t2)">📒 Doanh số ghi nhận (cả phần chưa thu)</div>';
-  h += '<div class="stat-kpi-grid" style="grid-template-columns:1fr 1fr">';
-  h += '<div class="stat-kpi room"><div class="stat-kpi-label">🏠 Doanh số phòng</div>'
-    + '<div class="stat-kpi-value">' + money(totalGrossRoom) + '</div>'
-    + '<div class="stat-kpi-sub">Tiền phòng cả kỳ − giảm giá</div></div>';
-  h += '<div class="stat-kpi green"><div class="stat-kpi-label">🧾 Gồm cả phụ thu</div>'
-    + '<div class="stat-kpi-value">' + money(totalGross) + '</div>'
-    + '<div class="stat-kpi-sub">Phòng + phụ thu &amp; phạt</div></div>';
-  h += '</div>';
-  h += '<div class="stat-kpi-grid" style="grid-template-columns:1fr">';
-  h += '<div class="stat-kpi ' + (totalUnpaid>0?'red':'') + '"><div class="stat-kpi-label">⏳ Còn phải thu</div>'
-    + '<div class="stat-kpi-value">' + money(totalUnpaid) + '</div>'
-    + '<div class="stat-kpi-sub">Doanh số gồm phụ thu − thực thu ' + money(totalReceived) + '</div></div>';
-  h += '</div>';
-
-  h += '<div class="mgr-box">';
-  h += '<div class="mgr-l"><div class="mgr-lb">👔 Công quản lý</div>'
-    + '<div class="mgr-note">Tính trên tổng doanh số phòng ' + money(totalRoomRev) + '</div></div>';
-  h += '<div class="mgr-in"><input type="text" inputmode="decimal" id="mgr-pct" value="' + mgrPct + '" '
-    + 'oninput="setMgrPct(this.value)" aria-label="Phần trăm công quản lý"/><span style="font-size:15px;font-weight:700;color:var(--t2)">%</span></div>';
-  h += '<div class="mgr-v" id="mgr-amt">' + money(totalRoomRev*mgrPct/100) + '</div>';
   h += '</div>';
 
   // ───── CHART ─────
@@ -3119,10 +2978,7 @@ function renderStatistics() {
   // Khoản thu: cọc + tiền phòng (thu khi nhận nhà) + phụ thu & phạt
   var incCoc=0, incPhong=0, incPhu=0;
   bkInPeriod.forEach(function(b){
-    var dep=b.deposit||0, ci=b.paidAtCheckIn||0;
-    // Phụ thu = phụ thu TRẢ nhà (khi đã trả) + phụ thu NHẬN nhà (khi đã nhận).
-    // Trước đây thiếu vế phụ thu nhận nhà nên 3 mục cộng lại không bằng Tổng thu.
-    var ch=(b.status==='checkedout'?(b.chargesTotal||0):0)+(isCheckedInWeb(b)?(b.checkinCharges||0):0);
+    var dep=b.deposit||0, ci=b.paidAtCheckIn||0, ch=b.chargesTotal||0;
     if (b.status==='checkedout' && !b.paidAtCheckIn && ci===0) ci=Math.max(0, b.totalAmount-(b.discount||0)-dep);
     incCoc+=dep; incPhong+=ci; incPhu+=ch;
   });
@@ -3188,8 +3044,7 @@ function renderStatistics() {
     var hBK = bkInPeriod.filter(function(b){return b.homeId===hm.id;});
     return {id:hm.id, emoji:hm.emoji, name:hm.name, cnt:hBK.length,
       nights:hBK.reduce(function(s,b){return s+nights(b.checkIn,b.checkOut);},0),
-      received:hBK.reduce(function(s,b){return s+actualReceived(b);},0),
-      roomRev:hBK.reduce(function(s,b){return s+roomRevenue(b);},0)};
+      received:hBK.reduce(function(s,b){return s+actualReceived(b);},0)};
   });
   var maxHR = Math.max.apply(null, byHomeP.map(function(h){return h.received;}).concat([1]));
 
@@ -3204,7 +3059,7 @@ function renderStatistics() {
       h += '<div class="home-perf-card" onclick="openHomePerf('+hm.id+')" style="cursor:pointer" title="Bấm để xem thu chi căn này">';
       h += '<div class="home-perf-head">';
       h += '<div><div class="home-perf-name">' + hm.emoji + ' ' + hm.name + ' <span style="font-size:11px;color:var(--t3);font-weight:400">›</span></div>';
-      h += '<div class="home-perf-meta">' + hm.cnt + ' booking · ' + hm.nights + ' đêm · 🏠 doanh số phòng ' + money(hm.roomRev) + '</div></div>';
+      h += '<div class="home-perf-meta">' + hm.cnt + ' booking · ' + hm.nights + ' đêm</div></div>';
       h += '<div><div class="home-perf-amt">' + money(hm.received) + '</div>';
       h += '<div class="home-perf-amt-meta">' + (hm.nights ? money(hm.received/hm.nights)+'/đêm' : '—') + '</div></div>';
       h += '</div>';
@@ -3680,7 +3535,7 @@ function renderFinanceRevenue() {
       var owed = stillOwed(b);
 
       h += '<tr>';
-      h += '<td><div style="font-weight:600">'+b.guest+'</div><div style="font-size:11px;color:var(--t3);margin-top:1px">'+telPhone(b.phone)+'</div></td>';
+      h += '<td><div style="font-weight:600">'+b.guest+'</div><div style="font-size:11px;color:var(--t3);margin-top:1px">'+b.phone+'</div></td>';
       h += '<td><div style="font-weight:500">'+hm.emoji+' '+hm.name+'</div></td>';
       h += '<td class="center"><div style="font-size:12px;font-weight:500">'+fD(b.checkIn)+' → '+fD(b.checkOut)+'</div><div style="font-size:11px;color:var(--t3);margin-top:1px">'+b.checkInTime+' / '+b.checkOutTime+'</div></td>';
       h += '<td class="center" style="color:#7C6A4E;font-weight:600">'+n+'</td>';
@@ -3894,8 +3749,6 @@ function renderHomes() {
     +'<div><div style="font-size:14px;font-weight:700;color:#5C4E38">Quản lý Căn nhà</div><div style="font-size:11px;color:var(--t2);margin-top:2px">Thêm, sửa, xóa căn nhà. Giá áp dụng cho booking mới.</div></div>'
     +'<button class="btn btn-gold" style="margin-left:auto" onclick="openAddHome()">+ Thêm căn nhà</button></div></div>';
 
-  h+=_holidaysCard();
-
   h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:13px;margin-bottom:15px">';
   HOMES.forEach(function(hm){
     var st=gHSt(hm.id);
@@ -3912,7 +3765,6 @@ function renderHomes() {
       +'<div style="font-size:10px;color:var(--t2);margin-bottom:8px">📍 '+hm.addr+'</div>'
       +'<div style="font-size:20px;font-weight:700;color:#5C4E38;font-family:\'Playfair Display\',serif;margin-bottom:3px">'+money(hm.price)+'<span style="font-size:10px;color:var(--t3);font-weight:400;font-family:inherit">/đêm</span></div>'
       +((hm.weekendPrice&&hm.weekendPrice>0&&hm.weekendPrice!==hm.price)?'<div style="font-size:11px;color:#B85C4A;font-weight:600;margin-bottom:3px">🎉 Cuối tuần: '+money(hm.weekendPrice)+'/đêm</div>':'')
-      +((hm.holidayPrice&&hm.holidayPrice>0)?'<div style="font-size:11px;color:#A0451F;font-weight:600;margin-bottom:3px">🎊 Ngày lễ: '+money(hm.holidayPrice)+'/đêm</div>':'')
       +'<div style="font-size:11px;color:var(--t3);margin-bottom:9px">👥 Tối đa '+hm.maxG+' người</div>'
       +'<span class="badge '+s.badge+'">● '+s.lbl+'</span>'
       +'<div style="background:rgba(124,106,78,0.07);border-radius:6px;padding:8px 10px;margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:6px">'
@@ -3931,7 +3783,7 @@ function renderHomes() {
     var rev=BOOKINGS.filter(b=>b.homeId===hm.id&&b.status==='checkedout').reduce(function(s,b){return s+b.totalAmount;},0);
     h+='<tr><td><div style="display:flex;align-items:center;gap:9px"><div style="font-size:18px">'+hm.emoji+'</div><div style="font-weight:600">'+hm.name+'</div></div></td>'
       +'<td style="font-size:11px;color:var(--t2)">'+hm.addr+'</td>'
-      +'<td><span style="font-weight:700;color:#5C4E38">'+money(hm.price)+'</span>'+((hm.weekendPrice&&hm.weekendPrice>0&&hm.weekendPrice!==hm.price)?'<br><span style="font-size:10px;color:#B85C4A;font-weight:600">CT: '+money(hm.weekendPrice)+'</span>':'')+((hm.holidayPrice&&hm.holidayPrice>0)?'<br><span style="font-size:10px;color:#A0451F;font-weight:600">Lễ: '+money(hm.holidayPrice)+'</span>':'')+'</td>'
+      +'<td><span style="font-weight:700;color:#5C4E38">'+money(hm.price)+'</span>'+((hm.weekendPrice&&hm.weekendPrice>0&&hm.weekendPrice!==hm.price)?'<br><span style="font-size:10px;color:#B85C4A;font-weight:600">CT: '+money(hm.weekendPrice)+'</span>':'')+'</td>'
       +'<td style="font-size:12px">👥 '+hm.maxG+'</td>'
       +'<td><span class="badge '+(stM2[st.st]||'b-done')+'">'+(stL2[st.st]||'—')+'</span></td>'
       +'<td style="font-weight:600;color:#5A7A96">'+cnt+'</td>'
@@ -3942,60 +3794,6 @@ function renderHomes() {
   return h;
 }
 
-function _fmtHolDate(iso){ if(!iso) return ''; var d=(''+iso).split('T')[0].split('-'); return d.length===3?d[2]+'/'+d[1]+'/'+d[0]:iso; }
-function _holidaysCard(){
-  var isAdmin = CU && CU.role==='admin';
-  var h='<div class="card"><div class="ch"><div class="ct">🎊 Ngày lễ (áp giá lễ)</div></div>';
-  h+='<div style="font-size:11px;color:var(--t2);padding:0 2px 10px">Đêm rơi vào ngày lễ sẽ tính theo "Giá ngày lễ" của căn. Ưu tiên: Lễ > Cuối tuần > Ngày thường.</div>';
-  if(isAdmin){
-    h+='<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-bottom:12px;padding:10px;background:rgba(124,106,78,0.05);border:1px solid rgba(124,106,78,0.2);border-radius:8px">'
-      +'<div class="fg" style="margin-bottom:0;flex:2;min-width:150px"><label class="fl">Tên ngày lễ *</label><input class="fc" id="hol-name" placeholder="VD: Lễ 30/4 - 1/5"/></div>'
-      +'<div class="fg" style="margin-bottom:0;flex:1;min-width:130px"><label class="fl">Từ ngày *</label><input type="date" class="fc" id="hol-start"/></div>'
-      +'<div class="fg" style="margin-bottom:0;flex:1;min-width:130px"><label class="fl">Đến ngày</label><input type="date" class="fc" id="hol-end"/></div>'
-      +'<button class="btn btn-gold" onclick="addHoliday()">+ Thêm</button></div>';
-  }
-  if(!HOLIDAYS||!HOLIDAYS.length){
-    h+='<div style="text-align:center;padding:14px;color:var(--t3);font-size:12px">Chưa khai ngày lễ nào</div>';
-  } else {
-    h+='<div class="tw"><table><thead><tr><th>Tên</th><th>Từ</th><th>Đến</th>'+(isAdmin?'<th></th>':'')+'</tr></thead><tbody>';
-    HOLIDAYS.forEach(function(hd){
-      h+='<tr><td style="font-weight:600">'+hd.name+'</td>'
-        +'<td style="font-size:12px">'+_fmtHolDate(hd.startDate)+'</td>'
-        +'<td style="font-size:12px">'+_fmtHolDate(hd.endDate)+'</td>'
-        +(isAdmin?'<td><button class="btn btn-xs btn-danger" onclick="delHoliday('+hd.id+')">🗑</button></td>':'')
-        +'</tr>';
-    });
-    h+='</tbody></table></div>';
-  }
-  h+='</div>';
-  return h;
-}
-async function addHoliday(){
-  var name=document.getElementById('hol-name')?.value?.trim();
-  var startDate=document.getElementById('hol-start')?.value;
-  var endDate=document.getElementById('hol-end')?.value;
-  if(!name||!startDate){toast('Điền tên và ngày bắt đầu','warn');return;}
-  setLoading(true);
-  try{
-    await api.post('/holidays', { name, startDate, endDate: endDate||startDate });
-    await reloadHolidays();
-    toast('Đã thêm ngày lễ','success');
-    setPage(curPage);
-  }catch(e){ toast(e.message,'error'); }
-  finally{ setLoading(false); }
-}
-async function delHoliday(id){
-  var hd=(HOLIDAYS||[]).find(function(x){return x.id===id;});
-  if(!confirm('Xóa ngày lễ "'+(hd?hd.name:'')+'"?')) return;
-  setLoading(true);
-  try{
-    await api.delete('/holidays/'+id);
-    await reloadHolidays();
-    toast('Đã xóa ngày lễ','success');
-    setPage(curPage);
-  }catch(e){ toast(e.message,'error'); }
-  finally{ setLoading(false); }
-}
 function _homeModal(hm) {
   const isEdit=!!hm?.id;
   const emojiPicker=EMOJIS.map(function(e){
@@ -4016,12 +3814,9 @@ function _homeModal(hm) {
     +'<input type="text" inputmode="numeric" class="fc" id="h-price" value="'+numVal(hm?.price||'')+'" placeholder="VD: 4.000.000" oninput="fmtNumInput(this);document.getElementById(\'h-prev\').textContent=this.value?new Intl.NumberFormat(\'vi-VN\').format(parseNum(this.value))+\'đ\':\'—\'"/></div>'
     +'<div class="fg" style="margin-bottom:0"><label class="fl">Cuối tuần T6,T7,CN (đ)</label>'
     +'<input type="text" inputmode="numeric" class="fc" id="h-wkprice" value="'+numVal(hm?.weekendPrice||'')+'" placeholder="Bỏ trống = giá thường" oninput="fmtNumInput(this);document.getElementById(\'h-wkprev\').textContent=this.value?new Intl.NumberFormat(\'vi-VN\').format(parseNum(this.value))+\'đ\':\'= giá thường\'"/></div></div>'
-    +'<div class="fg" style="margin-bottom:0;margin-top:9px"><label class="fl">Ngày lễ (đ)</label>'
-    +'<input type="text" inputmode="numeric" class="fc" id="h-holprice" value="'+numVal(hm?.holidayPrice||'')+'" placeholder="Bỏ trống = giá cuối tuần" oninput="fmtNumInput(this);document.getElementById(\'h-holprev\').textContent=this.value?new Intl.NumberFormat(\'vi-VN\').format(parseNum(this.value))+\'đ\':\'= giá cuối tuần\'"/></div>'
     +'<div style="margin-top:7px;font-size:12px;color:#5C4E38;display:flex;flex-direction:column;gap:3px">'
     +'<div>Ngày thường: <strong id="h-prev" style="color:#5C4E38">'+(hm?.price?money(hm.price):'—')+'</strong></div>'
     +'<div>Cuối tuần: <strong id="h-wkprev" style="color:#B85C4A">'+((hm?.weekendPrice&&hm.weekendPrice>0)?money(hm.weekendPrice):'= giá thường')+'</strong></div>'
-    +'<div>Ngày lễ: <strong id="h-holprev" style="color:#A0451F">'+((hm?.holidayPrice&&hm.holidayPrice>0)?money(hm.holidayPrice):'= giá cuối tuần')+'</strong></div>'
     +'</div>'
     +(isEdit?'<div style="margin-top:8px;padding:7px 10px;background:rgba(160,120,64,0.1);border-radius:6px;font-size:11px;color:#7A5C30">⚠ Thay đổi giá chỉ áp dụng booking MỚI</div>':'')
     +'</div>'
@@ -4042,15 +3837,13 @@ async function saveHome(id){
   const price=parseNum(document.getElementById('h-price')?.value);
   const wkRaw=document.getElementById('h-wkprice')?.value;
   const weekendPrice=(wkRaw==='' || wkRaw==null || wkRaw.replace(/\D/g,'')==='')?null:(parseNum(wkRaw)||null);
-  const holRaw=document.getElementById('h-holprice')?.value;
-  const holidayPrice=(holRaw==='' || holRaw==null || holRaw.replace(/\D/g,'')==='')?null:(parseNum(holRaw)||null);
   const maxG=parseInt(document.getElementById('h-maxg')?.value)||8;
   const emoji=document.getElementById('h-emoji')?.value||'🏡';
   const desc=document.getElementById('h-desc')?.value||'';
   if(!name||!addr||!price){toast('Điền đủ: tên, địa chỉ, giá','warn');return;}
   setLoading(true);
   try {
-    const payload = { name, address: addr, price, weekendPrice, holidayPrice, maxGuests: maxG, emoji, desc };
+    const payload = { name, address: addr, price, weekendPrice, maxGuests: maxG, emoji, desc };
     if (id) await api.patch('/homes/' + id, payload);
     else await api.post('/homes', payload);
     await reloadHomes();
@@ -4226,7 +4019,7 @@ function renderCharges() {
     QUICK.forEach(function(q, i) {
       h += '<tr><td style="color:var(--t3);font-size:10px">#' + (i + 1) + '</td>'
         + '<td><span style="font-weight:500">' + q.name + '</span></td>'
-        + '<td style="font-weight:600;color:#5A7A96">' + money(q.amount) + '<span style="font-size:10px;color:var(--t3);font-weight:400">/' + (q.unitLabel||'cái') + '</span></td>'
+        + '<td style="font-weight:600;color:#5A7A96">' + money(q.amount) + '<span style="font-size:10px;color:var(--t3);font-weight:400">/cái</span></td>'
         + '<td><div style="display:flex;gap:4px">'
         + '<button class="btn btn-xs btn-out" onclick="openEditQuick(' + q.id + ')">✏️</button>'
         + '<button class="btn btn-xs btn-danger" onclick="delQuick(' + q.id + ')">🗑</button>'
@@ -4313,12 +4106,10 @@ function _quickModal(q) {
     '<div class="mh"><div class="mt2">' + (isEdit ? '✏️ Sửa' : '➕ Thêm') + ' mục tiêu thụ</div><button class="mc" onclick="closeModal()">✕</button></div>'
     + '<div class="fg"><label class="fl">Tên mục *</label>'
     + '<input class="fc" id="qk-name" value="' + (q ? q.name : '') + '" placeholder="VD: Nước ngọt (lon), Mì gói..."/></div>'
-    + '<div class="fg"><label class="fl">Đơn vị lẻ (chai, lon, gói…) *</label>'
-    + '<input class="fc" id="qk-unit" value="' + (q ? (q.unitLabel||'cái') : 'cái') + '" placeholder="VD: chai, lon, gói, ly"/></div>'
-    + '<div class="fg"><label class="fl">Đơn giá / 1 đơn vị (đ) *</label>'
+    + '<div class="fg"><label class="fl">Đơn giá / 1 cái (đ) *</label>'
     + '<input type="text" inputmode="numeric" class="fc" id="qk-amount" value="' + (q ? numVal(q.amount) : '') + '" placeholder="VD: 15.000" oninput="fmtNumInput(this)"/></div>'
     + '<div style="background:rgba(90,122,150,0.06);border-radius:7px;padding:9px 12px;font-size:11px;color:#5A7A96;border:1px solid rgba(90,122,150,0.15);margin-bottom:11px">'
-    + '💡 Khi trả nhà, quản gia sẽ nhập số lượng. VD: nước suối 15k × 3 chai = 45k'
+    + '💡 Khi trả nhà, quản gia sẽ nhập số lượng. VD: đơn giá 15k × 3 cái = 45k'
     + '</div>'
     + '<div class="mfoot"><button class="btn btn-out" onclick="closeModal()">Hủy</button>'
     + '<button class="btn btn-gold" onclick="saveQuick(' + (isEdit ? q.id : 0) + ')">' + (isEdit ? 'Cập nhật' : 'Tạo') + '</button></div>',
@@ -4330,12 +4121,11 @@ function openEditQuick(id) { _quickModal(QUICK.find(function(q){return q.id===id
 async function saveQuick(id) {
   const name = document.getElementById('qk-name')?.value?.trim();
   const amount = parseNum(document.getElementById('qk-amount')?.value);
-  const unitLabel = (document.getElementById('qk-unit')?.value?.trim()) || 'cái';
   if (!name || !amount) { toast('Điền tên và đơn giá', 'warn'); return; }
   setLoading(true);
   try {
-    if (id) await api.patch('/charge-templates/' + id, { name, amount, unitLabel });
-    else await api.post('/charge-templates', { name, amount, type: 'QUICK', unitLabel });
+    if (id) await api.patch('/charge-templates/' + id, { name, amount });
+    else await api.post('/charge-templates', { name, amount, type: 'QUICK' });
     await reloadCharges();
     closeModal();
     toast(id ? 'Đã cập nhật' : 'Đã thêm mục tiêu thụ', 'success');
@@ -4414,22 +4204,4 @@ async function saveExp(id){
   }
 }
 async function delExp(id){
-  if(!confirm('Xóa chi phí này?')) return;
-  setLoading(true);
-  try {
-    await api.delete('/expenses/' + id);
-    await reloadExpenses();
-    toast('Đã xóa', 'success');
-    setPage(curPage);
-  } catch (e) {
-    toast(e.message, 'error');
-  } finally {
-    setLoading(false);
-  }
-}
-
-/* CAT constant if missing */
-if (typeof CAT === 'undefined') { var CAT = ['Điện nước','Dọn dẹp','Sửa chữa','Vật tư','Lương','Khác']; }
-</script>
-</body>
-</html>
+  if(!co
