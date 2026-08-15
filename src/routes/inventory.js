@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
-import { requireRole } from '../middleware/auth.js';
+import { requireRole, hostWhere, ownHostId } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -51,12 +51,13 @@ router.get('/', async (req, res) => {
   const [allProducts, homes, entries, charges] = await Promise.all([
     // Lấy CẢ món đã ngừng bán (active:false) — nếu còn lịch sử nhập/bán thì vẫn phải hiện.
     prisma.chargeTemplate.findMany({
-      where: { type: 'QUICK', trackStock: true },
+      where: hostWhere(req, { type: 'QUICK', trackStock: true }),
       orderBy: { id: 'asc' }
     }),
-    prisma.home.findMany({ where: { active: true }, orderBy: { id: 'asc' } }),
-    prisma.stockEntry.findMany(),
+    prisma.home.findMany({ where: hostWhere(req, { active: true }), orderBy: { id: 'asc' } }),
+    prisma.stockEntry.findMany({ where: hostWhere(req) }),
     prisma.charge.findMany({
+      where: { booking: hostWhere(req) },
       include: { booking: { select: { homeId: true, checkIn: true, checkOut: true } } }
     })
   ]);
@@ -149,7 +150,7 @@ router.get('/', async (req, res) => {
 // GET /v1/inventory/entries?month=&homeId=&templateId=
 router.get('/entries', async (req, res) => {
   const { month, homeId, templateId } = req.query;
-  const where = {};
+  const where = hostWhere(req);
   if (month) {
     const { start, end } = monthBounds(month);
     where.date = { gte: start, lte: end };
@@ -198,7 +199,8 @@ router.post('/import', requireRole('ADMIN', 'MANAGER', 'STAFF'), async (req, res
       qty,
       type: 'IMPORT',
       note: note ? String(note).trim() : null,
-      date: date ? new Date(date) : new Date()
+      date: date ? new Date(date) : new Date(),
+      hostId: ownHostId(req)
     },
     include: { template: { select: { name: true, unitLabel: true } }, home: { select: { name: true, emoji: true } } }
   });
@@ -225,7 +227,8 @@ router.post('/adjust', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
       qty: q,
       type: 'ADJUST',
       note: note ? String(note).trim() : null,
-      date: date ? new Date(date) : new Date()
+      date: date ? new Date(date) : new Date(),
+      hostId: ownHostId(req)
     }
   });
   res.status(201).json(entry);

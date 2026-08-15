@@ -1,12 +1,12 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
-import { requireRole } from '../middleware/auth.js';
+import { requireRole, hostWhere, ownHostId } from '../middleware/auth.js';
 
 const router = Router();
 
 router.get('/', async (req, res) => {
   const { type } = req.query;
-  const where = { active: true };
+  const where = hostWhere(req, { active: true });
   if (type) where.type = type;
   const templates = await prisma.chargeTemplate.findMany({
     where, orderBy: { id: 'asc' }
@@ -32,7 +32,7 @@ router.post('/', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
   if (!['RULE', 'QUICK'].includes(type)) return res.status(400).json({ error: 'Type không hợp lệ' });
 
   const tpl = await prisma.chargeTemplate.create({
-    data: { name, amount: parseInt(amount), type, ...(type === 'QUICK' ? stockFields(req.body) : {}) }
+    data: { name, amount: parseInt(amount), type, hostId: ownHostId(req), ...(type === 'QUICK' ? stockFields(req.body) : {}) }
   });
   res.status(201).json(tpl);
 });

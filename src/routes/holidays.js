@@ -1,12 +1,13 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
-import { requireRole } from '../middleware/auth.js';
+import { requireRole, hostWhere, ownHostId } from '../middleware/auth.js';
 
 const router = Router();
 
-// Ai đăng nhập cũng đọc được (front cần để tính giá booking)
+// Ai đăng nhập cũng đọc được (front cần để tính giá booking) — chỉ ngày lễ của host mình.
 router.get('/', async (req, res) => {
   const holidays = await prisma.holiday.findMany({
+    where: hostWhere(req),
     orderBy: { startDate: 'asc' }
   });
   res.json(holidays);
@@ -20,7 +21,7 @@ router.post('/', requireRole('ADMIN'), async (req, res) => {
   if (isNaN(s) || isNaN(e)) return res.status(400).json({ error: 'Ngày không hợp lệ' });
   if (e < s) return res.status(400).json({ error: 'Ngày kết thúc phải sau ngày bắt đầu' });
   const holiday = await prisma.holiday.create({
-    data: { name: String(name).trim(), startDate: s, endDate: e }
+    data: { name: String(name).trim(), startDate: s, endDate: e, hostId: ownHostId(req) }
   });
   res.status(201).json(holiday);
 });

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
-import { requireRole } from '../middleware/auth.js';
+import { requireRole, hostWhere, ownHostId } from '../middleware/auth.js';
 import { checkBookingConflict, nights, stayTotal } from '../services/bookingService.js';
 
 const router = Router();
@@ -26,7 +26,7 @@ async function templateIdByName(names) {
 // ───── LIST ─────
 router.get('/', async (req, res) => {
   const { status, homeId, from, to, search } = req.query;
-  const where = {};
+  const where = hostWhere(req);
   if (status) where.status = status;
   if (homeId) where.homeId = parseInt(homeId);
   if (from && to) where.checkIn = { gte: new Date(from), lte: new Date(to) };
@@ -53,11 +53,11 @@ router.get('/today', async (req, res) => {
 
   const [checkIns, checkOuts] = await Promise.all([
     prisma.booking.findMany({
-      where: { checkIn: { gte: start, lt: end }, status: 'CONFIRMED' },
+      where: hostWhere(req, { checkIn: { gte: start, lt: end }, status: 'CONFIRMED' }),
       include: { home: true }
     }),
     prisma.booking.findMany({
-      where: { checkOut: { gte: start, lt: end }, status: { not: 'CHECKEDOUT' } },
+      where: hostWhere(req, { checkOut: { gte: start, lt: end }, status: { not: 'CHECKEDOUT' } }),
       include: { home: true, charges: true }
     })
   ]);
@@ -72,12 +72,12 @@ router.get('/calendar', async (req, res) => {
   const end = new Date(year, month, 0, 23, 59, 59);
 
   const bookings = await prisma.booking.findMany({
-    where: {
+    where: hostWhere(req, {
       status: { not: 'CHECKEDOUT' },
       OR: [
         { checkIn: { lte: end }, checkOut: { gte: start } }
       ]
-    },
+    }),
     include: { home: true }
   });
   res.json(bookings);
@@ -85,8 +85,8 @@ router.get('/calendar', async (req, res) => {
 
 // ───── DETAIL ─────
 router.get('/:id', async (req, res) => {
-  const b = await prisma.booking.findUnique({
-    where: { id: parseInt(req.params.id) },
+  const b = await prisma.booking.findFirst({
+    where: hostWhere(req, { id: parseInt(req.params.id) }),
     include: { home: true, charges: true }
   });
   if (!b) return res.status(404).json({ error: 'Không tìm thấy booking' });
@@ -127,7 +127,7 @@ router.post('/', requireRole('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
   const home = await prisma.home.findUnique({ where: { id: parseInt(homeId) } });
   if (!home) return res.status(404).json({ error: 'Căn nhà không tồn tại' });
 
-  const holidays = await prisma.holiday.findMany();
+  const holidays = await prisma.holiday.findMany({ where: hostWhere(req) });
   const totalAmount = stayTotal(home, checkIn, checkOut, holidays);
 
   // Mọi quyền (ADMIN, MANAGER, STAFF) đều được nhập tiền cọc / giảm giá.
@@ -153,6 +153,7 @@ router.post('/', requireRole('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
 
   const data = {
     guest, phone, homeId: parseInt(homeId),
+    hostId: ownHostId(req),
     checkIn: new Date(checkIn), checkInTime: checkInTime || '14:00',
     checkOut: new Date(checkOut), checkOutTime: checkOutTime || '12:00',
     guests: parseInt(guests) || 2,
@@ -251,7 +252,7 @@ router.patch('/:id', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
   // Recalculate totalAmount nếu đổi ngày/nhà
   if (homeId || checkIn || checkOut) {
     const home = await prisma.home.findUnique({ where: { id: updateData.homeId || existing.homeId } });
-    const holidays = await prisma.holiday.findMany();
+    const holidays = await prisma.holiday.findMany({ where: hostWhere(req) });
     updateData.totalAmount = stayTotal(home, updateData.checkIn || existing.checkIn, updateData.checkOut || existing.checkOut, holidays);
   }
 

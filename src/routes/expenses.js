@@ -1,12 +1,12 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
-import { requireRole } from '../middleware/auth.js';
+import { requireRole, hostWhere, ownHostId } from '../middleware/auth.js';
 
 const router = Router();
 
 router.get('/', async (req, res) => {
   const { from, to, category, homeId } = req.query;
-  const where = {};
+  const where = hostWhere(req);
   if (from && to) where.date = { gte: new Date(from), lte: new Date(to) };
   if (category) where.category = category;
   if (homeId) where.homeId = parseInt(homeId);
@@ -28,7 +28,8 @@ router.post('/', requireRole('ADMIN'), async (req, res) => {
       date: new Date(date),
       category, desc,
       amount: parseInt(amount),
-      homeId: homeId ? parseInt(homeId) : null
+      homeId: homeId ? parseInt(homeId) : null,
+      hostId: ownHostId(req)
     }
   });
   res.status(201).json(expense);

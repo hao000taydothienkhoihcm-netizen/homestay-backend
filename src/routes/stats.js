@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
 import { actualReceived, stillOwed, roomRevenue } from '../services/bookingService.js';
+import { hostWhere } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -11,9 +12,9 @@ router.get('/dashboard', async (req, res) => {
   const mEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
   const [allBookings, expenses, homes] = await Promise.all([
-    prisma.booking.findMany({ include: { home: true } }),
-    prisma.expense.findMany({ where: { date: { gte: mStart, lte: mEnd } } }),
-    prisma.home.findMany({ where: { active: true } })
+    prisma.booking.findMany({ where: hostWhere(req), include: { home: true } }),
+    prisma.expense.findMany({ where: hostWhere(req, { date: { gte: mStart, lte: mEnd } }) }),
+    prisma.home.findMany({ where: hostWhere(req, { active: true }) })
   ]);
 
   // Tháng này — booking nhận hoặc trả trong tháng
@@ -57,8 +58,8 @@ router.get('/monthly', async (req, res) => {
     const end = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
 
     const [bookings, expenses] = await Promise.all([
-      prisma.booking.findMany({ where: { checkIn: { gte: start, lte: end } } }),
-      prisma.expense.findMany({ where: { date: { gte: start, lte: end } } })
+      prisma.booking.findMany({ where: hostWhere(req, { checkIn: { gte: start, lte: end } }) }),
+      prisma.expense.findMany({ where: hostWhere(req, { date: { gte: start, lte: end } }) })
     ]);
 
     result.push({
@@ -77,7 +78,7 @@ router.get('/monthly', async (req, res) => {
 // ───── BY HOME ─────
 router.get('/by-home', async (req, res) => {
   const homes = await prisma.home.findMany({
-    where: { active: true },
+    where: hostWhere(req, { active: true }),
     include: { bookings: true }
   });
   const result = homes.map(h => {
@@ -108,16 +109,16 @@ router.get('/finance', async (req, res) => {
 
   const [bookings, expenses] = await Promise.all([
     prisma.booking.findMany({
-      where: {
+      where: hostWhere(req, {
         OR: [
           { checkIn: { gte: start, lte: end } },
           { checkOut: { gte: start, lte: end } }
         ]
-      },
+      }),
       include: { home: true, charges: true }
     }),
     prisma.expense.findMany({
-      where: { date: { gte: start, lte: end } },
+      where: hostWhere(req, { date: { gte: start, lte: end } }),
       include: { home: true },
       orderBy: { date: 'desc' }
     })

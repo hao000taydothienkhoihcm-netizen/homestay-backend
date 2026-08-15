@@ -1,12 +1,12 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
-import { requireRole } from '../middleware/auth.js';
+import { requireRole, hostWhere, ownHostId } from '../middleware/auth.js';
 
 const router = Router();
 
 router.get('/', async (req, res) => {
   const homes = await prisma.home.findMany({
-    where: { active: true },
+    where: hostWhere(req, { active: true }),
     orderBy: { id: 'asc' }
   });
   res.json(homes);
@@ -29,7 +29,8 @@ router.post('/', requireRole('ADMIN'), async (req, res) => {
       name, address, price: parseInt(price),
       weekendPrice: (wk && wk > 0) ? wk : null,
       holidayPrice: (hol && hol > 0) ? hol : null,
-      maxGuests: parseInt(maxGuests) || 8, emoji: emoji || '🏡', desc
+      maxGuests: parseInt(maxGuests) || 8, emoji: emoji || '🏡', desc,
+      hostId: ownHostId(req)
     }
   });
   res.status(201).json(home);

@@ -42,6 +42,10 @@ model User {
   role      Role     @default(STAFF)
   active    Boolean  @default(true)
 
+  // Trạng thái duyệt cho tài khoản tự đăng ký (Host/Sales). Mặc định ACTIVE
+  // để mọi tài khoản CŨ không bị chặn. Đăng ký mới -> PENDING, admin duyệt -> ACTIVE.
+  status    UserStatus @default(ACTIVE)
+
   // Multi-tenant: user thuộc host nào. Null = chưa gán (Admin super-role không cần).
   hostId    Int?
   host      Host?    @relation(fields: [hostId], references: [id])
@@ -53,9 +57,16 @@ model User {
 }
 
 enum Role {
-  ADMIN
-  MANAGER
-  STAFF
+  ADMIN     // Super-role nền tảng: thấy toàn bộ host
+  MANAGER   // Quản lý trong workspace của 1 host
+  STAFF     // Nhân viên trong workspace của 1 host
+  HOST      // Chủ nhà: sở hữu 1 workspace (multi-tenant)
+  SALES     // Cộng tác viên bán phòng ở marketplace
+}
+
+enum UserStatus {
+  PENDING   // Vừa đăng ký, chờ admin duyệt
+  ACTIVE    // Đã duyệt / tài khoản cũ
 }
 
 // ───── Homes ─────
