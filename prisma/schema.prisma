@@ -12,6 +12,26 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ───── Host (mỗi host = 1 workspace, multi-tenant) ─────
+// Bước 2: chỉ thêm bảng + cột hostId (nullable). Dữ liệu Sabi cũ backfill về host #1.
+model Host {
+  id        Int      @id @default(autoincrement())
+  name      String   // Tên hiển thị, VD "Haotran House"
+  brand     String?  // Thương hiệu, VD "Sabi Home"
+  phone     String?  // SĐT host (chỉ hiện cho sales SAU khi giữ chỗ + duyệt)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users          User[]
+  homes          Home[]
+  holidays       Holiday[]
+  bookings       Booking[]
+  chargeTemplates ChargeTemplate[]
+  stockEntries   StockEntry[]
+  expenses       Expense[]
+}
+
 // ───── User & Auth ─────
 model User {
   id        Int      @id @default(autoincrement())
@@ -21,8 +41,15 @@ model User {
   email     String?
   role      Role     @default(STAFF)
   active    Boolean  @default(true)
+
+  // Multi-tenant: user thuộc host nào. Null = chưa gán (Admin super-role không cần).
+  hostId    Int?
+  host      Host?    @relation(fields: [hostId], references: [id])
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([hostId])
 }
 
 enum Role {
@@ -43,12 +70,18 @@ model Home {
   emoji     String   @default("🏡")
   desc      String?
   active    Boolean  @default(true)
+
+  hostId    Int?
+  host      Host?    @relation(fields: [hostId], references: [id])
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   bookings  Booking[]
   expenses  Expense[]
   stockEntries StockEntry[]
+
+  @@index([hostId])
 }
 
 // ───── Ngày lễ (áp giá lễ cho mọi căn) ─────
@@ -57,9 +90,14 @@ model Holiday {
   name      String   // VD: Tết Nguyên Đán, Lễ 30/4...
   startDate DateTime @db.Date
   endDate   DateTime @db.Date  // = startDate nếu chỉ 1 ngày
+
+  hostId    Int?
+  host      Host?    @relation(fields: [hostId], references: [id])
+
   createdAt DateTime @default(now())
 
   @@index([startDate, endDate])
+  @@index([hostId])
 }
 
 // ───── Bookings ─────
@@ -94,12 +132,16 @@ model Booking {
   inspectionNote  String?
   
   charges       Charge[]
-  
+
+  hostId        Int?
+  host          Host?     @relation(fields: [hostId], references: [id])
+
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
-  
+
   @@index([homeId, checkIn, checkOut])
   @@index([status])
+  @@index([hostId])
 }
 
 enum BookingStatus {
@@ -155,8 +197,13 @@ model ChargeTemplate {
   stockEntries StockEntry[]
   charges      Charge[]
 
+  hostId    Int?
+  host      Host?    @relation(fields: [hostId], references: [id])
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([hostId])
 }
 
 enum ChargeType {
@@ -177,10 +224,14 @@ model StockEntry {
   note  String?
   date  DateTime  @db.Date
 
+  hostId    Int?
+  host      Host?    @relation(fields: [hostId], references: [id])
+
   createdAt DateTime @default(now())
 
   @@index([templateId, homeId])
   @@index([date])
+  @@index([hostId])
 }
 
 enum StockType {
@@ -197,10 +248,14 @@ model Expense {
   amount    Int
   homeId    Int?
   home      Home?    @relation(fields: [homeId], references: [id])
-  
+
+  hostId    Int?
+  host      Host?    @relation(fields: [hostId], references: [id])
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@index([date])
   @@index([category])
+  @@index([hostId])
 }

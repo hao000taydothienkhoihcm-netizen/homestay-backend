@@ -19,14 +19,14 @@ router.post('/login', async (req, res) => {
   if (!ok) return res.status(401).json({ error: 'Sai mật khẩu' });
 
   const token = jwt.sign(
-    { id: user.id, role: user.role },
+    { id: user.id, role: user.role, hostId: user.hostId ?? null },
     process.env.JWT_SECRET,
     { expiresIn: '7d' }
   );
 
   res.json({
     token,
-    user: { id: user.id, username: user.username, name: user.name, role: user.role, email: user.email }
+    user: { id: user.id, username: user.username, name: user.name, role: user.role, email: user.email, hostId: user.hostId ?? null }
   });
 });
 
