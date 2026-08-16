@@ -21,6 +21,7 @@ import usersRouter from './routes/users.js';
 import chargeTemplatesRouter from './routes/chargeTemplates.js';
 import statsRouter from './routes/stats.js';
 import inventoryRouter from './routes/inventory.js';
+import sheetRouter from './routes/sheet.js';
 
 const app = express();
 
@@ -63,6 +64,15 @@ app.use('/v1/users', usersRouter);
 app.use('/v1/charge-templates', chargeTemplatesRouter);
 app.use('/v1/stats', statsRouter);
 app.use('/v1/inventory', inventoryRouter);
+app.use('/v1/sheet', sheetRouter);
+
+// ───── SPA fallback cho React (BrowserRouter) ─────
+// Mọi đường dẫn không phải API/health/file tĩnh → trả index.html của React ở root.
+// Bản cũ nằm ở /cu (đã được express.static phục vụ, không rơi vào đây).
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/v1') || req.path.startsWith('/health')) return next();
+  res.sendFile(path.join(__dirname, '../public/index.html'));
+});
 
 // ───── Error handler ─────
 app.use((err, req, res, next) => {
