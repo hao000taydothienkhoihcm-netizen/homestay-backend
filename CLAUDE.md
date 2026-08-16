@@ -10,7 +10,9 @@
 Phần mềm quản lý homestay cho thuê theo đêm: đặt phòng, nhận/trả nhà, thu chi, phụ thu & phạt, quản lý kho (đồ tiêu thụ trong phòng), thống kê doanh thu/lợi nhuận. Gồm 3 phần dùng chung 1 database:
 
 - **Backend API** — Node/Express (ES modules) + Prisma + PostgreSQL. Đây là repo này.
-- **Web quản lý** — 1 file `public/index.html` (SPA thuần, không build), backend phục vụ luôn.
+- **Web quản lý** — ĐANG CHUYỂN sang **React** (repo riêng `sabihome`, ở `D:\projects\sabihome`,
+  xem `sabihome/CLAUDE.md`). Bản React chạy ở `/`; **bản cũ 1 file vẫn giữ ở `/cu`** làm dự phòng.
+  `public/index.html` bây giờ là **file BUILD của React** — KHÔNG sửa tay (xem mục 6).
 - **App điện thoại** — React Native (nằm ở repo/thư mục riêng, không nằm trong repo này).
 
 ---
@@ -68,9 +70,9 @@ CORS_ORIGIN="*"
 homestay-backend/
 ├─ prisma/schema.prisma      # Toàn bộ mô hình dữ liệu (xem mục 5)
 ├─ src/
-│  ├─ server.js              # Khởi động Express
+│  ├─ server.js              # Khởi động Express + SPA fallback cho React (mọi path ≠ /v1,/health → index.html)
 │  ├─ prisma.js              # Prisma client
-│  ├─ middleware/            # Auth JWT, phân quyền
+│  ├─ middleware/            # Auth JWT, phân quyền (JWT mang role + hostId)
 │  ├─ services/bookingService.js
 │  └─ routes/
 │     ├─ auth.js             # Đăng nhập
@@ -80,12 +82,14 @@ homestay-backend/
 │     ├─ inventory.js        # Nhập kho + báo cáo tồn kho tháng
 │     ├─ expenses.js         # Thu chi vận hành
 │     ├─ stats.js            # Thống kê doanh thu/chi phí
-│     └─ users.js            # CRUD tài khoản
-├─ public/index.html         # WEB quản lý (SPA 1 file) — deploy = sửa file này
+│     ├─ users.js            # CRUD tài khoản
+│     └─ sheet.js            # Nhập lịch từ Google Sheet: POST /v1/sheet/preview (bóc màu ô → trạng thái)
+├─ public/                   # Web tĩnh do backend phục vụ:
+│  ├─ index.html + assets/   #   ← BUILD React (từ repo sabihome). KHÔNG sửa tay.
+│  ├─ cu/index.html          #   ← bản web CŨ 1 file, giữ ở /cu làm dự phòng
+│  └─ _old-backup/           #   ← file rác cũ, bỏ qua
 └─ render.yaml               # Cấu hình Render
 ```
-
-Web bản làm việc (chưa deploy) còn 1 bản ở `D:\projects\homestay-web\index.html`; khi deploy thì đưa nội dung vào `public/index.html` của repo này rồi commit.
 
 ---
 
@@ -106,6 +110,16 @@ Cách sửa: thêm khoá ngoại **`Charge.templateId → ChargeTemplate.id`** v
 - Báo cáo kho khớp theo **ID** trước, rồi mới tới tên → mặt hàng đã "ngừng bán" nhưng còn lịch sử bán/nhập vẫn hiện (VD 16 "ly mỳ ly" bán trong tháng 7), có nhãn đỏ **"ngừng bán"** trên web.
 File liên quan: `prisma/schema.prisma` (model Charge), `src/routes/bookings.js` (gán templateId khi tạo/sửa/checkout), `src/routes/inventory.js` (báo cáo gồm mặt hàng ngừng-bán-còn-lịch-sử), `public/index.html` (nhãn "ngừng bán"). Đã commit & deploy xong.
 
+### Đang làm dở (tính tới 16/08/2026)
+- **Chuyển web sang React** (repo `sabihome`): 13 màn đã xong, chạy song song `/` (React) + `/cu` (cũ),
+  đã push + deploy. Việc tiếp: ổn định React, đối chiếu từng màn với `/cu`. Chi tiết ở `sabihome/CLAUDE.md`.
+- **Nhập lịch Google Sheet (#152, BẮT BUỘC):** backend `POST /v1/sheet/preview` ĐÃ XONG (host dán link
+  Sheet công khai → bóc màu ô → trả legend + lịch, chỉ lấy ngày từ hôm nay). Còn thiếu **UI React**.
+  Đang chờ chủ nhà đưa **link Sheet thật** để map màu.
+- **Lộ trình marketplace multi-tenant** (đọc skill `homestay-manager-full`): đã bắt đầu ở backend —
+  thêm `hostId` (commit c004137) + tài khoản Sales/Host/Admin, duyệt PENDING→ACTIVE (commit 46dc5fb).
+  JWT đã mang `role` + `hostId`. Các bước sau: chợ host đăng căn → giữ chỗ → duyệt → chốt booking.
+
 ---
 
 ## 6. Quy trình deploy (mỗi lần sửa)
@@ -119,7 +133,10 @@ git push
 ```
 Rồi vào Render → Manual Deploy → *Deploy latest commit* (đổi schema thì *Clear build cache & deploy*).
 
-**Web:** sửa `public/index.html` → commit/push như trên → deploy Render. (Nếu sửa ở `D:\projects\homestay-web\index.html` thì copy nội dung sang `public/index.html` trước.)
+**Web (React — cách MỚI):** sửa code ở repo `sabihome` → `npm run build` (ra `dist/`) → copy
+`dist/` (index.html + assets/) vào `public/` của repo này → commit/push → deploy Render.
+KHÔNG sửa trực tiếp `public/index.html` (là file build, sẽ bị đè).
+Bản cũ ở `public/cu/index.html` — chỉ đụng khi cần vá gấp bản dự phòng.
 
 ---
 
