@@ -1,0 +1,122 @@
+/* ============================================================
+   SABI HOME — DESIGN TOKENS
+   Dán nguyên khối này vào <style> của mọi file mockup/app.
+   Đổi màu ở đây = đổi cả trang. Không hard-code mã màu ở nơi khác.
+   ============================================================ */
+
+:root{
+  /* --- Màu thương hiệu (nền sáng, mặc định) --- */
+  --bg:#f4efe6;        /* nền trang, be/kem                          */
+  --card:#fffdf9;      /* mặt thẻ, trắng ngà                         */
+  --line:#e3d8c4;      /* đường kẻ, viền                             */
+  --ink:#3d352a;       /* chữ chính, nâu đậm      | tương phản 10.5  */
+  --muted:#8a7a5c;     /* chữ phụ, nhãn nhỏ       | 3.65 — chỉ ≤13px */
+  --brown:#6b4f2a;     /* MÀU NHẤN CHÍNH          | 6.6  — an toàn   */
+  --gold:#c9a227;      /* CHỈ trang trí           | 2.11 — CẤM làm chữ */
+  --pine:#4a6b52;      /* xanh thông              | 5.2              */
+  --pine-d:#3c5843;    /* xanh đậm                | 6.9              */
+  --red:#b4553f;       /* cảnh báo, công nợ       | 4.25 — chỉ đậm/≥18px */
+
+  /* --- Vai trò trạng thái (dùng cái này, đừng gọi màu trực tiếp) --- */
+  --st-ok:var(--pine-d);     /* xong · đã thu · đang ở        */
+  --st-cho:var(--brown);     /* chờ duyệt · sắp đến hạn       */
+  --st-loi:var(--red);       /* quá hạn · công nợ · huỷ       */
+
+  /* --- Chữ --- */
+  --font-head:Georgia,'Times New Roman',serif;   /* chữ ký thương hiệu */
+  --font:'Be Vietnam Pro',system-ui,sans-serif;
+  --fs-xs:12px; --fs-sm:13px; --fs-md:15px; --fs-lg:19px; --fs-xl:28px; --fs-2xl:40px;
+  --lh-head:1.25;   /* dưới 1.25 là cắt dấu tiếng Việt */
+  --lh-body:1.55;
+
+  /* --- Khoảng cách (chỉ dùng 6 giá trị này) --- */
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px;
+
+  /* --- Hình khối --- */
+  --r:10px; --r-sm:6px; --r-pill:999px;
+  --shadow:0 1px 2px rgba(61,53,42,.06), 0 4px 12px rgba(61,53,42,.05);
+
+  /* --- Icon --- */
+  --ic-sm:16px; --ic-md:20px; --ic-lg:24px;
+}
+
+/* --- Biến thể nền tối (nhân viên xem ban đêm) ---
+   Bật bằng: <body class="toi">  hoặc  @media (prefers-color-scheme:dark)
+   Vẫn giữ tông ấm — KHÔNG dùng xám xanh trung tính.                 */
+.toi{
+  --bg:#1f1a14; --card:#2a241c; --line:#3d352a;
+  --ink:#f4efe6;       /* 15.1 */
+  --muted:#a89878;     /* 6.1  */
+  --brown:#d9b98a;     /* 9.3 — nhấn phải sáng lên trên nền tối */
+  --gold:#d9b43a;      /* 8.7 — trên nền tối thì vàng DÙNG ĐƯỢC làm chữ */
+  --pine:#8ab89a; --pine-d:#8ab89a;   /* 7.7 */
+  --red:#e08b73;                      /* 6.7 */
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 4px 12px rgba(0,0,0,.3);
+}
+
+/* ============================================================
+   NỀN TẢNG
+   ============================================================ */
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:var(--font); font-size:var(--fs-md); line-height:var(--lh-body);
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3{font-family:var(--font-head);line-height:var(--lh-head);font-weight:700}
+h1{font-size:var(--fs-xl)} h2{font-size:var(--fs-lg)} h3{font-size:var(--fs-md)}
+.muted{color:var(--muted);font-size:var(--fs-sm)}
+.tien{font-size:var(--fs-lg);font-weight:700;font-variant-numeric:tabular-nums;color:var(--brown)}
+.no-print{}
+
+/* ============================================================
+   ICON — dùng sprite sabi-icons.svg
+   <svg class="ic"><use href="#ic-phong"/></svg>
+   ============================================================ */
+.ic{width:var(--ic-md);height:var(--ic-md);fill:currentColor;
+    flex:none;vertical-align:-.18em}
+.ic--sm{width:var(--ic-sm);height:var(--ic-sm)}
+.ic--lg{width:var(--ic-lg);height:var(--ic-lg)}
+
+/* ============================================================
+   THÀNH PHẦN
+   ============================================================ */
+.card{background:var(--card);border:1px solid var(--line);
+      border-radius:var(--r);padding:var(--s4);margin-bottom:var(--s3)}
+
+.chip{display:inline-flex;align-items:center;gap:var(--s1);
+      padding:2px 10px;border-radius:var(--r-pill);
+      font-size:var(--fs-xs);font-weight:500;white-space:nowrap;
+      border:1px solid currentColor}
+.chip--ok{color:var(--st-ok)} .chip--cho{color:var(--st-cho)} .chip--loi{color:var(--st-loi)}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--s2);
+     min-height:48px;padding:0 var(--s4);border:1px solid transparent;
+     border-radius:var(--r);font:inherit;font-weight:600;cursor:pointer}
+.btn--chinh{background:var(--brown);color:var(--card)}
+.btn--phu{background:transparent;color:var(--ink);border-color:var(--line)}
+.btn--nguy{background:transparent;color:var(--red);border-color:var(--red)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+
+.field{display:block;margin-bottom:var(--s4)}
+.field > span{display:block;font-size:var(--fs-sm);color:var(--muted);margin-bottom:var(--s1)}
+.field input,.field select{width:100%;min-height:48px;padding:0 var(--s3);
+  font-size:16px;   /* 16px: iOS không tự phóng to khi focus */
+  font-family:inherit;background:var(--card);color:var(--ink);
+  border:1px solid var(--line);border-radius:var(--r)}
+.field input:focus{outline:2px solid var(--brown);outline-offset:1px}
+
+.bar{position:fixed;left:0;right:0;bottom:0;
+     padding:var(--s3) var(--s4) calc(var(--s3) + env(safe-area-inset-bottom));
+     background:linear-gradient(transparent,var(--bg) 30%)}
+
+.empty{text-align:center;padding:var(--s6) var(--s4);color:var(--muted)}
+.empty .ic{width:40px;height:40px;color:var(--line);margin-bottom:var(--s3)}
+
+/* Đường kẻ trang trí — đây mới là chỗ dùng --gold */
+.rule-gold{border:0;border-top:2px solid var(--gold);width:32px;margin:var(--s3) 0}
+
+@media print{
+  .bar,.no-print{display:none!important}
+  body{background:#fff;color:#000;font-size:12pt}
+}

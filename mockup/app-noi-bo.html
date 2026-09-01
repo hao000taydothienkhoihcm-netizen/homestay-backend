@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
+<title>Sabi Home — Mockup UI/UX React</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="sabi-tokens.css"/>
+<style>
+/* ══════════ KHUNG XEM MOCKUP (không thuộc app thật) ══════════ */
+html,body{height:100%}
+body{overflow:hidden}
+.mk-bar{height:46px;display:flex;align-items:center;gap:var(--s2);
+  padding:0 var(--s4);background:var(--ink);color:var(--bg);overflow-x:auto}
+.mk-bar b{font-family:var(--font-head);font-size:var(--fs-sm);margin-right:var(--s3);white-space:nowrap}
+.mk-tab{padding:5px 12px;border-radius:var(--r-pill);font-size:var(--fs-xs);font-weight:500;
+  cursor:pointer;white-space:nowrap;border:1px solid rgba(244,239,230,.25);background:transparent;color:inherit;font-family:inherit}
+.mk-tab.on{background:var(--bg);color:var(--ink);font-weight:600;border-color:var(--bg)}
+.mk-tab.moi::after{content:'MỚI';margin-left:6px;font-size:9px;font-weight:700;
+  background:var(--gold);color:#2a2010;padding:1px 5px;border-radius:var(--r-pill)}
+.mk-right{margin-left:auto;display:flex;gap:var(--s2);align-items:center}
+
+/* ══════════ VỎ APP ══════════ */
+.app{display:flex;height:calc(100vh - 46px);overflow:hidden}
+.sb{width:212px;flex:none;background:var(--card);border-right:1px solid var(--line);
+  display:flex;flex-direction:column}
+.sb-brand{padding:var(--s4);border-bottom:1px solid var(--line)}
+.sb-brand h2{font-size:var(--fs-lg);color:var(--brown);letter-spacing:.3px}
+.sb-brand p{font-size:var(--fs-xs);color:var(--muted);margin-top:2px}
+.sb-user{padding:var(--s3) var(--s4);border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:var(--s2)}
+.av{width:34px;height:34px;border-radius:50%;background:var(--brown);color:var(--card);
+  display:flex;align-items:center;justify-content:center;font-weight:700;flex:none}
+.sb-nav{flex:1;overflow-y:auto;padding:var(--s2)}
+.ns{font-size:var(--fs-xs);color:var(--muted);text-transform:uppercase;letter-spacing:.8px;
+  padding:var(--s3) var(--s2) var(--s1)}
+.ni{display:flex;align-items:center;gap:var(--s2);padding:9px var(--s2);border-radius:var(--r-sm);
+  font-size:var(--fs-sm);color:var(--ink);cursor:pointer;border:none;background:none;
+  font-family:inherit;width:100%;text-align:left}
+.ni:hover{background:var(--bg)}
+.ni.on{background:var(--brown);color:var(--card);font-weight:600}
+.ni .nb{margin-left:auto;background:var(--red);color:#fff;font-size:11px;font-weight:700;
+  padding:0 7px;border-radius:var(--r-pill)}
+.ni .moi{margin-left:auto;font-size:9px;font-weight:700;background:var(--gold);color:#2a2010;
+  padding:1px 5px;border-radius:var(--r-pill)}
+.sb-bot{padding:var(--s3);border-top:1px solid var(--line)}
+
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.top{height:60px;flex:none;border-bottom:1px solid var(--line);background:var(--card);
+  display:flex;align-items:center;gap:var(--s3);padding:0 var(--s5)}
+.top h1{font-size:var(--fs-lg)}
+.top .sub{font-size:var(--fs-xs);color:var(--muted)}
+.top-r{margin-left:auto;display:flex;align-items:center;gap:var(--s2)}
+.body{flex:1;overflow-y:auto;padding:var(--s5)}
+.scr{display:none}.scr.on{display:block}
+
+/* ══════════ TIỆN ÍCH ══════════ */
+.row{display:flex;align-items:center;gap:var(--s2)}
+.grid{display:grid;gap:var(--s3)}
+.g4{grid-template-columns:repeat(4,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g2{grid-template-columns:repeat(2,1fr)}
+.sec-h{display:flex;align-items:center;gap:var(--s2);margin:var(--s5) 0 var(--s3)}
+.sec-h h2{flex:none}
+.sec-h .muted{margin-left:auto}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:var(--s4)}
+.kpi .lb{font-size:var(--fs-xs);color:var(--muted);text-transform:uppercase;letter-spacing:.6px;
+  display:flex;align-items:center;gap:6px}
+.kpi .vl{font-family:var(--font-head);font-size:26px;font-weight:700;margin-top:var(--s2);
+  font-variant-numeric:tabular-nums}
+.kpi .ss{font-size:var(--fs-xs);color:var(--muted);margin-top:2px}
+.kpi.ok{border-left:3px solid var(--pine-d)} .kpi.ok .vl{color:var(--pine-d)}
+.kpi.br{border-left:3px solid var(--brown)} .kpi.br .vl{color:var(--brown)}
+.kpi.rd{border-left:3px solid var(--red)}   .kpi.rd .vl{color:var(--red)}
+table{width:100%;border-collapse:collapse;font-size:var(--fs-sm)}
+th{text-align:left;font-size:var(--fs-xs);color:var(--muted);text-transform:uppercase;
+  letter-spacing:.6px;font-weight:600;padding:var(--s2) var(--s3);border-bottom:1px solid var(--line)}
+td{padding:var(--s3);border-bottom:1px solid var(--line);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tbody tr:hover{background:var(--bg)}
+.tien-sm{font-weight:700;font-variant-numeric:tabular-nums;color:var(--brown)}
+.btn--sm{min-height:34px;padding:0 var(--s3);font-size:var(--fs-sm)}
+.btn--xs{min-height:28px;padding:0 10px;font-size:var(--fs-xs)}
+.tag{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:var(--r-pill);
+  font-size:var(--fs-xs);font-weight:600}
+.tag--vip{background:rgba(201,162,39,.18);color:#6b5410}
+.tag--quen{background:rgba(74,107,82,.15);color:var(--pine-d)}
+.tag--moi{background:rgba(107,79,42,.12);color:var(--brown)}
+.tag--den{background:rgba(180,85,63,.15);color:var(--red)}
+.note{background:rgba(201,162,39,.09);border:1px solid rgba(201,162,39,.35);
+  border-radius:var(--r);padding:var(--s3) var(--s4);font-size:var(--fs-sm);
+  display:flex;gap:var(--s3);align-items:flex-start;margin-bottom:var(--s4)}
+.note .ic{color:var(--brown);margin-top:2px}
+
+/* ══════════ LỊCH TIMELINE ══════════ */
+.tl-wrap{background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.tl-top{display:flex;align-items:center;gap:var(--s2);padding:var(--s3) var(--s4);
+  border-bottom:1px solid var(--line);flex-wrap:wrap}
+.tl-scroll{overflow-x:auto}
+.tl{min-width:1080px}
+.tl-r{display:grid;grid-template-columns:172px repeat(14,1fr);align-items:stretch}
+.tl-hd{border-bottom:1px solid var(--line);background:var(--bg)}
+.tl-hd .d{padding:var(--s2) 0;text-align:center;font-size:var(--fs-xs);border-left:1px solid var(--line)}
+.tl-hd .d b{display:block;font-size:var(--fs-sm);font-weight:700}
+.tl-hd .d.we{background:rgba(201,162,39,.12)}
+.tl-hd .d.today{background:var(--brown);color:var(--card)}
+.tl-hd .nm{padding:var(--s2) var(--s3);font-size:var(--fs-xs);color:var(--muted);
+  display:flex;align-items:flex-end;text-transform:uppercase;letter-spacing:.6px}
+.tl-b{border-bottom:1px solid var(--line);min-height:56px}
+.tl-b:last-child{border-bottom:none}
+.tl-b .nm{padding:var(--s2) var(--s3);display:flex;flex-direction:column;justify-content:center;
+  border-right:1px solid var(--line)}
+.tl-b .nm b{font-size:var(--fs-sm)}
+.tl-b .nm span{font-size:var(--fs-xs);color:var(--muted)}
+.cell{border-left:1px solid var(--line);position:relative}
+.cell.we{background:rgba(201,162,39,.06)}
+.cell.today{box-shadow:inset 1px 0 0 var(--brown),inset -1px 0 0 var(--brown)}
+.bar{position:absolute;top:8px;bottom:8px;left:4px;right:4px;border-radius:var(--r-sm);
+  padding:0 var(--s2);display:flex;align-items:center;gap:6px;cursor:grab;
+  font-size:var(--fs-xs);font-weight:600;overflow:hidden;white-space:nowrap;
+  border:1px solid;color:var(--card)}
+.bar:active{cursor:grabbing}
+.bar.b-o{background:var(--pine-d);border-color:var(--pine-d)}
+.bar.b-c{background:var(--brown);border-color:var(--brown)}
+.bar.b-d{background:var(--card);border-color:var(--brown);color:var(--brown);
+  border-style:dashed}
+.bar.b-x{background:var(--red);border-color:var(--red)}
+.bar .h{width:5px;align-self:stretch;margin:6px -4px;border-radius:2px;
+  background:rgba(255,255,255,.5);cursor:ew-resize;flex:none}
+.bar.b-d .h{background:rgba(107,79,42,.35)}
+.bar.ghost{opacity:.55;border-style:dashed;box-shadow:0 6px 16px rgba(61,53,42,.25)}
+.legend{display:flex;gap:var(--s4);flex-wrap:wrap;padding:var(--s3) var(--s4);
+  border-top:1px solid var(--line);font-size:var(--fs-xs);color:var(--muted)}
+.legend i{width:14px;height:14px;border-radius:3px;display:inline-block;vertical-align:-2px;
+  margin-right:5px;border:1px solid}
+.tipbox{position:absolute;z-index:20;background:var(--ink);color:var(--bg);
+  border-radius:var(--r-sm);padding:var(--s2) var(--s3);font-size:var(--fs-xs);
+  line-height:1.5;pointer-events:none;display:none;box-shadow:var(--shadow);max-width:240px}
+.tipbox b{color:var(--gold)}
+
+/* ══════════ GIÁ THEO MÙA ══════════ */
+.pcal{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.pcal .hd{font-size:var(--fs-xs);color:var(--muted);text-align:center;padding:var(--s1) 0;font-weight:600}
+.pd{border:1px solid var(--line);border-radius:var(--r-sm);padding:5px 6px;min-height:58px;
+  background:var(--card);cursor:pointer}
+.pd:hover{border-color:var(--brown)}
+.pd .n{font-size:var(--fs-xs);color:var(--muted)}
+.pd .p{font-size:var(--fs-xs);font-weight:700;font-variant-numeric:tabular-nums;margin-top:3px}
+.pd.we{background:rgba(201,162,39,.09)}
+.pd.mua{background:rgba(107,79,42,.13);border-color:rgba(107,79,42,.4)}
+.pd.le{background:rgba(180,85,63,.12);border-color:rgba(180,85,63,.4)}
+.pd.mo{opacity:.35}
+.pd .m{font-size:9px;font-weight:700;color:var(--brown);text-transform:uppercase;letter-spacing:.4px}
+.pd.le .m{color:var(--red)}
+.rule{display:flex;align-items:center;gap:var(--s3);padding:var(--s3);
+  border:1px solid var(--line);border-radius:var(--r);margin-bottom:var(--s2);background:var(--card)}
+.rule .dot{width:10px;height:10px;border-radius:3px;flex:none}
+.rule .gr{flex:1;min-width:0}
+.rule .gr b{font-size:var(--fs-sm)}
+.rule .gr div{font-size:var(--fs-xs);color:var(--muted)}
+
+/* ══════════ XUẤT BÁO CÁO ══════════ */
+.pick{display:flex;flex-direction:column;gap:var(--s2)}
+.opt{display:flex;align-items:center;gap:var(--s3);padding:var(--s3);border:1px solid var(--line);
+  border-radius:var(--r);cursor:pointer;background:var(--card)}
+.opt:hover{border-color:var(--brown)}
+.opt.on{border-color:var(--brown);box-shadow:inset 0 0 0 1px var(--brown)}
+.opt .ic{color:var(--brown)}
+.opt b{font-size:var(--fs-sm);display:block}
+.opt span{font-size:var(--fs-xs);color:var(--muted)}
+.opt .rd{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--line);margin-left:auto;flex:none}
+.opt.on .rd{border:5px solid var(--brown)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.seg button{padding:7px 14px;font-size:var(--fs-sm);font-family:inherit;background:var(--card);
+  color:var(--ink);border:none;cursor:pointer;border-right:1px solid var(--line)}
+.seg button:last-child{border-right:none}
+.seg button.on{background:var(--brown);color:var(--card);font-weight:600}
+.prev{background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.prev-h{padding:var(--s3) var(--s4);border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:var(--s2);background:var(--bg)}
+.prev-h .fn{font-size:var(--fs-sm);font-weight:600}
+.sheet{font-size:var(--fs-xs)}
+.sheet th,.sheet td{padding:6px var(--s2)}
+
+/* ══════════ NGĂN CHI TIẾT (drawer) ══════════ */
+.drw{position:fixed;top:46px;right:0;bottom:0;width:380px;background:var(--card);
+  border-left:1px solid var(--line);box-shadow:-8px 0 24px rgba(61,53,42,.1);
+  display:flex;flex-direction:column;z-index:30}
+.drw-h{padding:var(--s4);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:var(--s2)}
+.drw-b{flex:1;overflow-y:auto;padding:var(--s4)}
+.pr{display:flex;justify-content:space-between;gap:var(--s3);padding:9px 0;
+  border-bottom:1px solid var(--line);font-size:var(--fs-sm)}
+.pr label{color:var(--muted)}
+.pr span{font-weight:600;text-align:right}
+
+@media(max-width:900px){.g4{grid-template-columns:repeat(2,1fr)}.g3,.g2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div id="sprite" hidden></div>
+
+<!-- ══════════ THANH CHUYỂN MÀN (chỉ dùng để duyệt mockup) ══════════ -->
+<div class="mk-bar">
+  <b>MOCKUP · Sabi Home</b>
+  <button class="mk-tab on" data-s="s-dash">Tổng quan</button>
+  <button class="mk-tab moi" data-s="s-tl">Lịch timeline</button>
+  <button class="mk-tab moi" data-s="s-crm">Khách hàng</button>
+  <button class="mk-tab moi" data-s="s-gia">Giá theo mùa</button>
+  <button class="mk-tab moi" data-s="s-bc">Xuất báo cáo</button>
+  <div class="mk-right">
+    <button class="mk-tab" id="btn-toi">Nền tối</button>
+  </div>
+</div>
+
+<div class="app">
+  <!-- ══════════ SIDEBAR ══════════ -->
+  <aside class="sb">
+    <div class="sb-brand">
+      <h2>Sabi Home</h2>
+      <p>Quản lý homestay</p>
+      <hr class="rule-gold"/>
+    </div>
+    <div class="sb-user">
+      <div class="av">H</div>
+      <div style="min-width:0">
+        <div style="font-size:var(--fs-sm);font-weight:600">Hào Trần</div>
+        <div style="font-size:var(--fs-xs);color:var(--muted)">Chủ nhà</div>
+      </div>
+    </div>
+    <nav class="sb-nav">
+      <div class="ns">Vận hành</div>
+      <button class="ni on" data-s="s-dash"><svg class="ic ic--sm"><use href="#ic-thong-ke"/></svg>Tổng quan</button>
+      <button class="ni" data-s="s-tl"><svg class="ic ic--sm"><use href="#ic-lich"/></svg>Lịch <span class="moi">MỚI</span></button>
+      <button class="ni"><svg class="ic ic--sm"><use href="#ic-ghi-chu"/></svg>Booking</button>
+      <button class="ni"><svg class="ic ic--sm"><use href="#ic-chia-khoa"/></svg>Nhận &amp; Trả nhà<span class="nb">3</span></button>
+      <button class="ni" data-s="s-crm"><svg class="ic ic--sm"><use href="#ic-khach"/></svg>Khách hàng <span class="moi">MỚI</span></button>
+      <div class="ns">Tiền bạc</div>
+      <button class="ni" data-s="s-gia"><svg class="ic ic--sm"><use href="#ic-gia"/></svg>Giá &amp; KM <span class="moi">MỚI</span></button>
+      <button class="ni"><svg class="ic ic--sm"><use href="#ic-tien"/></svg>Thu chi</button>
+      <button class="ni" data-s="s-bc"><svg class="ic ic--sm"><use href="#ic-in"/></svg>Báo cáo <span class="moi">MỚI</span></button>
+      <div class="ns">Thiết lập</div>
+      <button class="ni"><svg class="ic ic--sm"><use href="#ic-nha"/></svg>Căn nhà</button>
+      <button class="ni"><svg class="ic ic--sm"><use href="#ic-phieu"/></svg>Phụ thu</button>
+      <button class="ni"><svg class="ic ic--sm"><use href="#ic-kho"/></svg>Kho</button>
+      <button class="ni"><svg class="ic ic--sm"><use href="#ic-cai-dat"/></svg>Tài khoản</button>
+    </nav>
+    <div class="sb-bot">
+      <button class="btn btn--phu" style="width:100%;min-height:38px;font-size:var(--fs-sm)">
+        <svg class="ic ic--sm"><use href="#ic-dang-xuat"/></svg>Đăng xuất</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="top">
+      <div>
+        <h1 id="pt">Tổng quan</h1>
+        <div class="sub" id="ps">Thứ bảy · 01/08/2026</div>
+      </div>
+      <div class="top-r">
+        <span class="chip chip--loi"><svg class="ic ic--sm"><use href="#ic-canh-bao"/></svg>2 căn sắp hết đồ</span>
+        <button class="btn btn--chinh btn--sm"><svg class="ic ic--sm"><use href="#ic-them"/></svg>Đặt phòng</button>
+      </div>
+    </div>
+
+    <div class="body">
+
+      <!-- ═══════════════ 1. TỔNG QUAN ═══════════════ -->
+      <section class="scr on" id="s-dash">
+        <div class="grid g4">
+          <div class="kpi br"><div class="lb"><svg class="ic ic--sm"><use href="#ic-tien"/></svg>Doanh thu tháng 8</div>
+            <div class="vl">42.850.000đ</div><div class="ss">+18% so với tháng 7</div></div>
+          <div class="kpi ok"><div class="lb"><svg class="ic ic--sm"><use href="#ic-phong"/></svg>Lấp đầy</div>
+            <div class="vl">78%</div><div class="ss">109 / 140 đêm-phòng</div></div>
+          <div class="kpi"><div class="lb"><svg class="ic ic--sm"><use href="#ic-dem"/></svg>Đang ở</div>
+            <div class="vl">4 / 5</div><div class="ss">1 căn trống tối nay</div></div>
+          <div class="kpi rd"><div class="lb"><svg class="ic ic--sm"><use href="#ic-canh-bao"/></svg>Chưa thu</div>
+            <div class="vl">3.200.000đ</div><div class="ss">2 booking quá hạn cọc</div></div>
+        </div>
+
+        <div class="sec-h"><h2>Hôm nay</h2><span class="muted">01/08/2026</span></div>
+        <div class="grid g2">
+          <div class="card">
+            <div class="row" style="margin-bottom:var(--s3)">
+              <svg class="ic"><use href="#ic-nhan-nha"/></svg><h3>Nhận nhà (2)</h3>
+            </div>
+            <table>
+              <tbody>
+                <tr><td><b>Chị Lan</b><div class="muted">Sabi 3A · 3 đêm · 4 khách</div></td>
+                  <td style="text-align:right"><div class="tien-sm">1.350.000đ</div>
+                    <div class="muted">còn thu 850.000đ</div></td>
+                  <td style="width:1%"><button class="btn btn--chinh btn--xs">Nhận</button></td></tr>
+                <tr><td><b>Anh Dũng</b><div class="muted">Sabi Pine · 2 đêm · 2 khách</div></td>
+                  <td style="text-align:right"><div class="tien-sm">900.000đ</div>
+                    <div class="muted">đã thu đủ</div></td>
+                  <td><button class="btn btn--chinh btn--xs">Nhận</button></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="card">
+            <div class="row" style="margin-bottom:var(--s3)">
+              <svg class="ic"><use href="#ic-chia-khoa"/></svg><h3>Trả nhà (1)</h3>
+            </div>
+            <table>
+              <tbody>
+                <tr><td><b>Chị Mai</b><div class="muted">Sabi Garden · trả 12:00</div></td>
+                  <td style="text-align:right"><div class="muted">phụ thu 3 món</div>
+                    <div class="tien-sm">145.000đ</div></td>
+                  <td style="width:1%"><button class="btn btn--phu btn--xs">Trả nhà</button></td></tr>
+              </tbody>
+            </table>
+            <div class="empty" style="padding:var(--s4)">
+              <svg class="ic"><use href="#ic-don-phong"/></svg>
+              <div style="font-size:var(--fs-sm)">2 căn cần dọn sau 12:00</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════ 2. LỊCH TIMELINE (MỚI) ═══════════════ -->
+      <section class="scr" id="s-tl">
+        <div class="note">
+          <svg class="ic"><use href="#ic-canh-bao"/></svg>
+          <div><b>Tính năng mới.</b> Kéo thanh booking sang ngang để dời ngày, kéo mép trái/phải để
+            đổi số đêm, kéo lên/xuống để chuyển căn. Bấm ô trống để đặt nhanh.
+            <b>Cần backend:</b> thêm <code>PATCH /v1/bookings/:id/move</code> (kiểm tra trùng lịch).</div>
+        </div>
+
+        <div class="tl-wrap">
+          <div class="tl-top">
+            <button class="btn btn--phu btn--sm"><svg class="ic ic--sm" style="transform:rotate(180deg)"><use href="#ic-phai"/></svg></button>
+            <b style="font-family:var(--font-head);font-size:var(--fs-md)">01 – 14 / 08 / 2026</b>
+            <button class="btn btn--phu btn--sm"><svg class="ic ic--sm"><use href="#ic-phai"/></svg></button>
+            <div class="seg" style="margin-left:var(--s3)">
+              <button class="on">2 tuần</button><button>1 tháng</button><button>3 tháng</button>
+            </div>
+            <div style="margin-left:auto" class="row">
+              <button class="btn btn--phu btn--sm"><svg class="ic ic--sm"><use href="#ic-loc"/></svg>Lọc căn</button>
+              <button class="btn btn--chinh btn--sm"><svg class="ic ic--sm"><use href="#ic-them"/></svg>Đặt phòng</button>
+            </div>
+          </div>
+
+          <div class="tl-scroll">
+            <div class="tl" id="tl"></div>
+          </div>
+
+          <div class="legend">
+            <span><i style="background:var(--pine-d);border-color:var(--pine-d)"></i>Đang ở</span>
+            <span><i style="background:var(--brown);border-color:var(--brown)"></i>Đã xác nhận</span>
+            <span><i style="background:var(--card);border-color:var(--brown);border-style:dashed"></i>Giữ chỗ (chưa cọc)</span>
+            <span><i style="background:var(--red);border-color:var(--red)"></i>Quá hạn cọc</span>
+            <span style="margin-left:auto">Ô vàng nhạt = cuối tuần · Viền nâu = hôm nay</span>
+          </div>
+        </div>
+        <div class="tipbox" id="tip"></div>
+      </section>
+
+      <!-- ═══════════════ 3. CRM KHÁCH HÀNG (MỚI) ═══════════════ -->
+      <section class="scr" id="s-crm">
+        <div class="note">
+          <svg class="ic"><use href="#ic-canh-bao"/></svg>
+          <div><b>Tính năng mới.</b> Hiện booking chỉ lưu tên + SĐT rời rạc, đặt lại phải gõ tay.
+            <b>Cần backend:</b> model <code>Customer</code> (tên, SĐT, CCCD, ghi chú, tag) +
+            <code>Booking.customerId</code>, gộp khách trùng SĐT.</div>
+        </div>
+
+        <div class="grid g4" style="margin-bottom:var(--s4)">
+          <div class="kpi"><div class="lb">Tổng khách</div><div class="vl">248</div></div>
+          <div class="kpi ok"><div class="lb">Khách quay lại</div><div class="vl">37</div>
+            <div class="ss">15% — đóng góp 31% doanh thu</div></div>
+          <div class="kpi br"><div class="lb">Khách VIP</div><div class="vl">12</div>
+            <div class="ss">≥ 4 lần đặt</div></div>
+          <div class="kpi rd"><div class="lb">Hạn chế</div><div class="vl">3</div>
+            <div class="ss">từng làm hỏng đồ / ồn</div></div>
+        </div>
+
+        <div class="card" style="padding:0">
+          <div class="tl-top">
+            <div class="field" style="margin:0;flex:1;max-width:300px">
+              <div style="position:relative">
+                <svg class="ic ic--sm" style="position:absolute;left:11px;top:16px;color:var(--muted)"><use href="#ic-tim"/></svg>
+                <input placeholder="Tìm tên hoặc số điện thoại…" style="padding-left:36px;min-height:38px;font-size:var(--fs-sm)"/>
+              </div>
+            </div>
+            <div class="seg"><button class="on">Tất cả</button><button>VIP</button><button>Quay lại</button><button>Hạn chế</button></div>
+            <button class="btn btn--phu btn--sm" style="margin-left:auto">
+              <svg class="ic ic--sm"><use href="#ic-in"/></svg>Xuất Excel</button>
+          </div>
+          <table>
+            <thead><tr>
+              <th>Khách</th><th>Điện thoại</th><th style="text-align:center">Lần đặt</th>
+              <th style="text-align:right">Tổng chi</th><th>Lần gần nhất</th><th>Nhãn</th><th></th>
+            </tr></thead>
+            <tbody>
+              <tr><td><b>Nguyễn Thị Lan</b><div class="muted">Sabi 3A · thích tầng trệt</div></td>
+                <td>0908 xxx 412</td><td style="text-align:center"><b>6</b></td>
+                <td style="text-align:right" class="tien-sm">8.940.000đ</td>
+                <td>01/08/2026</td><td><span class="tag tag--vip">VIP</span></td>
+                <td><button class="btn btn--phu btn--xs" onclick="openDrw()">Xem</button></td></tr>
+              <tr><td><b>Trần Văn Dũng</b><div class="muted">đi công tác, hay đặt gấp</div></td>
+                <td>0912 xxx 077</td><td style="text-align:center"><b>4</b></td>
+                <td style="text-align:right" class="tien-sm">5.100.000đ</td>
+                <td>01/08/2026</td><td><span class="tag tag--vip">VIP</span></td>
+                <td><button class="btn btn--phu btn--xs">Xem</button></td></tr>
+              <tr><td><b>Lê Thị Mai</b><div class="muted">nhóm bạn 6 người</div></td>
+                <td>0938 xxx 561</td><td style="text-align:center"><b>2</b></td>
+                <td style="text-align:right" class="tien-sm">2.700.000đ</td>
+                <td>29/07/2026</td><td><span class="tag tag--quen">Quay lại</span></td>
+                <td><button class="btn btn--phu btn--xs">Xem</button></td></tr>
+              <tr><td><b>Phạm Quốc Huy</b></td>
+                <td>0977 xxx 130</td><td style="text-align:center"><b>1</b></td>
+                <td style="text-align:right" class="tien-sm">450.000đ</td>
+                <td>24/07/2026</td><td><span class="tag tag--moi">Khách mới</span></td>
+                <td><button class="btn btn--phu btn--xs">Xem</button></td></tr>
+              <tr><td><b>Vũ Anh Tuấn</b><div class="muted" style="color:var(--red)">Làm vỡ bếp từ, ồn sau 23h</div></td>
+                <td>0903 xxx 288</td><td style="text-align:center"><b>1</b></td>
+                <td style="text-align:right" class="tien-sm">600.000đ</td>
+                <td>11/06/2026</td><td><span class="tag tag--den">Hạn chế</span></td>
+                <td><button class="btn btn--phu btn--xs">Xem</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ═══════════════ 4. GIÁ THEO MÙA & KM (MỚI) ═══════════════ -->
+      <section class="scr" id="s-gia">
+        <div class="note">
+          <svg class="ic"><use href="#ic-canh-bao"/></svg>
+          <div><b>Tính năng mới.</b> Hiện mỗi căn chỉ có 2 mức giá cứng (ngày thường / cuối tuần).
+            <b>Cần backend:</b> model <code>RatePlan</code> (khoảng ngày, % hoặc giá cố định, ưu tiên)
+            + <code>PromoCode</code>; khi tạo booking thì tính giá theo luật thay vì đọc thẳng <code>Home.price</code>.</div>
+        </div>
+
+        <div class="grid" style="grid-template-columns:1fr 340px">
+          <div>
+            <div class="card" style="padding:0">
+              <div class="tl-top">
+                <b style="font-family:var(--font-head);font-size:var(--fs-md)">Tháng 8 / 2026</b>
+                <div class="seg" style="margin-left:var(--s3)">
+                  <button class="on">Sabi 3A</button><button>Sabi Pine</button><button>Sabi Garden</button>
+                </div>
+                <span class="muted" style="margin-left:auto">Bấm 1 ngày để sửa giá riêng</span>
+              </div>
+              <div style="padding:var(--s4)">
+                <div class="pcal" id="pcal"></div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h2 style="margin-bottom:var(--s3)">Luật giá</h2>
+            <div class="rule">
+              <span class="dot" style="background:var(--line)"></span>
+              <div class="gr"><b>Giá gốc</b><div>T2–T5 · 450.000đ · T6–CN 550.000đ</div></div>
+              <button class="btn btn--phu btn--xs"><svg class="ic ic--sm"><use href="#ic-sua"/></svg></button>
+            </div>
+            <div class="rule">
+              <span class="dot" style="background:var(--brown)"></span>
+              <div class="gr"><b>Cao điểm hè</b><div>01/06 – 31/08 · +20%</div></div>
+              <button class="btn btn--phu btn--xs"><svg class="ic ic--sm"><use href="#ic-sua"/></svg></button>
+            </div>
+            <div class="rule">
+              <span class="dot" style="background:var(--red)"></span>
+              <div class="gr"><b>Lễ 2/9</b><div>31/08 – 03/09 · 900.000đ cố định</div></div>
+              <button class="btn btn--phu btn--xs"><svg class="ic ic--sm"><use href="#ic-sua"/></svg></button>
+            </div>
+            <button class="btn btn--phu btn--sm" style="width:100%">
+              <svg class="ic ic--sm"><use href="#ic-them"/></svg>Thêm luật giá</button>
+
+            <h2 style="margin:var(--s5) 0 var(--s3)">Khuyến mãi</h2>
+            <div class="rule">
+              <svg class="ic"><use href="#ic-goi"/></svg>
+              <div class="gr"><b>Ở 3 đêm giảm 10%</b><div>Tự động · đã dùng 14 lần</div></div>
+              <span class="chip chip--ok">Bật</span>
+            </div>
+            <div class="rule">
+              <svg class="ic"><use href="#ic-hoa-hong"/></svg>
+              <div class="gr"><b>Mã <code>SABI50</code></b><div>Giảm 50.000đ · hết hạn 30/09/2026</div></div>
+              <span class="chip chip--ok">Bật</span>
+            </div>
+            <div class="rule">
+              <svg class="ic"><use href="#ic-goi"/></svg>
+              <div class="gr"><b>Khách quay lại −5%</b><div>Tự động cho khách ≥ 2 lần</div></div>
+              <span class="chip chip--cho">Tắt</span>
+            </div>
+            <button class="btn btn--phu btn--sm" style="width:100%">
+              <svg class="ic ic--sm"><use href="#ic-them"/></svg>Thêm khuyến mãi</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════ 5. XUẤT BÁO CÁO (MỚI) ═══════════════ -->
+      <section class="scr" id="s-bc">
+        <div class="note">
+          <svg class="ic"><use href="#ic-canh-bao"/></svg>
+          <div><b>Tính năng mới.</b> Xuất .xlsx chạy ngay ở trình duyệt bằng <code>SheetJS</code> —
+            không cần sửa backend cho bản đầu. Bản sau muốn gửi email tự động thì mới thêm
+            <code>GET /v1/reports/export</code>.</div>
+        </div>
+
+        <div class="grid" style="grid-template-columns:340px 1fr">
+          <div>
+            <h2 style="margin-bottom:var(--s3)">1 · Chọn báo cáo</h2>
+            <div class="pick">
+              <label class="opt on"><svg class="ic"><use href="#ic-tien"/></svg>
+                <div><b>Doanh thu &amp; lợi nhuận</b><span>Theo căn, theo tháng, đã trừ chi phí</span></div>
+                <span class="rd"></span></label>
+              <label class="opt"><svg class="ic"><use href="#ic-lich"/></svg>
+                <div><b>Danh sách booking</b><span>Chi tiết từng lượt khách + phụ thu</span></div>
+                <span class="rd"></span></label>
+              <label class="opt"><svg class="ic"><use href="#ic-kho"/></svg>
+                <div><b>Tồn kho &amp; hàng bán</b><span>Nhập – bán – tồn, giá vốn, lãi gộp</span></div>
+                <span class="rd"></span></label>
+              <label class="opt"><svg class="ic"><use href="#ic-phieu"/></svg>
+                <div><b>Thu chi vận hành</b><span>Theo danh mục và theo căn</span></div>
+                <span class="rd"></span></label>
+            </div>
+
+            <h2 style="margin:var(--s5) 0 var(--s3)">2 · Phạm vi</h2>
+            <div class="seg" style="margin-bottom:var(--s3)">
+              <button>Tháng này</button><button class="on">Tháng 7/2026</button><button>Tuỳ chọn</button>
+            </div>
+            <label class="field"><span>Căn nhà</span>
+              <select><option>Tất cả 5 căn</option><option>Sabi 3A</option><option>Sabi Pine</option></select></label>
+
+            <h2 style="margin:var(--s5) 0 var(--s3)">3 · Định dạng</h2>
+            <div class="seg" style="margin-bottom:var(--s4)">
+              <button class="on">Excel (.xlsx)</button><button>PDF</button><button>In</button>
+            </div>
+            <button class="btn btn--chinh" style="width:100%">
+              <svg class="ic"><use href="#ic-in"/></svg>Tải báo cáo</button>
+          </div>
+
+          <div>
+            <h2 style="margin-bottom:var(--s3)">Xem trước</h2>
+            <div class="prev">
+              <div class="prev-h">
+                <svg class="ic"><use href="#ic-thong-ke"/></svg>
+                <span class="fn">doanh-thu_thang-07-2026_sabi-home.xlsx</span>
+                <span class="chip chip--ok" style="margin-left:auto">4 sheet</span>
+              </div>
+              <div style="padding:var(--s4)">
+                <table class="sheet">
+                  <thead><tr><th>Căn</th><th style="text-align:center">Đêm bán</th><th style="text-align:center">Lấp đầy</th>
+                    <th style="text-align:right">Tiền phòng</th><th style="text-align:right">Phụ thu</th>
+                    <th style="text-align:right">Chi phí</th><th style="text-align:right">Lợi nhuận</th></tr></thead>
+                  <tbody>
+                    <tr><td>Sabi 3A</td><td style="text-align:center">24</td><td style="text-align:center">77%</td>
+                      <td style="text-align:right">11.400.000đ</td><td style="text-align:right">840.000đ</td>
+                      <td style="text-align:right">2.150.000đ</td><td style="text-align:right" class="tien-sm">10.090.000đ</td></tr>
+                    <tr><td>Sabi Pine</td><td style="text-align:center">21</td><td style="text-align:center">68%</td>
+                      <td style="text-align:right">10.050.000đ</td><td style="text-align:right">610.000đ</td>
+                      <td style="text-align:right">1.890.000đ</td><td style="text-align:right" class="tien-sm">8.770.000đ</td></tr>
+                    <tr><td>Sabi Garden</td><td style="text-align:center">26</td><td style="text-align:center">84%</td>
+                      <td style="text-align:right">13.200.000đ</td><td style="text-align:right">1.120.000đ</td>
+                      <td style="text-align:right">2.400.000đ</td><td style="text-align:right" class="tien-sm">11.920.000đ</td></tr>
+                    <tr style="background:var(--bg)"><td><b>Tổng</b></td><td style="text-align:center"><b>71</b></td>
+                      <td style="text-align:center"><b>76%</b></td>
+                      <td style="text-align:right"><b>34.650.000đ</b></td><td style="text-align:right"><b>2.570.000đ</b></td>
+                      <td style="text-align:right"><b>6.440.000đ</b></td>
+                      <td style="text-align:right" class="tien-sm" style="font-size:var(--fs-md)"><b>30.780.000đ</b></td></tr>
+                  </tbody>
+                </table>
+                <p class="muted" style="margin-top:var(--s3)">
+                  Sheet: <b>Tổng hợp</b> · Chi tiết booking · Phụ thu &amp; kho · Thu chi
+                </p>
+              </div>
+            </div>
+
+            <h2 style="margin:var(--s5) 0 var(--s3)">Đã xuất gần đây</h2>
+            <div class="card" style="padding:0">
+              <table>
+                <tbody>
+                  <tr><td><svg class="ic ic--sm" style="color:var(--pine-d)"><use href="#ic-xong"/></svg></td>
+                    <td><b>Doanh thu tháng 6/2026</b><div class="muted">28/07/2026 · 14:22 · 96 KB</div></td>
+                    <td style="text-align:right"><button class="btn btn--phu btn--xs">Tải lại</button></td></tr>
+                  <tr><td><svg class="ic ic--sm" style="color:var(--pine-d)"><use href="#ic-xong"/></svg></td>
+                    <td><b>Tồn kho quý 2/2026</b><div class="muted">05/07/2026 · 09:10 · 42 KB</div></td>
+                    <td style="text-align:right"><button class="btn btn--phu btn--xs">Tải lại</button></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<!-- ══════════ NGĂN CHI TIẾT KHÁCH (demo) ══════════ -->
+<aside class="drw" id="drw" style="display:none">
+  <div class="drw-h">
+    <div class="av">L</div>
+    <div style="flex:1;min-width:0">
+      <h3 style="font-size:var(--fs-md)">Nguyễn Thị Lan</h3>
+      <div class="muted">0908 xxx 412</div>
+    </div>
+    <button class="btn btn--phu btn--xs" onclick="closeDrw()"><svg class="ic ic--sm"><use href="#ic-dong"/></svg></button>
+  </div>
+  <div class="drw-b">
+    <div class="row" style="gap:var(--s1);margin-bottom:var(--s4)">
+      <span class="tag tag--vip">VIP</span><span class="tag tag--quen">6 lần đặt</span>
+    </div>
+    <div class="pr"><label>Tổng chi tiêu</label><span class="tien-sm">8.940.000đ</span></div>
+    <div class="pr"><label>Trung bình / lượt</label><span>1.490.000đ</span></div>
+    <div class="pr"><label>Số đêm đã ở</label><span>17 đêm</span></div>
+    <div class="pr"><label>Căn hay chọn</label><span>Sabi 3A</span></div>
+    <div class="pr"><label>Đặt lần đầu</label><span>14/02/2025</span></div>
+    <div class="pr"><label>CCCD</label><span>079xxxxxx412</span></div>
+
+    <h3 style="margin:var(--s5) 0 var(--s2)">Ghi chú</h3>
+    <div class="card" style="font-size:var(--fs-sm);margin:0">
+      Thích tầng trệt, đi cùng mẹ lớn tuổi. Luôn trả nhà đúng giờ, không phát sinh phụ thu.
+    </div>
+
+    <h3 style="margin:var(--s5) 0 var(--s2)">Lịch sử đặt</h3>
+    <table>
+      <tbody>
+        <tr><td><b>Sabi 3A</b><div class="muted">01–04/08/2026 · 3 đêm</div></td>
+          <td style="text-align:right"><div class="tien-sm">1.350.000đ</div><span class="chip chip--cho">Sắp đến</span></td></tr>
+        <tr><td><b>Sabi 3A</b><div class="muted">12–14/05/2026 · 2 đêm</div></td>
+          <td style="text-align:right"><div class="tien-sm">1.100.000đ</div><span class="chip chip--ok">Xong</span></td></tr>
+        <tr><td><b>Sabi Pine</b><div class="muted">28/02–02/03/2026 · 3 đêm</div></td>
+          <td style="text-align:right"><div class="tien-sm">1.650.000đ</div><span class="chip chip--ok">Xong</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div style="padding:var(--s4);border-top:1px solid var(--line);display:flex;gap:var(--s2)">
+    <button class="btn btn--phu btn--sm" style="flex:1"><svg class="ic ic--sm"><use href="#ic-sua"/></svg>Sửa</button>
+    <button class="btn btn--chinh btn--sm" style="flex:1"><svg class="ic ic--sm"><use href="#ic-them"/></svg>Đặt phòng</button>
+  </div>
+</aside>
+
+<script>
+// ══════════ Nạp sprite icon ══════════
+fetch('sabi-icons.svg').then(r=>r.text()).then(t=>{document.getElementById('sprite').innerHTML=t});
+
+// ══════════ Chuyển màn ══════════
+const TITLES={'s-dash':['Tổng quan','Thứ bảy · 01/08/2026'],
+  's-tl':['Lịch đặt phòng','Kéo thả để dời booking'],
+  's-crm':['Khách hàng','248 khách · 37 khách quay lại'],
+  's-gia':['Giá &amp; Khuyến mãi','Sabi 3A · tháng 8/2026'],
+  's-bc':['Báo cáo','Xuất Excel · PDF · In']};
+function go(id){
+  document.querySelectorAll('.scr').forEach(s=>s.classList.toggle('on',s.id===id));
+  document.querySelectorAll('.mk-tab[data-s]').forEach(b=>b.classList.toggle('on',b.dataset.s===id));
+  document.querySelectorAll('.ni').forEach(b=>b.classList.toggle('on',b.dataset.s===id));
+  const t=TITLES[id]; if(t){document.getElementById('pt').innerHTML=t[0];document.getElementById('ps').textContent=t[1];}
+  closeDrw();
+}
+document.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>go(b.dataset.s));
+document.getElementById('btn-toi').onclick=e=>{
+  document.body.classList.toggle('toi');
+  e.target.textContent=document.body.classList.contains('toi')?'Nền sáng':'Nền tối';
+};
+function openDrw(){document.getElementById('drw').style.display='flex'}
+function closeDrw(){document.getElementById('drw').style.display='none'}
+
+// ══════════ Dựng lịch timeline ══════════
+const NGAY=['CN','T2','T3','T4','T5','T6','T7'];
+const HOMES=[
+  {n:'Sabi 3A',s:'2 phòng ngủ · 4 khách'},
+  {n:'Sabi Pine',s:'1 phòng ngủ · 2 khách'},
+  {n:'Sabi Garden',s:'3 phòng ngủ · 6 khách'},
+  {n:'Sabi View',s:'studio · 2 khách'},
+  {n:'Sabi Mộc',s:'2 phòng ngủ · 4 khách'}
+];
+// r=hàng(căn), c=cột bắt đầu (1..14), len=số đêm, k=loại
+const BK=[
+  {r:0,c:1,len:3,t:'Chị Lan',g:4,k:'b-o',tien:'1.350.000đ',st:'Đang ở · còn thu 850.000đ'},
+  {r:0,c:6,len:2,t:'Anh Sơn',g:2,k:'b-c',tien:'1.100.000đ',st:'Đã cọc 500.000đ'},
+  {r:0,c:11,len:4,t:'Nhóm Huy',g:4,k:'b-d',tien:'1.800.000đ',st:'Giữ chỗ — chưa cọc'},
+  {r:1,c:1,len:2,t:'Anh Dũng',g:2,k:'b-o',tien:'900.000đ',st:'Đang ở · đã thu đủ'},
+  {r:1,c:4,len:3,t:'Chị Hoa',g:2,k:'b-c',tien:'1.500.000đ',st:'Đã cọc 700.000đ'},
+  {r:1,c:9,len:2,t:'Anh Bình',g:2,k:'b-x',tien:'1.000.000đ',st:'Quá hạn cọc 2 ngày'},
+  {r:2,c:2,len:4,t:'Gia đình Mai',g:6,k:'b-c',tien:'2.640.000đ',st:'Đã cọc 1.000.000đ'},
+  {r:2,c:8,len:3,t:'Cty Minh Long',g:6,k:'b-c',tien:'2.100.000đ',st:'Xuất hoá đơn VAT'},
+  {r:3,c:3,len:5,t:'Chị Trâm',g:2,k:'b-c',tien:'2.250.000đ',st:'Đã cọc đủ'},
+  {r:3,c:12,len:3,t:'Anh Phúc',g:2,k:'b-d',tien:'1.350.000đ',st:'Giữ chỗ — hết hạn 20:00'},
+  {r:4,c:1,len:4,t:'Nhóm Đà Nẵng',g:4,k:'b-o',tien:'1.960.000đ',st:'Đang ở'},
+  {r:4,c:7,len:2,t:'Chị Yến',g:3,k:'b-c',tien:'1.100.000đ',st:'Đã cọc 500.000đ'}
+];
+(function(){
+  const el=document.getElementById('tl'); if(!el) return;
+  const d0=new Date(2026,7,1), TODAY=1;
+  let h='<div class="tl-r tl-hd"><div class="nm">Căn nhà</div>';
+  for(let i=0;i<14;i++){
+    const d=new Date(d0); d.setDate(d0.getDate()+i);
+    const we=d.getDay()===0||d.getDay()===6;
+    h+='<div class="d'+(we?' we':'')+(i+1===TODAY?' today':'')+'">'
+      +NGAY[d.getDay()]+'<b>'+String(d.getDate()).padStart(2,'0')+'</b></div>';
+  }
+  h+='</div>';
+  HOMES.forEach((hm,r)=>{
+    h+='<div class="tl-r tl-b"><div class="nm"><b>'+hm.n+'</b><span>'+hm.s+'</span></div>';
+    for(let i=0;i<14;i++){
+      const d=new Date(d0); d.setDate(d0.getDate()+i);
+      const we=d.getDay()===0||d.getDay()===6;
+      const b=BK.find(x=>x.r===r&&x.c===i+1);
+      h+='<div class="cell'+(we?' we':'')+(i+1===TODAY?' today':'')+'" style="grid-column:'+(i+2)+'">';
+      if(b){
+        h+='<div class="bar '+b.k+'" style="width:calc('+b.len+'00% - 8px)" '
+          +'data-t="'+b.t+'" data-g="'+b.g+'" data-n="'+b.len+'" data-tien="'+b.tien+'" data-st="'+b.st+'">'
+          +'<span class="h"></span>'
+          +'<span style="overflow:hidden;text-overflow:ellipsis">'+b.t+' · '+b.g+' khách</span>'
+          +'<span class="h" style="margin-left:auto"></span></div>';
+      }
+      h+='</div>';
+    }
+    h+='</div>';
+  });
+  el.innerHTML=h;
+
+  // tooltip
+  const tip=document.getElementById('tip');
+  el.addEventListener('mousemove',e=>{
+    const b=e.target.closest('.bar');
+    if(!b){tip.style.display='none';return}
+    tip.style.display='block';
+    tip.innerHTML='<b>'+b.dataset.t+'</b><br>'+b.dataset.n+' đêm · '+b.dataset.g+' khách<br>'
+      +b.dataset.tien+'<br>'+b.dataset.st;
+    tip.style.left=(e.pageX+14)+'px'; tip.style.top=(e.pageY+14)+'px';
+  });
+  el.addEventListener('mouseleave',()=>tip.style.display='none');
+
+  // demo kéo ngang
+  let drag=null;
+  el.addEventListener('mousedown',e=>{
+    const b=e.target.closest('.bar'); if(!b||e.target.classList.contains('h'))return;
+    drag={b,x:e.clientX}; b.classList.add('ghost'); e.preventDefault();
+  });
+  window.addEventListener('mousemove',e=>{
+    if(!drag)return; drag.b.style.transform='translateX('+(e.clientX-drag.x)+'px)';
+  });
+  window.addEventListener('mouseup',()=>{
+    if(!drag)return; drag.b.style.transform=''; drag.b.classList.remove('ghost'); drag=null;
+  });
+})();
+
+// ══════════ Dựng lịch giá ══════════
+(function(){
+  const el=document.getElementById('pcal'); if(!el) return;
+  let h=''; ['T2','T3','T4','T5','T6','T7','CN'].forEach(d=>h+='<div class="hd">'+d+'</div>');
+  // Tháng 8/2026 bắt đầu thứ bảy → 5 ô mờ đầu
+  for(let i=0;i<5;i++) h+='<div class="pd mo"></div>';
+  for(let d=1;d<=31;d++){
+    const dt=new Date(2026,7,d), wd=dt.getDay(), we=wd===0||wd===6;
+    let cls='pd', giá=we?'660k':'540k', mark='Hè +20%';
+    if(d>=31){cls+=' le';giá='900k';mark='Lễ 2/9';}
+    else {cls+=' mua'; if(we)cls+=' we';}
+    h+='<div class="'+cls+'"><div class="n">'+String(d).padStart(2,'0')+'</div>'
+      +'<div class="p">'+giá+'</div><div class="m">'+mark+'</div></div>';
+  }
+  el.innerHTML=h;
+})();
+</script>
+</body>
+</html>

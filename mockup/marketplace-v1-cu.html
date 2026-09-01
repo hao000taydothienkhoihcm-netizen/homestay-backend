@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
+<title>Sabi Home — Marketplace Host ↔ Sales (mockup)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="sabi-tokens.css"/>
+<style>
+html,body{height:100%}
+body{overflow:hidden}
+
+/* ═══ THANH DUYỆT MOCKUP ═══ */
+.mk{height:46px;display:flex;align-items:center;gap:var(--s2);padding:0 var(--s4);
+  background:var(--ink);color:var(--bg);overflow-x:auto}
+.mk b{font-family:var(--font-head);font-size:var(--fs-sm);margin-right:var(--s2);white-space:nowrap}
+.mk .sep{width:1px;height:22px;background:rgba(244,239,230,.25);margin:0 var(--s2);flex:none}
+.mk button{padding:5px 12px;border-radius:var(--r-pill);font-size:var(--fs-xs);font-weight:500;
+  cursor:pointer;white-space:nowrap;border:1px solid rgba(244,239,230,.25);background:transparent;
+  color:inherit;font-family:inherit}
+.mk button.on{background:var(--bg);color:var(--ink);font-weight:700;border-color:var(--bg)}
+.mk .right{margin-left:auto;display:flex;gap:var(--s2)}
+
+/* ═══ KHUNG THIẾT BỊ ═══ */
+.stage{height:calc(100vh - 46px);overflow:auto;background:var(--bg)}
+.stage.mobile{display:flex;justify-content:center;padding:var(--s5) 0;
+  background:repeating-linear-gradient(45deg,#e9e1d3,#e9e1d3 12px,#efe8dc 12px,#efe8dc 24px)}
+.stage.mobile .shell{width:390px;height:760px;border:10px solid #2a241c;border-radius:34px;
+  overflow:hidden;box-shadow:0 18px 50px rgba(61,53,42,.35);background:var(--bg)}
+.shell{display:flex;flex-direction:column;height:100%}
+
+/* ═══ ĐẦU TRANG ═══ */
+.hd{flex:none;background:var(--card);border-bottom:1px solid var(--line);
+  padding:var(--s3) var(--s4);display:flex;align-items:center;gap:var(--s3)}
+.hd h1{font-size:var(--fs-lg)}
+.hd .sub{font-size:var(--fs-xs);color:var(--muted)}
+.hd .r{margin-left:auto;display:flex;align-items:center;gap:var(--s2)}
+.who{display:flex;align-items:center;gap:var(--s2);padding:4px 10px 4px 4px;
+  border:1px solid var(--line);border-radius:var(--r-pill)}
+.who .av{width:26px;height:26px;border-radius:50%;background:var(--brown);color:var(--card);
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:var(--fs-xs);flex:none}
+.who span{font-size:var(--fs-xs);font-weight:600}
+
+.wrap{flex:1;overflow-y:auto;padding:var(--s4)}
+.stage:not(.mobile) .wrap{padding:var(--s5) var(--s6);max-width:1120px;margin:0 auto;width:100%}
+.stage:not(.mobile) .shell{height:100%}
+
+/* ═══ THANH ĐÁY (mobile) / TAB (web) ═══ */
+.tabs{flex:none;display:flex;background:var(--card);border-top:1px solid var(--line)}
+.tabs button{flex:1;padding:9px 4px calc(9px + env(safe-area-inset-bottom));border:none;background:none;
+  font-family:inherit;font-size:11px;color:var(--muted);cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:3px}
+.tabs button.on{color:var(--brown);font-weight:700}
+.tabs button .nb{position:absolute;transform:translate(14px,-4px);background:var(--red);color:#fff;
+  font-size:9px;font-weight:700;padding:0 5px;border-radius:var(--r-pill)}
+.stage:not(.mobile) .tabs{border-top:none;border-bottom:1px solid var(--line);
+  padding:0 var(--s6);gap:var(--s1)}
+.stage:not(.mobile) .tabs button{flex:none;flex-direction:row;padding:11px var(--s3);
+  font-size:var(--fs-sm);border-bottom:2px solid transparent}
+.stage:not(.mobile) .tabs button.on{border-bottom-color:var(--brown)}
+
+.scr{display:none}.scr.on{display:block}
+.role{display:none}.role.on{display:contents}
+
+/* ═══ TIỆN ÍCH ═══ */
+.row{display:flex;align-items:center;gap:var(--s2)}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:var(--s3)}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--s3)}
+.stage.mobile .g3{grid-template-columns:1fr 1fr}
+.h2{font-family:var(--font-head);font-size:var(--fs-lg);font-weight:700;margin:var(--s5) 0 var(--s3)}
+.h2:first-child{margin-top:0}
+.muted{color:var(--muted);font-size:var(--fs-sm)}
+.tien-sm{font-weight:700;font-variant-numeric:tabular-nums;color:var(--brown)}
+.btn--sm{min-height:36px;padding:0 var(--s3);font-size:var(--fs-sm)}
+.btn--xs{min-height:29px;padding:0 11px;font-size:var(--fs-xs)}
+.btn--full{width:100%}
+table{width:100%;border-collapse:collapse;font-size:var(--fs-sm)}
+th{text-align:left;font-size:var(--fs-xs);color:var(--muted);text-transform:uppercase;letter-spacing:.6px;
+  font-weight:600;padding:var(--s2) var(--s3);border-bottom:1px solid var(--line)}
+td{padding:var(--s3);border-bottom:1px solid var(--line)}
+tr:last-child td{border-bottom:none}
+/* bảng rộng tự cuộn trong thẻ, không đẩy tràn cả trang */
+.card:has(> table){overflow-x:auto}
+.card:has(> table) > table{min-width:560px}
+
+.note{background:rgba(201,162,39,.09);border:1px solid rgba(201,162,39,.4);border-radius:var(--r);
+  padding:var(--s3);font-size:var(--fs-sm);display:flex;gap:var(--s3);margin-bottom:var(--s4);line-height:1.45}
+.note .ic{color:var(--brown);flex:none;margin-top:1px}
+.note--do{background:rgba(180,85,63,.08);border-color:rgba(180,85,63,.4)}
+.note--do .ic{color:var(--red)}
+
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:var(--s3) var(--s4)}
+.kpi .lb{font-size:var(--fs-xs);color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.kpi .vl{font-family:var(--font-head);font-size:23px;font-weight:700;margin-top:4px;
+  font-variant-numeric:tabular-nums}
+.kpi.br .vl{color:var(--brown)} .kpi.ok .vl{color:var(--pine-d)} .kpi.rd .vl{color:var(--red)}
+
+/* ═══ THẺ CĂN Ở CHỢ ═══ */
+.lst{background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+  overflow:hidden;margin-bottom:var(--s3)}
+.lst-img{height:118px;background:linear-gradient(135deg,#cbbfa6,#a89272);position:relative;
+  display:flex;align-items:flex-end;padding:var(--s2)}
+.lst-img .n{position:absolute;top:var(--s2);right:var(--s2);background:rgba(31,26,20,.72);
+  color:var(--bg);font-size:var(--fs-xs);font-weight:600;padding:2px 9px;border-radius:var(--r-pill)}
+.lst-b{padding:var(--s3)}
+.lst-b h3{font-size:var(--fs-md);font-family:var(--font-head)}
+.lst-b .ad{font-size:var(--fs-xs);color:var(--muted);display:flex;align-items:center;gap:5px;margin-top:2px}
+.lst-f{display:flex;align-items:center;gap:var(--s3);padding:var(--s3);border-top:1px solid var(--line)}
+.lst-f .p{flex:1;min-width:0}
+.lst-f .p .lb{font-size:var(--fs-xs);color:var(--muted)}
+.lst-f .p .v{font-size:var(--fs-lg);font-weight:700;color:var(--brown);font-variant-numeric:tabular-nums}
+.lock{filter:blur(5px);user-select:none;pointer-events:none}
+.lockbox{display:flex;align-items:center;gap:var(--s2);padding:var(--s2) var(--s3);
+  background:var(--bg);border:1px dashed var(--line);border-radius:var(--r-sm);
+  font-size:var(--fs-xs);color:var(--muted);margin-top:var(--s2)}
+
+/* dải ngày trống/bận */
+.days{display:flex;gap:2px;margin-top:var(--s2)}
+.days i{flex:1;height:22px;border-radius:3px;display:flex;align-items:center;justify-content:center;
+  font-size:9px;font-style:normal;font-weight:600}
+.days i.free{background:rgba(74,107,82,.2);color:var(--pine-d)}
+.days i.busy{background:rgba(180,85,63,.16);color:var(--red)}
+.days i.hold{background:rgba(201,162,39,.28);color:#6b5410}
+
+/* ═══ THẺ TRẠNG THÁI GIỮ CHỖ ═══ */
+.hold{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--gold);
+  border-radius:var(--r);padding:var(--s3);margin-bottom:var(--s3)}
+.hold.ok{border-left-color:var(--pine-d)}
+.hold.no{border-left-color:var(--red)}
+.hold-t{display:flex;align-items:flex-start;gap:var(--s2);margin-bottom:var(--s2)}
+.hold-t b{font-size:var(--fs-md)}
+.hold-t .chip{margin-left:auto;flex:none}
+.pr{display:flex;justify-content:space-between;gap:var(--s3);padding:6px 0;font-size:var(--fs-sm)}
+.pr+.pr{border-top:1px solid var(--line)}
+.pr label{color:var(--muted)}
+.pr span{font-weight:600;text-align:right}
+.cnt{display:inline-flex;align-items:center;gap:5px;font-size:var(--fs-xs);font-weight:700;
+  color:var(--red);font-variant-numeric:tabular-nums}
+
+/* thẻ liên hệ host — chỉ hiện sau khi giữ chỗ */
+.ct{background:var(--bg);border:1px solid var(--line);border-radius:var(--r);
+  padding:var(--s3);margin-top:var(--s3)}
+.ct .hd2{font-size:var(--fs-xs);color:var(--muted);text-transform:uppercase;letter-spacing:.6px;
+  margin-bottom:var(--s2)}
+.ct .nm{display:flex;align-items:center;gap:var(--s2)}
+.ct .nm .av{width:36px;height:36px;border-radius:50%;background:var(--brown);color:var(--card);
+  display:flex;align-items:center;justify-content:center;font-weight:700;flex:none}
+.ct .ph{font-size:var(--fs-md);font-weight:700;font-variant-numeric:tabular-nums;color:var(--ink)}
+.ct .acts{display:flex;gap:var(--s2);margin-top:var(--s3)}
+
+/* ═══ PHIẾU ═══ */
+.bill{background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.bill-h{padding:var(--s3) var(--s4);border-bottom:1px solid var(--line);background:var(--bg)}
+.bill-h .t{font-family:var(--font-head);font-size:var(--fs-md);font-weight:700}
+.bill-h .s{font-size:var(--fs-xs);color:var(--muted)}
+.bill-b{padding:var(--s3) var(--s4)}
+.bill-tot{display:flex;justify-content:space-between;align-items:baseline;
+  padding-top:var(--s3);margin-top:var(--s2);border-top:2px solid var(--line)}
+.bill-tot b{font-size:var(--fs-lg);font-weight:700;color:var(--brown);font-variant-numeric:tabular-nums}
+.hh{background:rgba(74,107,82,.1);border:1px dashed var(--pine-d);border-radius:var(--r);
+  padding:var(--s3);margin-top:var(--s3)}
+.hh .lb{font-size:var(--fs-xs);color:var(--pine-d);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.hh .v{font-family:var(--font-head);font-size:23px;font-weight:700;color:var(--pine-d);
+  font-variant-numeric:tabular-nums}
+
+.step{display:flex;gap:var(--s3);margin-bottom:var(--s3)}
+.step .no{width:26px;height:26px;border-radius:50%;background:var(--line);color:var(--ink);
+  display:flex;align-items:center;justify-content:center;font-size:var(--fs-xs);font-weight:700;flex:none}
+.step.done .no{background:var(--pine-d);color:var(--card)}
+.step.now .no{background:var(--brown);color:var(--card)}
+.step .tx b{font-size:var(--fs-sm);display:block}
+.step .tx span{font-size:var(--fs-xs);color:var(--muted)}
+.step.wait{opacity:.5}
+
+.field{margin-bottom:var(--s3)}
+.field > span{display:block;font-size:var(--fs-sm);color:var(--muted);margin-bottom:var(--s1)}
+.field input,.field select,.field textarea{width:100%;min-height:44px;padding:10px var(--s3);
+  font-size:16px;font-family:inherit;background:var(--card);color:var(--ink);
+  border:1px solid var(--line);border-radius:var(--r)}
+.pill-row{display:flex;gap:var(--s2);flex-wrap:wrap}
+.up{border:1px dashed var(--line);border-radius:var(--r);padding:var(--s4);text-align:center;
+  color:var(--muted);font-size:var(--fs-sm);background:var(--card)}
+.thumbs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:var(--s2)}
+.thumbs i{aspect-ratio:1;border-radius:var(--r-sm);background:linear-gradient(135deg,#cbbfa6,#a89272)}
+</style>
+</head>
+<body>
+<div id="sprite" hidden></div>
+
+<div class="mk">
+  <b>MOCKUP · Marketplace</b>
+  <button class="rb on" data-r="sales">Sales</button>
+  <button class="rb" data-r="host">Host</button>
+  <button class="rb" data-r="admin">Admin</button>
+  <span class="sep"></span>
+  <button class="db on" data-d="web">Web</button>
+  <button class="db" data-d="mobile">Điện thoại</button>
+  <div class="right"><button id="toi">Nền tối</button></div>
+</div>
+
+<div class="stage" id="stage">
+<div class="shell">
+
+  <div class="hd">
+    <div>
+      <h1 id="pt">Chợ căn trống</h1>
+      <div class="sub" id="ps">14 căn · Đà Lạt · 01–07/08/2026</div>
+    </div>
+    <div class="r">
+      <div class="who"><div class="av" id="wav">S</div><span id="wnm">Sales · Minh</span></div>
+    </div>
+  </div>
+
+  <nav class="tabs" id="tabs"></nav>
+
+  <div class="wrap">
+
+  <!-- ══════════════════════════════════════════════════════
+       VAI TRÒ: SALES
+       ══════════════════════════════════════════════════════ -->
+  <div class="role on" data-role="sales">
+
+    <!-- ─── S1. CHỢ ─── -->
+    <section class="scr on" id="sales-cho">
+      <div class="note">
+        <svg class="ic"><use href="#ic-cho"/></svg>
+        <div><b>Chợ 2 tầng.</b> Người chưa đăng ký chỉ thấy <b>ngày trống / bận</b> — không thấy giá,
+          không thấy số điện thoại host. Tài khoản sales đã được duyệt mới thấy giá và giữ chỗ được.</div>
+      </div>
+
+      <div class="row" style="margin-bottom:var(--s3);flex-wrap:wrap">
+        <button class="btn btn--phu btn--sm"><svg class="ic ic--sm"><use href="#ic-lich"/></svg>01–07/08</button>
+        <button class="btn btn--phu btn--sm"><svg class="ic ic--sm"><use href="#ic-nha"/></svg>Đà Lạt</button>
+        <button class="btn btn--phu btn--sm"><svg class="ic ic--sm"><use href="#ic-khach"/></svg>2–4 khách</button>
+        <button class="btn btn--phu btn--sm" style="margin-left:auto"><svg class="ic ic--sm"><use href="#ic-loc"/></svg>Lọc</button>
+      </div>
+
+      <!-- căn 1: sales đã duyệt → thấy giá -->
+      <div class="lst">
+        <div class="lst-img"><span class="n">6 ảnh</span></div>
+        <div class="lst-b">
+          <h3>Nhà gỗ view đồi · 2PN</h3>
+          <div class="ad"><svg class="ic ic--sm"><use href="#ic-nha"/></svg>P.10, Đà Lạt · cách chợ 2,4 km</div>
+          <div class="days">
+            <i class="free">01</i><i class="free">02</i><i class="busy">03</i><i class="free">04</i>
+            <i class="free">05</i><i class="hold">06</i><i class="free">07</i>
+          </div>
+        </div>
+        <div class="lst-f">
+          <div class="p"><div class="lb">Giá host nhận / đêm</div><div class="v">520.000đ</div></div>
+          <button class="btn btn--chinh btn--sm" onclick="go('sales-giu')">
+            <svg class="ic ic--sm"><use href="#ic-lich"/></svg>Giữ chỗ</button>
+        </div>
+      </div>
+
+      <!-- căn 2 -->
+      <div class="lst">
+        <div class="lst-img"><span class="n">8 ảnh</span></div>
+        <div class="lst-b">
+          <h3>Studio ban công thông · 2 khách</h3>
+          <div class="ad"><svg class="ic ic--sm"><use href="#ic-nha"/></svg>P.3, Đà Lạt · cách chợ 1,1 km</div>
+          <div class="days">
+            <i class="free">01</i><i class="free">02</i><i class="free">03</i><i class="free">04</i>
+            <i class="busy">05</i><i class="busy">06</i><i class="free">07</i>
+          </div>
+        </div>
+        <div class="lst-f">
+          <div class="p"><div class="lb">Giá host nhận / đêm</div><div class="v">380.000đ</div></div>
+          <button class="btn btn--chinh btn--sm"><svg class="ic ic--sm"><use href="#ic-lich"/></svg>Giữ chỗ</button>
+        </div>
+      </div>
+
+      <!-- căn 3: minh hoạ tầng PUBLIC (chưa đăng ký) -->
+      <div class="lst">
+        <div class="lst-img"><span class="n">4 ảnh</span></div>
+        <div class="lst-b">
+          <h3>Căn vườn 3PN · 6 khách</h3>
+          <div class="ad"><svg class="ic ic--sm"><use href="#ic-nha"/></svg>P.8, Đà Lạt</div>
+          <div class="days">
+            <i class="free">01</i><i class="busy">02</i><i class="busy">03</i><i class="free">04</i>
+            <i class="free">05</i><i class="free">06</i><i class="free">07</i>
+          </div>
+          <div class="lockbox"><svg class="ic ic--sm"><use href="#ic-cho-duyet"/></svg>
+            Tầng công khai: chỉ xem được ngày trống/bận</div>
+        </div>
+        <div class="lst-f">
+          <div class="p"><div class="lb">Giá host nhận / đêm</div>
+            <div class="v lock">640.000đ</div></div>
+          <button class="btn btn--phu btn--sm" disabled>Cần tài khoản sales</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── S2. XÁC NHẬN GIỮ CHỖ ─── -->
+    <section class="scr" id="sales-giu">
+      <div class="h2">Giữ chỗ — Nhà gỗ view đồi</div>
+      <div class="note note--do">
+        <svg class="ic"><use href="#ic-canh-bao"/></svg>
+        <div><b>Giữ chỗ chỉ khoá tạm ngày — không nhập thông tin khách.</b>
+          Thông tin khách chỉ điền ở bước "Thêm booking", sau khi host duyệt.</div>
+      </div>
+
+      <div class="card">
+        <div class="pr"><label>Căn</label><span>Nhà gỗ view đồi · 2PN</span></div>
+        <div class="pr"><label>Nhận</label><span>04/08/2026</span></div>
+        <div class="pr"><label>Trả</label><span>06/08/2026</span></div>
+        <div class="pr"><label>Số đêm</label><span>2 đêm</span></div>
+        <div class="pr"><label>Giá host nhận</label><span class="tien-sm">1.040.000đ</span></div>
+        <div class="pr"><label>Giữ chỗ hết hạn sau</label>
+          <span class="cnt"><svg class="ic ic--sm"><use href="#ic-cho-duyet"/></svg><span id="cd">29:41</span></span></div>
+      </div>
+
+      <div class="note">
+        <svg class="ic"><use href="#ic-cho-duyet"/></svg>
+        <div>Hết 30 phút mà host chưa duyệt thì ngày tự mở lại cho sales khác —
+          tránh 2 sales giữ trùng một căn.</div>
+      </div>
+
+      <button class="btn btn--chinh btn--full" onclick="go('sales-cho-duyet')">
+        <svg class="ic"><use href="#ic-lich"/></svg>Xác nhận giữ chỗ</button>
+      <button class="btn btn--phu btn--full" style="margin-top:var(--s2)" onclick="go('sales-cho')">Quay lại chợ</button>
+    </section>
+
+    <!-- ─── S3. ĐÃ GIỮ — CHỜ HOST DUYỆT ─── -->
+    <section class="scr" id="sales-cho-duyet">
+      <div class="h2">Giữ chỗ của tôi</div>
+
+      <div class="hold">
+        <div class="hold-t">
+          <svg class="ic"><use href="#ic-nha"/></svg>
+          <div><b>Nhà gỗ view đồi</b><div class="muted">04→06/08/2026 · 2 đêm</div></div>
+          <span class="chip chip--cho">Chờ host duyệt</span>
+        </div>
+        <div class="pr"><label>Giá host nhận</label><span class="tien-sm">1.040.000đ</span></div>
+        <div class="pr"><label>Còn lại</label><span class="cnt">28:07</span></div>
+
+        <!-- SĐT host hiện NGAY sau khi giữ chỗ -->
+        <div class="ct">
+          <div class="hd2">Liên hệ chủ căn</div>
+          <div class="nm">
+            <div class="av">T</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:600">Anh Tuấn</div>
+              <div class="ph">0908 214 776</div>
+            </div>
+          </div>
+          <div class="acts">
+            <button class="btn btn--phu btn--sm" style="flex:1">Gọi</button>
+            <button class="btn btn--phu btn--sm" style="flex:1">Zalo</button>
+          </div>
+        </div>
+
+        <div class="note" style="margin:var(--s3) 0 0">
+          <svg class="ic"><use href="#ic-cho-duyet"/></svg>
+          <div>Đã báo về tài khoản host. Khi host bấm <b>Duyệt</b>, nút "Thêm booking" mới mở.</div>
+        </div>
+      </div>
+
+      <!-- đã được duyệt -->
+      <div class="hold ok">
+        <div class="hold-t">
+          <svg class="ic"><use href="#ic-nha"/></svg>
+          <div><b>Studio ban công thông</b><div class="muted">09→11/08/2026 · 2 đêm</div></div>
+          <span class="chip chip--ok">Host đã duyệt</span>
+        </div>
+        <div class="pr"><label>Giá host nhận</label><span class="tien-sm">760.000đ</span></div>
+        <div class="pr"><label>Chủ căn</label><span>Chị Hồng · 0912 330 415</span></div>
+        <button class="btn btn--chinh btn--full" style="margin-top:var(--s3)" onclick="go('sales-booking')">
+          <svg class="ic"><use href="#ic-them"/></svg>Thêm booking</button>
+      </div>
+
+      <!-- bị từ chối -->
+      <div class="hold no">
+        <div class="hold-t">
+          <svg class="ic"><use href="#ic-nha"/></svg>
+          <div><b>Căn vườn 3PN</b><div class="muted">02→04/08/2026 · 2 đêm</div></div>
+          <span class="chip chip--loi">Host từ chối</span>
+        </div>
+        <div class="muted">Lý do: đã nhận khách quen ngày đó.</div>
+      </div>
+    </section>
+
+    <!-- ─── S4. THÊM BOOKING ─── -->
+    <section class="scr" id="sales-booking">
+      <div class="h2">Thêm booking — Studio ban công thông</div>
+      <div class="note">
+        <svg class="ic"><use href="#ic-xong"/></svg>
+        <div>Host đã duyệt · 09→11/08/2026 · 2 đêm · giá host nhận <b>760.000đ</b>.
+          Giờ mới nhập thông tin khách để in phiếu.</div>
+      </div>
+
+      <label class="field"><span>Tên khách</span><input value="Chị Ngọc Anh"/></label>
+      <label class="field"><span>Số điện thoại khách</span><input value="0977 508 233"/></label>
+      <div class="g2">
+        <label class="field"><span>Nhận</span><input value="09/08/2026"/></label>
+        <label class="field"><span>Trả</span><input value="11/08/2026"/></label>
+      </div>
+      <label class="field"><span>Giá bán cho khách (2 đêm)</span><input value="1.000.000đ"/></label>
+      <label class="field"><span>Khách đã cọc</span><input value="300.000đ"/></label>
+
+      <div class="hh">
+        <div class="lb">Hoa hồng của bạn (ẩn với host và khách)</div>
+        <div class="v">240.000đ</div>
+        <div class="muted">= giá bán khách 1.000.000đ − giá host nhận 760.000đ</div>
+      </div>
+
+      <button class="btn btn--chinh btn--full" style="margin-top:var(--s4)" onclick="go('sales-phieu')">
+        <svg class="ic"><use href="#ic-phieu"/></svg>Tạo booking &amp; xuất phiếu</button>
+    </section>
+
+    <!-- ─── S5. HAI PHIẾU ─── -->
+    <section class="scr" id="sales-phieu">
+      <div class="h2">Hai phiếu</div>
+      <div class="note">
+        <svg class="ic"><use href="#ic-canh-bao"/></svg>
+        <div>Cùng một booking, <b>hai phiếu khác số tiền</b>. Gửi đúng phiếu cho đúng người —
+          gửi nhầm là lộ hoa hồng.</div>
+      </div>
+
+      <div class="g2">
+        <div class="bill">
+          <div class="bill-h">
+            <div class="t">Phiếu gửi khách</div>
+            <div class="s">Chị Ngọc Anh · 0977 508 233</div>
+          </div>
+          <div class="bill-b">
+            <div class="pr"><label>Căn</label><span>Studio ban công thông</span></div>
+            <div class="pr"><label>Nhận → Trả</label><span>09 → 11/08/2026</span></div>
+            <div class="pr"><label>Số đêm</label><span>2 đêm</span></div>
+            <div class="pr"><label>Đơn giá</label><span>500.000đ / đêm</span></div>
+            <div class="pr"><label>Đã cọc</label><span>300.000đ</span></div>
+            <div class="bill-tot"><span>Tổng</span><b>1.000.000đ</b></div>
+          </div>
+          <div style="padding:var(--s3);border-top:1px solid var(--line)">
+            <button class="btn btn--phu btn--full btn--sm">
+              <svg class="ic ic--sm"><use href="#ic-in"/></svg>Gửi Zalo cho khách</button>
+          </div>
+        </div>
+
+        <div class="bill">
+          <div class="bill-h">
+            <div class="t">Phiếu gửi host</div>
+            <div class="s">Chị Hồng · 0912 330 415</div>
+          </div>
+          <div class="bill-b">
+            <div class="pr"><label>Căn</label><span>Studio ban công thông</span></div>
+            <div class="pr"><label>Nhận → Trả</label><span>09 → 11/08/2026</span></div>
+            <div class="pr"><label>Số đêm</label><span>2 đêm</span></div>
+            <div class="pr"><label>Đơn giá host nhận</label><span>380.000đ / đêm</span></div>
+            <div class="pr"><label>Khách</label><span>Ngọc Anh · 0977 508 233</span></div>
+            <div class="bill-tot"><span>Host nhận</span><b>760.000đ</b></div>
+          </div>
+          <div style="padding:var(--s3);border-top:1px solid var(--line)">
+            <button class="btn btn--phu btn--full btn--sm">
+              <svg class="ic ic--sm"><use href="#ic-in"/></svg>Gửi Zalo cho host</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="h2">Tiến trình</div>
+      <div class="card">
+        <div class="step done"><span class="no"><svg class="ic ic--sm"><use href="#ic-xong"/></svg></span>
+          <div class="tx"><b>Sales giữ chỗ</b><span>09/08 · 14:02</span></div></div>
+        <div class="step done"><span class="no"><svg class="ic ic--sm"><use href="#ic-xong"/></svg></span>
+          <div class="tx"><b>Host duyệt &amp; khoá lịch</b><span>09/08 · 14:19</span></div></div>
+        <div class="step done"><span class="no"><svg class="ic ic--sm"><use href="#ic-xong"/></svg></span>
+          <div class="tx"><b>Sales thêm booking + xuất 2 phiếu</b><span>09/08 · 14:35</span></div></div>
+        <div class="step now"><span class="no">4</span>
+          <div class="tx"><b>Khách xác nhận qua Zalo</b><span>đang chờ</span></div></div>
+        <div class="step wait"><span class="no">5</span>
+          <div class="tx"><b>Host confirm → COMPLETE</b><span>chưa tới</span></div></div>
+      </div>
+
+      <div class="note" style="margin-top:var(--s3)">
+        <svg class="ic"><use href="#ic-goi"/></svg>
+        <div>Khi COMPLETE, booking <b>tự đẩy vào app nội bộ của host</b> (source = MARKETPLACE)
+          và khoá lịch — host không phải gõ tay lại, tránh trùng lịch.</div>
+      </div>
+    </section>
+
+    <!-- ─── S6. HOA HỒNG ─── -->
+    <section class="scr" id="sales-hh">
+      <div class="g3" style="margin-bottom:var(--s4)">
+        <div class="kpi ok"><div class="lb">Hoa hồng tháng 8</div><div class="vl">3.180.000đ</div></div>
+        <div class="kpi br"><div class="lb">Booking đã chốt</div><div class="vl">14</div></div>
+        <div class="kpi rd"><div class="lb">Giữ chỗ sắp hết hạn</div><div class="vl">2</div></div>
+      </div>
+      <div class="card" style="padding:0">
+        <table>
+          <thead><tr><th>Căn</th><th>Ngày</th><th style="text-align:right">Khách trả</th>
+            <th style="text-align:right">Host nhận</th><th style="text-align:right">Hoa hồng</th><th>TT</th></tr></thead>
+          <tbody>
+            <tr><td>Studio ban công thông</td><td>09–11/08</td><td style="text-align:right">1.000.000đ</td>
+              <td style="text-align:right">760.000đ</td><td style="text-align:right" class="tien-sm">240.000đ</td>
+              <td><span class="chip chip--cho">Chờ khách</span></td></tr>
+            <tr><td>Nhà gỗ view đồi</td><td>28–30/07</td><td style="text-align:right">1.400.000đ</td>
+              <td style="text-align:right">1.040.000đ</td><td style="text-align:right" class="tien-sm">360.000đ</td>
+              <td><span class="chip chip--ok">Xong</span></td></tr>
+            <tr><td>Căn vườn 3PN</td><td>19–22/07</td><td style="text-align:right">2.700.000đ</td>
+              <td style="text-align:right">1.920.000đ</td><td style="text-align:right" class="tien-sm">780.000đ</td>
+              <td><span class="chip chip--ok">Xong</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════
+       VAI TRÒ: HOST
+       ══════════════════════════════════════════════════════ -->
+  <div class="role" data-role="host">
+
+    <!-- ─── H1. YÊU CẦU GIỮ CHỖ ─── -->
+    <section class="scr on" id="host-yc">
+      <div class="note">
+        <svg class="ic"><use href="#ic-cho-duyet"/></svg>
+        <div>Bạn <b>không thấy giá sales bán cho khách</b> — chỉ thấy giá bạn nhận.
+          Duyệt là khoá lịch ngày đó.</div>
+      </div>
+
+      <div class="hold">
+        <div class="hold-t">
+          <svg class="ic"><use href="#ic-sales"/></svg>
+          <div><b>Sales Minh</b><div class="muted">giữ chỗ lúc 14:02 hôm nay</div></div>
+          <span class="chip chip--cho">Chờ bạn duyệt</span>
+        </div>
+        <div class="pr"><label>Căn</label><span>Nhà gỗ view đồi · 2PN</span></div>
+        <div class="pr"><label>Nhận → Trả</label><span>04 → 06/08/2026</span></div>
+        <div class="pr"><label>Số đêm</label><span>2 đêm</span></div>
+        <div class="pr"><label>Bạn nhận</label><span class="tien-sm">1.040.000đ</span></div>
+        <div class="pr"><label>Tự huỷ sau</label><span class="cnt">28:07</span></div>
+        <div class="row" style="margin-top:var(--s3);gap:var(--s2)">
+          <button class="btn btn--nguy btn--sm" style="flex:1">Từ chối</button>
+          <button class="btn btn--chinh btn--sm" style="flex:2">
+            <svg class="ic ic--sm"><use href="#ic-xong"/></svg>Duyệt &amp; khoá lịch</button>
+        </div>
+      </div>
+
+      <div class="hold ok">
+        <div class="hold-t">
+          <svg class="ic"><use href="#ic-sales"/></svg>
+          <div><b>Sales Hà</b><div class="muted">đã duyệt hôm qua · 14:19</div></div>
+          <span class="chip chip--ok">Đã khoá lịch</span>
+        </div>
+        <div class="pr"><label>Căn</label><span>Studio ban công thông</span></div>
+        <div class="pr"><label>Nhận → Trả</label><span>09 → 11/08/2026</span></div>
+        <div class="pr"><label>Bạn nhận</label><span class="tien-sm">760.000đ</span></div>
+        <div class="pr"><label>Khách</label><span>Ngọc Anh · 0977 508 233</span></div>
+      </div>
+    </section>
+
+    <!-- ─── H2. CĂN CỦA TÔI ─── -->
+    <section class="scr" id="host-can">
+      <div class="row" style="margin-bottom:var(--s3)">
+        <div class="h2" style="margin:0">Căn của tôi (3)</div>
+        <button class="btn btn--chinh btn--sm" style="margin-left:auto" onclick="go('host-dang')">
+          <svg class="ic ic--sm"><use href="#ic-them"/></svg>Đăng căn</button>
+      </div>
+
+      <div class="lst">
+        <div class="lst-img"><span class="n">6 ảnh</span></div>
+        <div class="lst-b">
+          <h3>Nhà gỗ view đồi · 2PN</h3>
+          <div class="ad"><svg class="ic ic--sm"><use href="#ic-nha"/></svg>P.10, Đà Lạt</div>
+          <div class="days">
+            <i class="free">01</i><i class="free">02</i><i class="busy">03</i><i class="hold">04</i>
+            <i class="hold">05</i><i class="free">06</i><i class="free">07</i>
+          </div>
+          <div class="muted" style="margin-top:var(--s2)">Vàng = sales đang giữ chỗ · Đỏ = đã khoá</div>
+        </div>
+        <div class="lst-f">
+          <div class="p"><div class="lb">Giá bạn muốn nhận</div><div class="v">520.000đ</div></div>
+          <button class="btn btn--phu btn--sm"><svg class="ic ic--sm"><use href="#ic-sua"/></svg>Sửa</button>
+        </div>
+      </div>
+
+      <div class="lst">
+        <div class="lst-img"><span class="n">8 ảnh</span></div>
+        <div class="lst-b">
+          <h3>Studio ban công thông</h3>
+          <div class="ad"><svg class="ic ic--sm"><use href="#ic-nha"/></svg>P.3, Đà Lạt</div>
+          <div class="days">
+            <i class="free">01</i><i class="free">02</i><i class="free">03</i><i class="free">04</i>
+            <i class="busy">05</i><i class="busy">06</i><i class="free">07</i>
+          </div>
+        </div>
+        <div class="lst-f">
+          <div class="p"><div class="lb">Giá bạn muốn nhận</div><div class="v">380.000đ</div></div>
+          <button class="btn btn--phu btn--sm"><svg class="ic ic--sm"><use href="#ic-sua"/></svg>Sửa</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── H3. ĐĂNG CĂN ─── -->
+    <section class="scr" id="host-dang">
+      <div class="h2">Đăng căn lên chợ</div>
+      <label class="field"><span>Tên căn</span><input placeholder="VD: Nhà gỗ view đồi · 2PN"/></label>
+      <label class="field"><span>Địa chỉ</span><input placeholder="Phường, thành phố"/></label>
+      <div class="g2">
+        <label class="field"><span>Số khách tối đa</span><input value="4"/></label>
+        <label class="field"><span>Giá bạn muốn nhận / đêm</span><input value="520.000đ"/></label>
+      </div>
+
+      <div class="field"><span>Ảnh (tối đa 8)</span>
+        <div class="up"><svg class="ic"><use href="#ic-anh"/></svg><div>Kéo ảnh vào đây hoặc bấm chọn</div></div>
+        <div class="thumbs"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      </div>
+
+      <label class="field"><span>Ngày trống</span>
+        <select><option>Chọn trên lịch…</option></select></label>
+
+      <div class="note">
+        <svg class="ic"><use href="#ic-canh-bao"/></svg>
+        <div><b>Kiểm tra trùng căn.</b> Hệ thống so tên + địa chỉ đã chuẩn hoá để bạn không đăng
+          nhầm cùng một căn hai lần.</div>
+      </div>
+      <div class="note">
+        <svg class="ic"><use href="#ic-lich"/></svg>
+        <div>Nối lịch iCal / Google Sheet để tự cập nhật ngày bận —
+          hệ thống <b>chỉ lấy ngày từ hôm nay trở đi</b>, bỏ qua quá khứ.</div>
+      </div>
+
+      <button class="btn btn--chinh btn--full">Đăng căn</button>
+      <button class="btn btn--phu btn--full" style="margin-top:var(--s2)" onclick="go('host-can')">Huỷ</button>
+    </section>
+
+    <!-- ─── H4. LỊCH & BOOKING TỪ CHỢ ─── -->
+    <section class="scr" id="host-lich">
+      <div class="note">
+        <svg class="ic"><use href="#ic-goi"/></svg>
+        <div>Booking chốt từ chợ <b>tự vào app nội bộ</b> với nhãn <b>MARKETPLACE</b> và khoá lịch luôn.
+          Bạn không phải gõ tay lại.</div>
+      </div>
+      <div class="card" style="padding:0">
+        <table>
+          <thead><tr><th>Khách</th><th>Căn</th><th>Ngày</th><th style="text-align:right">Bạn nhận</th><th>Nguồn</th></tr></thead>
+          <tbody>
+            <tr><td><b>Ngọc Anh</b><div class="muted">0977 508 233</div></td>
+              <td>Studio ban công thông</td><td>09–11/08</td>
+              <td style="text-align:right" class="tien-sm">760.000đ</td>
+              <td><span class="chip chip--cho">Chợ</span></td></tr>
+            <tr><td><b>Chị Lan</b><div class="muted">0908 214 412</div></td>
+              <td>Nhà gỗ view đồi</td><td>01–04/08</td>
+              <td style="text-align:right" class="tien-sm">1.560.000đ</td>
+              <td><span class="chip chip--ok">Tự đặt</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note note--do" style="margin-top:var(--s3)">
+        <svg class="ic"><use href="#ic-canh-bao"/></svg>
+        <div>Booking nguồn <b>Chợ</b> bị <b>hạn chế sửa</b> — không tự đổi được giá đã chốt với sales.
+          Muốn đổi phải báo sales.</div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════
+       VAI TRÒ: ADMIN
+       ══════════════════════════════════════════════════════ -->
+  <div class="role" data-role="admin">
+
+    <!-- ─── A1. DUYỆT TÀI KHOẢN ─── -->
+    <section class="scr on" id="ad-duyet">
+      <div class="note">
+        <svg class="ic"><use href="#ic-cho-duyet"/></svg>
+        <div>Tài khoản mới ở trạng thái <b>PENDING</b> — chưa vào được chức năng chính.
+          Duyệt xong thành <b>ACTIVE</b>.</div>
+      </div>
+      <div class="card" style="padding:0">
+        <table>
+          <thead><tr><th>Tên</th><th>Vai trò</th><th>Điện thoại</th><th>Đăng ký</th><th></th></tr></thead>
+          <tbody>
+            <tr><td><b>Trần Quốc Minh</b></td><td><span class="chip chip--cho">Sales</span></td>
+              <td>0903 118 244</td><td>31/07/2026</td>
+              <td style="text-align:right"><button class="btn btn--phu btn--xs">Từ chối</button>
+                <button class="btn btn--chinh btn--xs" style="margin-left:6px">Duyệt</button></td></tr>
+            <tr><td><b>Nguyễn Thị Hồng</b><div class="muted">2 căn ở Đà Lạt</div></td>
+              <td><span class="chip chip--ok">Host</span></td>
+              <td>0912 330 415</td><td>30/07/2026</td>
+              <td style="text-align:right"><button class="btn btn--phu btn--xs">Từ chối</button>
+                <button class="btn btn--chinh btn--xs" style="margin-left:6px">Duyệt</button></td></tr>
+            <tr><td><b>Lê Văn Hà</b></td><td><span class="chip chip--cho">Sales</span></td>
+              <td>0938 771 002</td><td>29/07/2026</td>
+              <td style="text-align:right"><button class="btn btn--phu btn--xs">Từ chối</button>
+                <button class="btn btn--chinh btn--xs" style="margin-left:6px">Duyệt</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ─── A2. TOÀN HỆ THỐNG ─── -->
+    <section class="scr" id="ad-tong">
+      <div class="g3" style="margin-bottom:var(--s4)">
+        <div class="kpi br"><div class="lb">Host</div><div class="vl">37</div><div class="muted">4 chờ duyệt</div></div>
+        <div class="kpi br"><div class="lb">Sales</div><div class="vl">62</div><div class="muted">9 chờ duyệt</div></div>
+        <div class="kpi br"><div class="lb">Căn đang đăng</div><div class="vl">148</div></div>
+        <div class="kpi ok"><div class="lb">Booking tháng 8</div><div class="vl">211</div></div>
+        <div class="kpi ok"><div class="lb">Tổng hoa hồng</div><div class="vl">48,6tr</div></div>
+        <div class="kpi rd"><div class="lb">Giữ chỗ quá hạn</div><div class="vl">7</div></div>
+      </div>
+
+      <div class="note">
+        <svg class="ic"><use href="#ic-cai-dat"/></svg>
+        <div>Admin là <b>super-role</b>: không bị lọc theo <code>hostId</code> nên thấy toàn bộ.
+          Host thì không thấy tên nhau.</div>
+      </div>
+
+      <div class="h2">Hoa hồng theo sales</div>
+      <div class="card" style="padding:0">
+        <table>
+          <thead><tr><th>Sales</th><th style="text-align:center">Chốt</th>
+            <th style="text-align:right">Khách trả</th><th style="text-align:right">Host nhận</th>
+            <th style="text-align:right">Hoa hồng</th></tr></thead>
+          <tbody>
+            <tr><td><b>Trần Quốc Minh</b></td><td style="text-align:center">14</td>
+              <td style="text-align:right">31.400.000đ</td><td style="text-align:right">28.220.000đ</td>
+              <td style="text-align:right" class="tien-sm">3.180.000đ</td></tr>
+            <tr><td><b>Lê Văn Hà</b></td><td style="text-align:center">11</td>
+              <td style="text-align:right">24.900.000đ</td><td style="text-align:right">22.310.000đ</td>
+              <td style="text-align:right" class="tien-sm">2.590.000đ</td></tr>
+            <tr><td><b>Phạm Thu Trang</b></td><td style="text-align:center">9</td>
+              <td style="text-align:right">19.200.000đ</td><td style="text-align:right">17.360.000đ</td>
+              <td style="text-align:right" class="tien-sm">1.840.000đ</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  </div><!-- /wrap -->
+</div><!-- /shell -->
+</div><!-- /stage -->
+
+<script>
+fetch('sabi-icons.svg').then(r=>r.text()).then(t=>{document.getElementById('sprite').innerHTML=t});
+
+const NAV={
+  sales:[['sales-cho','Chợ','ic-cho'],['sales-cho-duyet','Giữ chỗ','ic-lich',2],
+         ['sales-booking','Booking','ic-ghi-chu'],['sales-hh','Hoa hồng','ic-hoa-hong']],
+  host:[['host-yc','Yêu cầu','ic-cho-duyet',1],['host-can','Căn của tôi','ic-nha'],
+        ['host-lich','Lịch','ic-lich']],
+  admin:[['ad-duyet','Duyệt tài khoản','ic-cho-duyet',13],['ad-tong','Toàn hệ thống','ic-thong-ke']]
+};
+const TITLE={
+  'sales-cho':['Chợ căn trống','14 căn · Đà Lạt · 01–07/08/2026'],
+  'sales-giu':['Giữ chỗ','Khoá tạm ngày — chưa nhập khách'],
+  'sales-cho-duyet':['Giữ chỗ của tôi','3 yêu cầu'],
+  'sales-booking':['Thêm booking','Host đã duyệt'],
+  'sales-phieu':['Phiếu','Phiếu khách &amp; phiếu host'],
+  'sales-hh':['Hoa hồng','Tháng 8/2026'],
+  'host-yc':['Yêu cầu giữ chỗ','1 chờ bạn duyệt'],
+  'host-can':['Căn của tôi','3 căn đang đăng'],
+  'host-dang':['Đăng căn','Lên chợ cho sales thấy'],
+  'host-lich':['Lịch &amp; booking','Nội bộ + từ chợ'],
+  'ad-duyet':['Duyệt tài khoản','13 hồ sơ chờ'],
+  'ad-tong':['Toàn hệ thống','37 host · 62 sales']
+};
+const WHO={sales:['S','Sales · Minh'],host:['T','Host · Anh Tuấn'],admin:['A','Admin · Sabi']};
+let role='sales';
+
+function drawTabs(){
+  document.getElementById('tabs').innerHTML=NAV[role].map(([id,lb,ic,nb])=>
+    '<button data-go="'+id+'"><span style="position:relative"><svg class="ic ic--sm"><use href="#'+ic+'"/></svg>'
+    +(nb?'<span class="nb">'+nb+'</span>':'')+'</span>'+lb+'</button>').join('');
+  document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>go(b.dataset.go));
+}
+function go(id){
+  document.querySelectorAll('.role.on .scr').forEach(s=>s.classList.toggle('on',s.id===id));
+  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.go===id));
+  const t=TITLE[id];
+  if(t){document.getElementById('pt').innerHTML=t[0];document.getElementById('ps').innerHTML=t[1];}
+  document.querySelector('.wrap').scrollTop=0;
+}
+function setRole(r){
+  role=r;
+  document.querySelectorAll('.role').forEach(x=>x.classList.toggle('on',x.dataset.role===r));
+  document.querySelectorAll('.rb').forEach(b=>b.classList.toggle('on',b.dataset.r===r));
+  document.getElementById('wav').textContent=WHO[r][0];
+  document.getElementById('wnm').textContent=WHO[r][1];
+  drawTabs(); go(NAV[r][0][0]);
+}
+document.querySelectorAll('.rb').forEach(b=>b.onclick=()=>setRole(b.dataset.r));
+document.querySelectorAll('.db').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.db').forEach(x=>x.classList.toggle('on',x===b));
+  document.getElementById('stage').classList.toggle('mobile',b.dataset.d==='mobile');
+});
+document.getElementById('toi').onclick=e=>{
+  document.body.classList.toggle('toi');
+  e.target.textContent=document.body.classList.contains('toi')?'Nền sáng':'Nền tối';
+};
+
+// đếm ngược demo
+(function(){let s=29*60+41;setInterval(()=>{
+  if(s<=0)return; s--;
+  const el=document.getElementById('cd');
+  if(el)el.textContent=String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+},1000)})();
+
+setRole('sales');
+</script>
+</body>
+</html>
