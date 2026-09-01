@@ -149,10 +149,54 @@ git push
 ```
 Rồi vào Render → Manual Deploy → *Deploy latest commit* (đổi schema thì *Clear build cache & deploy*).
 
-**Web (React — cách MỚI):** sửa code ở repo `sabihome` → `npm run build` (ra `dist/`) → copy
-`dist/` (index.html + assets/) vào `public/` của repo này → commit/push → deploy Render.
+**Web (React) — dùng MỘT LỆNH, đừng làm tay:**
+```bash
+cd /d/projects/homestay-backend
+npm run deploy:web        # build sabihome + chép vào public/ + ghi build-info.json
+git add public && git commit -m "..." && git push
+```
+Rồi Render → Manual Deploy. Xong mở `https://<domain>/build-info.json` để đối chiếu:
+`web_commit_ngan` phải khớp commit hiện tại của `sabihome`.
+
+⚠️ **Render deploy từ repo NÀY, không phải từ `sabihome`.** Push `sabihome` không làm
+Render đổi gì. Bước chép `dist/` → `public/` từng bị quên (01/09/2026): deploy "thành công"
+nhưng web vẫn chạy bản cũ, không có lỗi nào báo. Script `deploy:web` sinh ra để bịt đúng
+chỗ đó, và `build-info.json` để luôn trả lời được "web thật đang chạy code nào".
+
 KHÔNG sửa trực tiếp `public/index.html` (là file build, sẽ bị đè).
-Bản cũ ở `public/cu/index.html` — chỉ đụng khi cần vá gấp bản dự phòng.
+Bản cũ ở `public/cu/index.html` — phao dự phòng, script không đụng tới. Đừng gitignore
+cả thư mục `public/`, sẽ mất phao này.
+
+---
+
+## 6b. Việc phải làm khi bước vào GĐ3 (marketplace)
+
+Hai món nợ kiến trúc dưới đây **làm cùng lúc, ngay đầu GĐ3**, trước khi thêm bảng
+`Customer` / `RatePlan` / `Listing`. Làm sau sẽ đắt hơn nhiều.
+
+**1. Gộp `sabihome` thành thư mục `web/` trong repo này (monorepo).**
+Đây vốn là kiến trúc đã vạch trong `mockup/KE-HOACH-REACT.md`, lúc làm bị tách ra.
+Lợi: hết bước chép, không còn file build trong git, một commit sửa được cả API lẫn web,
+rollback một phát về cả hai. Cần khi mỗi tính năng marketplace đều đụng cả hai bên.
+
+Năm chỗ dễ vỡ, đã rà 01/09/2026:
+- `render.yaml` đang đặt `NODE_ENV=production` → `npm install` **bỏ qua devDependencies**,
+  mà `vite`/`typescript` của web nằm đúng ở đó → build Render sẽ hỏng. Phải dùng
+  `npm ci --include=dev` cho bước build web. (Lỗi này đã từng xảy ra trên máy local.)
+- **Đừng gitignore cả `public/`** — sẽ mất `public/cu` (283 KB, phao dự phòng) và
+  `public/_old-backup`. Chỉ ignore `public/index.html` + `public/assets/`.
+- Chép tay thì mất lịch sử git của web → dùng `git subtree` để giữ.
+- Repo `sabihome` cũ phải archive trên GitHub, kèm README trỏ sang chỗ mới, không thì
+  có ngày commit nhầm vào đó.
+- Build lâu thêm ~2 phút. Chấp nhận được.
+- Đường lùi: giữ nguyên `sabihome`, không xoá gì cho tới khi Render build xanh.
+- App mobile **không** import code từ `sabihome` (đã kiểm) → gộp repo không ảnh hưởng.
+
+**2. Bỏ `prisma db push`, chuyển sang `prisma migrate deploy`.**
+`render.yaml` đang chạy `db push` mỗi lần deploy → không có lịch sử, không quay lui được,
+không biết lần nào đổi gì. Chịu được khi schema nhỏ và chỉ có một môi trường; hỏng khi
+GĐ3 thêm 3 bảng mới và cần rollback.
+(`seed-prod.js` chạy kèm thì AN TOÀN — thấy có user là bỏ qua ngay, không xoá gì.)
 
 ---
 
