@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
-import { requireRole, hostWhere, ownHostId } from '../middleware/auth.js';
+import { requireRole, hostWhere, ownHostId, findOwn, updateOwn, deleteOwn, ownsRecord, notFound } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -179,12 +179,15 @@ router.post('/import', requireRole('ADMIN', 'MANAGER', 'STAFF'), async (req, res
     return res.status(403).json({ error: 'Chỉ Admin được nhập bù ngày đã qua' });
   }
 
-  const tpl = await prisma.chargeTemplate.findUnique({ where: { id: tid } });
+  // Cả mặt hàng lẫn căn nhà đều phải là của host mình.
+  if (!(await ownsRecord(prisma.home, req, hid))) return notFound(res, 'căn nhà');
+
+  const tpl = await findOwn(prisma.chargeTemplate, req, tid);
   if (!tpl || tpl.type !== 'QUICK') return res.status(404).json({ error: 'Mặt hàng không hợp lệ' });
 
   // Nhập hàng nghĩa là bắt đầu theo dõi kho món này
   if (!tpl.trackStock) {
-    await prisma.chargeTemplate.update({ where: { id: tid }, data: { trackStock: true } });
+    await updateOwn(prisma.chargeTemplate, req, tid, { trackStock: true });
   }
 
   const p = Math.max(0, parseInt(packs) || 0);
@@ -220,6 +223,9 @@ router.post('/adjust', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
     return res.status(403).json({ error: 'Chỉ Admin được điều chỉnh ngày đã qua' });
   }
 
+  if (!(await ownsRecord(prisma.home, req, hid))) return notFound(res, 'căn nhà');
+  if (!(await ownsRecord(prisma.chargeTemplate, req, tid))) return notFound(res, 'mặt hàng');
+
   const entry = await prisma.stockEntry.create({
     data: {
       templateId: tid,
@@ -238,8 +244,8 @@ router.post('/adjust', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
 // PATCH /v1/inventory/entries/:id { packs, units, qty, date, note }
 router.patch('/entries/:id', requireRole('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
   const id = parseInt(req.params.id);
-  const cur = await prisma.stockEntry.findUnique({ where: { id }, include: { template: true } });
-  if (!cur) return res.status(404).json({ error: 'Không tìm thấy phiếu' });
+  const cur = await findOwn(prisma.stockEntry, req, id, { include: { template: true } });
+  if (!cur) return notFound(res, 'phiếu');
 
   const { packs, units, qty, date, note } = req.body;
   // NV/QL không được đụng phiếu quá khứ, và không được dời sang ngày quá khứ
@@ -274,12 +280,12 @@ router.patch('/entries/:id', requireRole('ADMIN', 'MANAGER', 'STAFF'), async (re
 // ───── XOÁ PHIẾU NHẬP / ĐIỀU CHỈNH ─────
 router.delete('/entries/:id', requireRole('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
   const id = parseInt(req.params.id);
-  const cur = await prisma.stockEntry.findUnique({ where: { id } });
+  const cur = await findOwn(prisma.stockEntry, req, id);
   if (!cur) return res.json({ ok: true });
   if (!canTouchPast(req.user) && isPastDate(cur.date)) {
     return res.status(403).json({ error: 'Chỉ Admin được xoá phiếu ngày đã qua' });
   }
-  await prisma.stockEntry.delete({ where: { id } });
+  await deleteOwn(prisma.stockEntry, req, id);
   res.json({ ok: true });
 });
 

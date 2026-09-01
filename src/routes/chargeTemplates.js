@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
-import { requireRole, hostWhere, ownHostId } from '../middleware/auth.js';
+import { requireRole, hostWhere, ownHostId, findOwn, updateOwn, notFound } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -40,22 +40,19 @@ router.post('/', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
 router.patch('/:id', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
   const id = parseInt(req.params.id);
   const { name, amount } = req.body;
-  const tpl = await prisma.chargeTemplate.update({
-    where: { id },
-    data: {
-      ...(name && { name }),
-      ...(amount !== undefined && { amount: parseInt(amount) }),
-      ...stockFields(req.body)
-    }
+  const n = await updateOwn(prisma.chargeTemplate, req, id, {
+    ...(name && { name }),
+    ...(amount !== undefined && { amount: parseInt(amount) }),
+    ...stockFields(req.body)
   });
-  res.json(tpl);
+  if (!n) return notFound(res, 'mẫu phụ thu');
+  res.json(await findOwn(prisma.chargeTemplate, req, id));
 });
 
+// Xoá mềm: chỉ tắt active, giữ lịch sử phụ thu đã phát sinh.
 router.delete('/:id', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
-  await prisma.chargeTemplate.update({
-    where: { id: parseInt(req.params.id) },
-    data: { active: false }
-  });
+  const n = await updateOwn(prisma.chargeTemplate, req, req.params.id, { active: false });
+  if (!n) return notFound(res, 'mẫu phụ thu');
   res.json({ ok: true });
 });
 

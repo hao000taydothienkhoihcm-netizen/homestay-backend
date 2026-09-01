@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
-import { requireRole, hostWhere, ownHostId } from '../middleware/auth.js';
+import { requireRole, hostWhere, ownHostId, findOwn, updateOwn, notFound } from '../middleware/auth.js';
 import { loadPriceTable, stayTotal } from '../services/bookingService.js';
 
 const router = Router();
@@ -22,8 +22,8 @@ router.get('/', async (req, res) => {
 });
 
 router.get('/:id', async (req, res) => {
-  const home = await prisma.home.findUnique({ where: { id: parseInt(req.params.id) } });
-  if (!home) return res.status(404).json({ error: 'Không tìm thấy' });
+  const home = await findOwn(prisma.home, req, req.params.id);
+  if (!home) return notFound(res, 'căn nhà');
   res.json(home);
 });
 
@@ -48,9 +48,7 @@ router.post('/', requireRole('ADMIN'), async (req, res) => {
 router.patch('/:id', requireRole('ADMIN'), async (req, res) => {
   const id = parseInt(req.params.id);
   const { name, address, price, weekendPrice, holidayPrice, maxGuests, emoji, desc } = req.body;
-  const home = await prisma.home.update({
-    where: { id },
-    data: {
+  const n = await updateOwn(prisma.home, req, id, {
       ...(name !== undefined && { name }),
       ...(address !== undefined && { address }),
       ...(price !== undefined && { price: parseInt(price) }),
@@ -65,13 +63,18 @@ router.patch('/:id', requireRole('ADMIN'), async (req, res) => {
       ...(maxGuests !== undefined && { maxGuests: parseInt(maxGuests) }),
       ...(emoji !== undefined && { emoji }),
       ...(desc !== undefined && { desc })
-    }
   });
-  res.json(home);
+  if (!n) return notFound(res, 'căn nhà');
+  res.json(await findOwn(prisma.home, req, id));
 });
 
 router.delete('/:id', requireRole('ADMIN'), async (req, res) => {
   const id = parseInt(req.params.id);
+
+  // Phải xác nhận là căn của mình TRƯỚC, không thì số booking đang ở của host khác bị lộ.
+  const home = await findOwn(prisma.home, req, id);
+  if (!home) return notFound(res, 'căn nhà');
+
   // Check if có booking active
   const active = await prisma.booking.count({
     where: { homeId: id, status: { not: 'CHECKEDOUT' } }
@@ -80,7 +83,7 @@ router.delete('/:id', requireRole('ADMIN'), async (req, res) => {
     return res.status(400).json({ error: `Còn ${active} booking active, không thể xóa` });
   }
   // Soft delete
-  await prisma.home.update({ where: { id }, data: { active: false } });
+  await updateOwn(prisma.home, req, id, { active: false });
   res.json({ ok: true });
 });
 
@@ -182,6 +185,10 @@ router.post('/:id/prices/copy-year', requireRole('ADMIN', 'MANAGER'), async (req
 router.get('/:id/date-prices', async (req, res) => {
   const homeId = parseInt(req.params.id);
   const { from, to } = req.query;
+
+  const home = await findOwn(prisma.home, req, homeId);
+  if (!home) return notFound(res, 'căn nhà');
+
   const where = { homeId };
   if (from && to) where.date = { gte: new Date(from), lte: new Date(to) };
 

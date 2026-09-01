@@ -1,17 +1,18 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
-import { requireRole, hostWhere, ownHostId } from '../middleware/auth.js';
+import { requireRole, hostWhere, ownHostId, findOwn, deleteOwn, notFound } from '../middleware/auth.js';
 import { checkBookingConflict, nights, stayTotal, loadPriceTable } from '../services/bookingService.js';
 
 const router = Router();
 
 // Map tên phụ thu → id mẫu (ChargeTemplate) để gắn liên kết cứng vào Charge.
 // Ưu tiên mẫu đang hoạt động khi trùng tên.
-async function templateIdByName(names) {
+// Lọc theo host: hai host đặt trùng tên mẫu ("Kê nệm") thì không được móc nhầm sang nhau.
+async function templateIdByName(req, names) {
   const uniq = [...new Set((names || []).map(n => String(n || '').trim()).filter(Boolean))];
   if (!uniq.length) return {};
   const tpls = await prisma.chargeTemplate.findMany({
-    where: { name: { in: uniq } },
+    where: hostWhere(req, { name: { in: uniq } }),
     select: { id: true, name: true, active: true }
   });
   const pick = {};
@@ -117,6 +118,11 @@ router.post('/', requireRole('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
     }
   }
 
+  // Kiểm căn nhà TRƯỚC khi kiểm trùng lịch: báo trùng lịch có kèm tên khách + tiền cọc,
+  // nếu để sau thì gõ đại homeId của host khác là đọc được thông tin khách của họ.
+  const home = await findOwn(prisma.home, req, homeId);
+  if (!home) return notFound(res, 'căn nhà');
+
   const conflict = await checkBookingConflict(homeId, checkIn, checkOut);
   if (conflict) {
     return res.status(409).json({
@@ -124,9 +130,6 @@ router.post('/', requireRole('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
       conflict: { guest: conflict.guest, checkIn: conflict.checkIn, checkOut: conflict.checkOut, deposit: conflict.deposit }
     });
   }
-
-  const home = await prisma.home.findUnique({ where: { id: parseInt(homeId) } });
-  if (!home) return res.status(404).json({ error: 'Căn nhà không tồn tại' });
 
   const holidays = await prisma.holiday.findMany({ where: hostWhere(req) });
   const priceTable = await loadPriceTable(homeId, checkIn, checkOut);
@@ -172,7 +175,7 @@ router.post('/', requireRole('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
     notes: notes || null
   };
   if (chargesArr.length) {
-    const tidMap = await templateIdByName(chargesArr.map(c => c.name));
+    const tidMap = await templateIdByName(req, chargesArr.map(c => c.name));
     data.charges = { create: chargesArr.map(c => ({ ...c, templateId: tidMap[c.name] || null })) };
   }
   // Nhập bù lịch sử: tạo booking đã nhận / đã trả → ghi nhận đã thu đủ tiền phòng
@@ -195,12 +198,19 @@ router.post('/', requireRole('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
 // ───── UPDATE ─────
 router.patch('/:id', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
   const id = parseInt(req.params.id);
-  const existing = await prisma.booking.findUnique({ where: { id } });
-  if (!existing) return res.status(404).json({ error: 'Không tìm thấy' });
+  // Chặn ngay từ đây: đọc được booking này nghĩa là nó thuộc host mình.
+  // Mọi update({ where: { id } }) phía dưới nhờ vậy đã an toàn.
+  const existing = await findOwn(prisma.booking, req, id);
+  if (!existing) return notFound(res, 'booking');
 
   const { guest, phone, homeId, checkIn, checkOut, checkInTime, checkOutTime,
           guests, deposit, discount, notes, status, charges,
           totalAmount: totalAmountInput } = req.body;
+
+  // Đổi sang căn khác thì căn mới cũng phải là của host mình.
+  if (homeId !== undefined && !(await findOwn(prisma.home, req, homeId))) {
+    return notFound(res, 'căn nhà');
+  }
 
   // Conflict check khi đổi ngày hoặc nhà
   if (homeId && checkIn && checkOut) {
@@ -252,7 +262,7 @@ router.patch('/:id', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
       }));
     updateData.checkinCharges = chargesArr.filter(c => c.phase === 'CHECKIN').reduce((s, c) => s + c.amount, 0);
     updateData.chargesTotal = chargesArr.filter(c => c.phase === 'CHECKOUT').reduce((s, c) => s + c.amount, 0);
-    const tidMap = await templateIdByName(chargesArr.map(c => c.name));
+    const tidMap = await templateIdByName(req, chargesArr.map(c => c.name));
     chargesArr = chargesArr.map(c => ({ ...c, templateId: tidMap[c.name] || null }));
   }
 
@@ -265,7 +275,8 @@ router.patch('/:id', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
     const hId = updateData.homeId || existing.homeId;
     const ci = updateData.checkIn || existing.checkIn;
     const co = updateData.checkOut || existing.checkOut;
-    const home = await prisma.home.findUnique({ where: { id: hId } });
+    const home = await findOwn(prisma.home, req, hId);
+    if (!home) return notFound(res, 'căn nhà');
     const holidays = await prisma.holiday.findMany({ where: hostWhere(req) });
     const priceTable = await loadPriceTable(hId, ci, co);
     updateData.totalAmount = stayTotal(home, ci, co, holidays, priceTable);
@@ -315,8 +326,8 @@ router.patch('/:id', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
 
 // ───── DELETE ─────
 router.delete('/:id', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
-  const id = parseInt(req.params.id);
-  await prisma.booking.delete({ where: { id } });
+  const n = await deleteOwn(prisma.booking, req, req.params.id);
+  if (!n) return notFound(res, 'booking');
   res.json({ ok: true });
 });
 
@@ -325,8 +336,8 @@ router.post('/:id/checkin', async (req, res) => {
   const id = parseInt(req.params.id);
   const { actualTime, note } = req.body;
 
-  const b = await prisma.booking.findUnique({ where: { id } });
-  if (!b) return res.status(404).json({ error: 'Không tìm thấy' });
+  const b = await findOwn(prisma.booking, req, id);
+  if (!b) return notFound(res, 'booking');
 
   const paidAtCheckIn = Math.max(0, b.totalAmount - (b.discount || 0) - (b.deposit || 0));
 
@@ -348,8 +359,8 @@ router.post('/:id/checkout', async (req, res) => {
   const id = parseInt(req.params.id);
   const { actualTime, water, inspectionNote, charges } = req.body;
 
-  const existing = await prisma.booking.findUnique({ where: { id } });
-  if (!existing) return res.status(404).json({ error: 'Không tìm thấy booking' });
+  const existing = await findOwn(prisma.booking, req, id);
+  if (!existing) return notFound(res, 'booking');
 
   // Ai được thêm/sửa phụ thu: ADMIN luôn được; MANAGER & STAFF chỉ được ĐÚNG NGÀY trả nhà (giờ VN), không qua hôm sau.
   const isAdmin = req.user.role === 'ADMIN';
@@ -360,7 +371,7 @@ router.post('/:id/checkout', async (req, res) => {
 
   const chargesArr = (canEditCharges && Array.isArray(charges)) ? charges : [];
   const chargesTotal = chargesArr.reduce((s, c) => s + (parseInt(c.unit) || 0) * (parseInt(c.qty) || 1), 0);
-  const tidMap = canEditCharges ? await templateIdByName(chargesArr.map(c => c.name)) : {};
+  const tidMap = canEditCharges ? await templateIdByName(req, chargesArr.map(c => c.name)) : {};
 
   // Transaction: (nếu được phép) xóa charges cũ + tạo mới, rồi update booking
   const updated = await prisma.$transaction(async (tx) => {
