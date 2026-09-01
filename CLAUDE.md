@@ -96,7 +96,23 @@ homestay-backend/
 ## 5. Mô hình dữ liệu (Prisma) — điểm cần nhớ
 
 - **User**: role `ADMIN` / `MANAGER` / `STAFF`. Nhân viên (STAFF) bị ẩn Thống kê + Thu/Chi.
-- **Home** (căn nhà): `price` = giá ngày thường (T2–T5), `weekendPrice` = giá cuối tuần (T6,T7,CN). Tự động chọn giá theo đêm.
+- **Home** (căn nhà): `price` = giá ngày thường (T2–T5), `weekendPrice` = giá cuối tuần (T6,T7,CN), `holidayPrice` = giá lễ. Đây là giá **mặc định**, dùng khi tháng đó chưa có bảng giá riêng.
+- **HomeMonthlyPrice**: bảng giá theo **từng tháng của từng năm** cho mỗi căn (`price` / `weekendPrice` / `holidayPrice`, đều nullable). Ô trống → lùi về giá mặc định của căn.
+- **HomeDatePrice**: giá ghi đè cho **một đêm** cụ thể. Ưu tiên cao nhất, thắng cả giá lễ.
+
+### ⚠️ GIÁ CHỈ ĐƯỢC TÍNH Ở BACKEND
+Thứ tự tra giá mỗi đêm (`services/bookingService.js` → `stayTotal`):
+**1.** ghi đè từng đêm → **2.** giá lễ của tháng → giá lễ của căn → **3.** giá cuối tuần của tháng → của căn → **4.** giá thường của tháng → của căn.
+
+Trước đây công thức được chép ở 3 nơi (backend, web, mobile) và bắt "phải khớp nhau" — chính đó là nguồn sai số. **Nay bỏ quy tắc đó.** Web và mobile KHÔNG tự tính giá nữa mà gọi:
+```
+GET /v1/homes/:id/price-preview?checkIn=YYYY-MM-DD&checkOut=YYYY-MM-DD
+→ { total, nights, detail: [{ date, weekday, kind, price }] }
+   kind = thuong | cuoi-tuan | le | ghi-de
+```
+Hàm `stayTotal` còn sót ở web (`BookingScreen.tsx`) và mobile (`utils/index.js`) chỉ để hiện tạm trong lúc chờ mạng — đã ghi chú cảnh báo trong code. `sabihome/src/lib/pricing.ts` đã bỏ hoang, đừng dùng lại.
+
+API bảng giá: `GET|PUT /v1/homes/:id/prices` (theo tháng, kèm `?year=`), `POST /v1/homes/:id/prices/copy-year`, `GET|PUT /v1/homes/:id/date-prices`.
 - **Booking**: 2 mức giá theo đêm, có `discount` (giảm giá), `deposit` (cọc), `paidAtCheckIn`. Trạng thái: `CONFIRMED → CHECKEDIN → CHECKOUT_TODAY → CHECKEDOUT`.
 - **Charge** (phụ thu từng booking): có `phase` = `CHECKIN` (thu lúc nhận nhà) hoặc `CHECKOUT` (thu lúc trả nhà). Doanh thu phụ thu nhận nhà tính ngay khi CHECKEDIN; phụ thu trả nhà tính khi CHECKEDOUT.
 - **ChargeTemplate** (mẫu phụ thu/phạt): `type` = `RULE` (phạt, không số lượng) hoặc `QUICK` (đồ tiêu thụ, có số lượng). Nếu `trackStock=true` thì theo dõi kho: `packSize`, `packLabel`, `unitLabel`, `lowStock`, `costPrice` (giá vốn để tính lợi nhuận).

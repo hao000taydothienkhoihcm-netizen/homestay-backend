@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
 import { requireRole, hostWhere, ownHostId } from '../middleware/auth.js';
-import { checkBookingConflict, nights, stayTotal } from '../services/bookingService.js';
+import { checkBookingConflict, nights, stayTotal, loadPriceTable } from '../services/bookingService.js';
 
 const router = Router();
 
@@ -129,7 +129,8 @@ router.post('/', requireRole('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
   if (!home) return res.status(404).json({ error: 'Căn nhà không tồn tại' });
 
   const holidays = await prisma.holiday.findMany({ where: hostWhere(req) });
-  const autoTotal = stayTotal(home, checkIn, checkOut, holidays);
+  const priceTable = await loadPriceTable(homeId, checkIn, checkOut);
+  const autoTotal = stayTotal(home, checkIn, checkOut, holidays, priceTable);
   // Tiền nhà: ưu tiên số client gửi lên (app điện thoại có ô sửa tay).
   // Không gửi (hoặc gửi 0) -> tự tính theo bảng giá của căn — giữ nguyên hành vi cũ của web.
   const manualTotal = parseInt(totalAmountInput);
@@ -261,9 +262,13 @@ router.patch('/:id', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
   if (Number.isFinite(manualTotal) && manualTotal > 0) {
     updateData.totalAmount = manualTotal;
   } else if (homeId || checkIn || checkOut) {
-    const home = await prisma.home.findUnique({ where: { id: updateData.homeId || existing.homeId } });
+    const hId = updateData.homeId || existing.homeId;
+    const ci = updateData.checkIn || existing.checkIn;
+    const co = updateData.checkOut || existing.checkOut;
+    const home = await prisma.home.findUnique({ where: { id: hId } });
     const holidays = await prisma.holiday.findMany({ where: hostWhere(req) });
-    updateData.totalAmount = stayTotal(home, updateData.checkIn || existing.checkIn, updateData.checkOut || existing.checkOut, holidays);
+    const priceTable = await loadPriceTable(hId, ci, co);
+    updateData.totalAmount = stayTotal(home, ci, co, holidays, priceTable);
   }
 
   // Trạng thái hiệu lực sau cập nhật (client gửi status mới, hoặc giữ nguyên).

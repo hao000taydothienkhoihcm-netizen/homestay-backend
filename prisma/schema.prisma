@@ -30,6 +30,8 @@ model Host {
   chargeTemplates ChargeTemplate[]
   stockEntries   StockEntry[]
   expenses       Expense[]
+  monthlyPrices  HomeMonthlyPrice[]
+  datePrices     HomeDatePrice[]
 }
 
 // ───── User & Auth ─────
@@ -91,8 +93,57 @@ model Home {
   bookings  Booking[]
   expenses  Expense[]
   stockEntries StockEntry[]
+  monthlyPrices HomeMonthlyPrice[]
+  datePrices    HomeDatePrice[]
 
   @@index([hostId])
+}
+
+// ───── Bảng giá THEO THÁNG của từng căn ─────
+// Giá nền đổi theo mùa (VD tháng thấp điểm 3,5tr; cao điểm 5tr). Mỗi năm nhập riêng.
+// Ô nào để trống -> lùi về giá mặc định của căn (Home.price / weekendPrice / holidayPrice),
+// nên căn nào chưa nhập bảng giá vẫn chạy y như trước.
+model HomeMonthlyPrice {
+  id           Int      @id @default(autoincrement())
+  homeId       Int
+  home         Home     @relation(fields: [homeId], references: [id], onDelete: Cascade)
+  year         Int      // VD 2026
+  month        Int      // 1–12
+  price        Int?     // giá ngày thường T2–T5
+  weekendPrice Int?     // giá T6, T7, CN
+  holidayPrice Int?     // giá ngày lễ (theo danh sách Holiday)
+  note         String?  // ghi chú tuỳ ý, VD "mùa thấp điểm"
+
+  hostId    Int?
+  host      Host?    @relation(fields: [hostId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([homeId, year, month])
+  @@index([hostId])
+  @@index([homeId, year])
+}
+
+// ───── Giá GHI ĐÈ cho MỘT đêm cụ thể ─────
+// Ưu tiên cao nhất, thắng cả giá lễ. Dùng cho ngày lẻ / khuyến mãi / sự kiện.
+model HomeDatePrice {
+  id     Int      @id @default(autoincrement())
+  homeId Int
+  home   Home     @relation(fields: [homeId], references: [id], onDelete: Cascade)
+  date   DateTime @db.Date  // đêm bắt đầu từ ngày này
+  price  Int
+  note   String?
+
+  hostId    Int?
+  host      Host?    @relation(fields: [hostId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([homeId, date])
+  @@index([hostId])
+  @@index([date])
 }
 
 // ───── Ngày lễ (áp giá lễ cho mọi căn) ─────

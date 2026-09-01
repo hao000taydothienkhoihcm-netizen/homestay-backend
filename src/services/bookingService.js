@@ -83,27 +83,93 @@ function isHolidayNight(t, holidayRanges) {
 }
 
 /**
- * Tổng tiền phòng theo 3 mức giá. Ưu tiên: LỄ > CUỐI TUẦN > NGÀY THƯỜNG.
- * - holidayPrice trống -> lùi về giá cuối tuần (mà cuối tuần trống thì về giá thường).
- * - weekendPrice trống -> dùng giá thường.
- * Đếm từng đêm theo ngày nhận của đêm đó. `holidays` = mảng Holiday (DB) hoặc [] .
+ * Nạp bảng giá của 1 căn cho khoảng ngày cần tính:
+ *  - giá theo THÁNG  (HomeMonthlyPrice) của mọi tháng mà khoảng ngày chạm tới
+ *  - giá GHI ĐÈ từng đêm (HomeDatePrice) trong khoảng đó
+ * Trả về object đưa thẳng vào stayTotal(). Không có dữ liệu -> {} -> tính như cũ.
  */
-export function stayTotal(home, checkIn, checkOut, holidays = []) {
+export async function loadPriceTable(homeId, checkIn, checkOut) {
+  const hid = parseInt(homeId);
+  if (!hid) return null;
+  const start = new Date(checkIn);
+  const end = new Date(checkOut);
+
+  // Liệt kê các cặp (năm, tháng) mà kỳ ở đi qua
+  const yms = [];
+  const cur = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), 1));
+  const last = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), 1));
+  while (cur <= last) {
+    yms.push({ year: cur.getUTCFullYear(), month: cur.getUTCMonth() + 1 });
+    cur.setUTCMonth(cur.getUTCMonth() + 1);
+  }
+
+  const [monthlyRows, dateRows] = await Promise.all([
+    yms.length
+      ? prisma.homeMonthlyPrice.findMany({ where: { homeId: hid, OR: yms } })
+      : Promise.resolve([]),
+    prisma.homeDatePrice.findMany({ where: { homeId: hid, date: { gte: start, lt: end } } })
+  ]);
+
+  const monthly = {};
+  for (const r of monthlyRows) monthly[`${r.year}-${r.month}`] = r;
+  const dates = {};
+  for (const r of dateRows) dates[ymdUTC(r.date)] = r.price;
+  return { monthly, dates };
+}
+
+/** Số dương mới được coi là "đã nhập giá"; null / 0 = để trống, lùi về mức dưới. */
+function pos(v) {
+  return v != null && v > 0;
+}
+
+/**
+ * Tổng tiền phòng, tính từng đêm theo ngày nhận của đêm đó.
+ *
+ * Thứ tự tra giá cho MỖI đêm (dừng ở mức đầu tiên có số):
+ *   1. Giá GHI ĐÈ đúng đêm đó            (HomeDatePrice) — thắng tất cả
+ *   2. Đêm là ngày lễ  -> giá lễ của THÁNG -> giá lễ của CĂN -> giá cuối tuần
+ *   3. Đêm cuối tuần   -> giá cuối tuần của THÁNG -> giá cuối tuần của CĂN
+ *   4. Ngày thường     -> giá thường của THÁNG -> giá thường của CĂN
+ *
+ * `priceTable` lấy từ loadPriceTable(). Bỏ trống -> tính đúng như trước khi có
+ * bảng giá theo tháng, nên căn nào chưa nhập giá tháng không bị ảnh hưởng.
+ */
+export function stayTotal(home, checkIn, checkOut, holidays = [], priceTable = null) {
   const base = home.price;
-  const wkPrice = (home.weekendPrice != null && home.weekendPrice > 0)
-    ? home.weekendPrice : base;
-  const holPrice = (home.holidayPrice != null && home.holidayPrice > 0)
-    ? home.holidayPrice : wkPrice;
+  const wkPrice = pos(home.weekendPrice) ? home.weekendPrice : base;
+  const holPrice = pos(home.holidayPrice) ? home.holidayPrice : wkPrice;
   const ranges = normalizeHolidays(holidays);
+  const monthly = priceTable?.monthly || {};
+  const dates = priceTable?.dates || {};
   const start = new Date(checkIn);
   const end = new Date(checkOut);
   let total = 0, count = 0;
   // Duyệt từng đêm: từ ngày nhận đến trước ngày trả
   for (let t = start.getTime(); t < end.getTime(); t += 86400000) {
-    if (isHolidayNight(t, ranges)) total += holPrice;
-    else if (isWeekendNight(t)) total += wkPrice;
-    else total += base;
     count++;
+    const ds = ymdUTC(t);
+
+    // 1. Ghi đè từng đêm
+    if (pos(dates[ds])) { total += dates[ds]; continue; }
+
+    const d = new Date(t);
+    const m = monthly[`${d.getUTCFullYear()}-${d.getUTCMonth() + 1}`];
+    const mHol = pos(m?.holidayPrice) ? m.holidayPrice : null;
+    const mWk = pos(m?.weekendPrice) ? m.weekendPrice : null;
+    const mWd = pos(m?.price) ? m.price : null;
+
+    // 2. Ngày lễ
+    if (isHolidayNight(t, ranges)) {
+      total += mHol ?? (pos(home.holidayPrice) ? home.holidayPrice : (mWk ?? holPrice));
+    }
+    // 3. Cuối tuần
+    else if (isWeekendNight(t)) {
+      total += mWk ?? wkPrice;
+    }
+    // 4. Ngày thường
+    else {
+      total += mWd ?? base;
+    }
   }
   if (count === 0) total = base; // an toàn: tối thiểu 1 đêm
   return total;
