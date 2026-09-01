@@ -96,7 +96,8 @@ router.get('/:id', async (req, res) => {
 // ───── CREATE ─────
 router.post('/', requireRole('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
   const { guest, phone, homeId, checkIn, checkOut, checkInTime, checkOutTime,
-          guests, deposit, discount, notes, status, charges } = req.body;
+          guests, deposit, discount, notes, status, charges,
+          totalAmount: totalAmountInput } = req.body;
 
   if (!guest || !phone || !homeId || !checkIn || !checkOut) {
     return res.status(400).json({ error: 'Thiếu thông tin bắt buộc' });
@@ -128,7 +129,11 @@ router.post('/', requireRole('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
   if (!home) return res.status(404).json({ error: 'Căn nhà không tồn tại' });
 
   const holidays = await prisma.holiday.findMany({ where: hostWhere(req) });
-  const totalAmount = stayTotal(home, checkIn, checkOut, holidays);
+  const autoTotal = stayTotal(home, checkIn, checkOut, holidays);
+  // Tiền nhà: ưu tiên số client gửi lên (app điện thoại có ô sửa tay).
+  // Không gửi (hoặc gửi 0) -> tự tính theo bảng giá của căn — giữ nguyên hành vi cũ của web.
+  const manualTotal = parseInt(totalAmountInput);
+  const totalAmount = Number.isFinite(manualTotal) && manualTotal > 0 ? manualTotal : autoTotal;
 
   // Mọi quyền (ADMIN, MANAGER, STAFF) đều được nhập tiền cọc / giảm giá.
   const dep = parseInt(deposit) || 0;
@@ -193,7 +198,8 @@ router.patch('/:id', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
   if (!existing) return res.status(404).json({ error: 'Không tìm thấy' });
 
   const { guest, phone, homeId, checkIn, checkOut, checkInTime, checkOutTime,
-          guests, deposit, discount, notes, status, charges } = req.body;
+          guests, deposit, discount, notes, status, charges,
+          totalAmount: totalAmountInput } = req.body;
 
   // Conflict check khi đổi ngày hoặc nhà
   if (homeId && checkIn && checkOut) {
@@ -249,8 +255,12 @@ router.patch('/:id', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
     chargesArr = chargesArr.map(c => ({ ...c, templateId: tidMap[c.name] || null }));
   }
 
-  // Recalculate totalAmount nếu đổi ngày/nhà
-  if (homeId || checkIn || checkOut) {
+  // Tiền nhà: ưu tiên số client gửi lên (app điện thoại có ô sửa tay).
+  // Không gửi mà có đổi căn/đổi ngày -> tính lại theo bảng giá như trước.
+  const manualTotal = parseInt(totalAmountInput);
+  if (Number.isFinite(manualTotal) && manualTotal > 0) {
+    updateData.totalAmount = manualTotal;
+  } else if (homeId || checkIn || checkOut) {
     const home = await prisma.home.findUnique({ where: { id: updateData.homeId || existing.homeId } });
     const holidays = await prisma.holiday.findMany({ where: hostWhere(req) });
     updateData.totalAmount = stayTotal(home, updateData.checkIn || existing.checkIn, updateData.checkOut || existing.checkOut, holidays);

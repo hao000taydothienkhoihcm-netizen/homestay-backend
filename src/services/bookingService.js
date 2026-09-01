@@ -9,7 +9,8 @@ import { prisma } from '../prisma.js';
  *   - Nhận nhà 14:00, trả nhà 12:00
  *   - Khách A trả 12/5 12:00 → Khách B nhận 12/5 14:00 = OK ✓
  *   - co_A === ci_B → không tính là trùng (vì giờ khác nhau)
- *   - Bỏ qua booking đã CHECKEDOUT
+ *   - TÍNH CẢ booking đã CHECKEDOUT: những đêm đó nhà vẫn có khách, nên khi nhập bù
+ *     lịch quá khứ vẫn phải cảnh báo trùng (trước đây bỏ qua → tạo được 2 booking đè ngày).
  */
 export async function checkBookingConflict(homeId, checkIn, checkOut, excludeId = null) {
   const ci = new Date(checkIn);
@@ -21,7 +22,6 @@ export async function checkBookingConflict(homeId, checkIn, checkOut, excludeId 
     where: {
       homeId: parseInt(homeId),
       id: excludeId ? { not: parseInt(excludeId) } : undefined,
-      status: { not: 'CHECKEDOUT' },
       AND: [
         { checkIn: { lt: co } },
         { checkOut: { gt: ci } }
