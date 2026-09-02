@@ -33,6 +33,18 @@ const chayNode = (script, args, cwd) =>
 
 function thoat(msg) { console.error('\n  DỪNG: ' + msg + '\n'); process.exit(1); }
 
+// ───── 0. Chặn BOM trong file JSON ─────
+// PowerShell `Set-Content -Encoding utf8` chèn BOM. npm install vẫn chạy, nhưng
+// `npx prisma` thì gãy với "Unexpected token ... is not valid JSON" và Render chỉ
+// báo "Build failed" sau 11 giây, không nói file nào. Đã mất một lần deploy vì
+// chuyện này (commit dc6bde6) nên chặn ngay tại đây.
+try {
+  chayNode(path.join(HERE, 'ra-bom.mjs'), [], BACKEND);
+} catch (e) {
+  thoat('Có file JSON dính BOM — Render sẽ build thất bại.\n'
+      + '  Chạy: node scripts/ra-bom.mjs   để xem file nào và cách sửa.');
+}
+
 // ───── 1. Kiểm tra repo web ─────
 if (!fs.existsSync(WEB)) {
   thoat(`Không thấy repo web ở ${WEB}\n`
