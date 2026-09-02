@@ -22,6 +22,13 @@ const QL_HOST1 = nhu('MANAGER', 1);   // quản lý của Sabi Home
 const QL_HOST9 = nhu('MANAGER', 999); // host lạ — phải không thấy gì
 const SALES    = nhu('SALES', null);  // chưa gán host — phải không thấy gì
 
+// Vai HOST vừa được mở 26 quyền ghi. Đây là vai duy nhất vừa có quyền ngang ADMIN
+// vừa BỊ lọc theo hostId, nên phải kiểm riêng: mở quyền mà quên lọc là host B
+// sửa được dữ liệu host A.
+const CHU_HOST1 = nhu('HOST', 1);     // chủ Sabi Home — thấy đủ nhà mình
+const CHU_HOST9 = nhu('HOST', 999);   // chủ nhà khác — phải không thấy gì
+const CHU_CHUA_GAN = nhu('HOST', null); // HOST chưa gán host — phải không thấy gì
+
 const BANG = [
   ['booking',          () => prisma.booking],
   ['home',             () => prisma.home],
@@ -81,6 +88,24 @@ for (const [ten, m] of BANG) {
 
   bao(voiToi === 0,   `${ten}#${mau.id}: host lạ sửa/xoá được ${voiToi} dòng (phải là 0)`);
   bao(chinhChu === 1, `${ten}#${mau.id}: chính chủ vẫn sửa/xoá được (${chinhChu})`);
+}
+
+console.log('\n═══ 6b. VAI HOST — vừa mở 26 quyền ghi, phải vẫn bị lọc ═══');
+for (const [ten, m] of BANG) {
+  const chinhChu = await m().count({ where: hostWhere(CHU_HOST1) });
+  const hostLa   = await m().count({ where: hostWhere(CHU_HOST9) });
+  const chuaGan  = await m().count({ where: hostWhere(CHU_CHUA_GAN) });
+  bao(chinhChu === tong[ten], `${ten}: chủ host#1 thấy ${chinhChu}/${tong[ten]} (đủ nhà mình)`);
+  bao(hostLa === 0,  `${ten}: chủ host#999 thấy ${hostLa} dòng (phải là 0)`);
+  bao(chuaGan === 0, `${ten}: HOST chưa gán host thấy ${chuaGan} dòng (phải là 0)`);
+}
+
+console.log('\n═══ 6c. HOST LẠ GÕ ĐẠI ID CÓ THẬT — sửa/xoá phải trượt ═══');
+for (const [ten, m] of BANG) {
+  const mau = await m().findFirst({ select: { id: true } });
+  if (!mau) { console.log(`  (bỏ qua ${ten} — bảng rỗng)`); continue; }
+  const voiToi = await m().count({ where: hostWhere(CHU_HOST9, { id: mau.id }) });
+  bao(voiToi === 0, `${ten}#${mau.id}: chủ host lạ sửa/xoá được ${voiToi} dòng (phải là 0)`);
 }
 
 console.log('\n═══ 7. GIÁ THEO THÁNG / THEO NGÀY ═══');
