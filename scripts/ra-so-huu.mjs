@@ -20,9 +20,24 @@ const MIEN = new Set([
   'sheet.js POST /preview',
 ]);
 
+// File nào khoá cả router ở đúng mức ADMIN thì miễn kiểm chủ sở hữu.
+// Lý do: ADMIN là super-role, hostWhere() cố tình BỎ lọc cho họ — nên đòi
+// hostWhere ở đây là vô nghĩa. Điển hình là routes/hosts.js: nó thao tác TRÊN
+// các host, không phải trên dữ liệu bên trong một host.
+// Chỉ miễn khi danh sách vai đúng bằng ADMIN; thêm bất kỳ vai nào khác là
+// hết miễn, vì lúc đó lại có vai bị lọc đi qua đây.
+const chiAdmin = (src) => {
+  const m = src.match(/router\.use\(requireRole\(([^)]*)\)\)/);
+  if (!m) return false;
+  const vai = m[1].split(',').map((s) => s.replace(/['"\s.]/g, '')).filter(Boolean);
+  return vai.length === 1 && vai[0] === 'ADMIN';
+};
+
 const rows = [];
+const mienVìAdmin = [];
 for (const f of fs.readdirSync(DIR).filter(x => x.endsWith('.js'))) {
   const src = fs.readFileSync(path.join(DIR, f), 'utf8');
+  if (chiAdmin(src)) { mienVìAdmin.push(f); continue; }
 
   // Cắt file theo từng lần khai báo router.<method>(...) để lấy thân route.
   const moc = [...src.matchAll(/router\.(get|post|patch|put|delete)\(\s*'([^']*)'/g)];
@@ -40,7 +55,11 @@ for (const f of fs.readdirSync(DIR).filter(x => x.endsWith('.js'))) {
 }
 
 const thieu = rows.filter(r => !r.ok);
-console.log(`\nDA RA ${rows.length} route ghi (bo qua ${MIEN.size} route khong thuoc host nao)\n`);
+console.log(`\nDA RA ${rows.length} route ghi (bo qua ${MIEN.size} route khong thuoc host nao)`);
+if (mienVìAdmin.length) {
+  console.log(`Mien vi khoa ca router o dung muc ADMIN: ${mienVìAdmin.join(', ')}`);
+}
+console.log('');
 if (thieu.length === 0) {
   console.log('OK - Tat ca deu co kiem chu so huu (hostWhere / findOwn / updateOwn / deleteOwn / ownsRecord).');
 } else {

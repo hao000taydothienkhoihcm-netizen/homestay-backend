@@ -11,12 +11,27 @@ router.post('/login', async (req, res) => {
   if (!username || !password) return res.status(400).json({ error: 'Thiếu username/password' });
 
   const uname = String(username).trim().toLowerCase();
-  const user = await prisma.user.findUnique({ where: { username: uname } });
+  const user = await prisma.user.findUnique({
+    where: { username: uname },
+    include: { host: { select: { active: true } } },
+  });
   if (!user) return res.status(401).json({ error: 'Tài khoản không tồn tại' });
   if (!user.active) return res.status(401).json({ error: 'Tài khoản đã bị khóa' });
 
   const ok = await bcrypt.compare(password, user.password);
   if (!ok) return res.status(401).json({ error: 'Sai mật khẩu' });
+
+  // Chặn ngay tại đây cho người dùng hiểu vì sao. Nếu để lọt, họ đăng nhập thành công
+  // rồi mọi thao tác sau đó ăn 403 — nhìn như app hỏng chứ không như bị khoá.
+  // Cùng luật với authMiddleware: ADMIN được miễn để không tự khoá mình ra ngoài.
+  if (user.role !== 'ADMIN') {
+    if (user.status === 'PENDING') {
+      return res.status(403).json({ error: 'Tài khoản đang chờ quản trị viên duyệt' });
+    }
+    if (user.hostId && user.host && !user.host.active) {
+      return res.status(403).json({ error: 'Workspace đang tạm khoá, liên hệ quản trị viên' });
+    }
+  }
 
   const token = jwt.sign(
     { id: user.id, role: user.role, hostId: user.hostId ?? null },

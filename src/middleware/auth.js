@@ -10,9 +10,23 @@ export async function authMiddleware(req, res, next) {
   try {
     const token = auth.slice(7);
     const payload = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await prisma.user.findUnique({ where: { id: payload.id } });
+    const user = await prisma.user.findUnique({
+      where: { id: payload.id },
+      include: { host: { select: { active: true, name: true } } },
+    });
     if (!user?.active) return res.status(401).json({ error: 'Tài khoản không hoạt động' });
     if (user.status === 'PENDING') return res.status(403).json({ error: 'Tài khoản đang chờ duyệt' });
+
+    // Workspace bị khoá thì chặn CẢ HOST LẪN NHÂN SỰ của host đó — trước đây cột
+    // Host.active chỉ nằm im trong bảng, không ai đọc, nên "khoá host" không có
+    // tác dụng gì: họ vẫn đăng nhập và làm việc bình thường.
+    // ADMIN được miễn: admin đang mang hostId = 1, khoá nhầm host #1 là admin tự
+    // khoá mình ra ngoài, không còn đường vào để mở lại.
+    if (user.role !== 'ADMIN' && user.hostId && user.host && !user.host.active) {
+      return res.status(403).json({ error: 'Workspace đang tạm khoá, liên hệ quản trị viên' });
+    }
+
+    delete user.host;   // chỉ dùng để kiểm ở trên, không để lọt ra req.user
     req.user = user;
     next();
   } catch (e) {
