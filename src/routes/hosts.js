@@ -23,18 +23,30 @@ const chuoi = (v) => (v == null ? null : String(v).trim() || null);
 // ───── DANH SÁCH ─────
 // Kèm số căn / booking / tài khoản để admin nhìn phát biết host nào đang chạy thật,
 // host nào đăng ký xong bỏ đó.
+//
+// ⚠️ CĂN NHÀ LÀ XOÁ MỀM: DELETE /homes/:id chỉ đặt active = false, và GET /homes
+// lọc active: true. Nên KHÔNG được dùng _count.homes — nó đếm cả căn đã xoá.
+// (Đã sai một lần: host #1 hiện có 2 căn đang dùng nhưng _count trả 8.)
+// Booking và tài khoản thì xoá thật, đếm thẳng được.
 router.get('/', async (req, res) => {
-  const hosts = await prisma.host.findMany({
-    orderBy: { id: 'asc' },
-    include: {
-      _count: { select: { homes: true, bookings: true, users: true } },
-      users: {
-        where: { role: 'HOST' },
-        select: { id: true, username: true, name: true, status: true, active: true },
-        orderBy: { id: 'asc' },
+  const [hosts, canDangDung, canDaXoa] = await Promise.all([
+    prisma.host.findMany({
+      orderBy: { id: 'asc' },
+      include: {
+        _count: { select: { bookings: true, users: true } },
+        users: {
+          where: { role: 'HOST' },
+          select: { id: true, username: true, name: true, status: true, active: true },
+          orderBy: { id: 'asc' },
+        },
       },
-    },
-  });
+    }),
+    prisma.home.groupBy({ by: ['hostId'], where: { active: true }, _count: { _all: true } }),
+    prisma.home.groupBy({ by: ['hostId'], where: { active: false }, _count: { _all: true } }),
+  ]);
+
+  const dem = (bang, hostId) =>
+    bang.find((r) => r.hostId === hostId)?._count._all ?? 0;
 
   res.json(hosts.map((h) => ({
     id: h.id,
@@ -43,10 +55,11 @@ router.get('/', async (req, res) => {
     phone: h.phone,
     active: h.active,
     createdAt: h.createdAt,
-    soCan: h._count.homes,
+    soCan: dem(canDangDung, h.id),     // chỉ căn đang dùng — khớp với màn Căn nhà
+    soCanDaXoa: dem(canDaXoa, h.id),   // căn đã xoá mềm, vẫn nằm trong DB
     soBooking: h._count.bookings,
     soTaiKhoan: h._count.users,
-    chuNha: h.users,          // các tài khoản vai HOST của workspace này
+    chuNha: h.users,                   // các tài khoản vai HOST của workspace này
   })));
 });
 
@@ -56,12 +69,18 @@ router.get('/:id', async (req, res) => {
   const h = await prisma.host.findUnique({
     where: { id },
     include: {
-      _count: { select: { homes: true, bookings: true, users: true, expenses: true } },
+      _count: { select: { bookings: true, users: true, expenses: true } },
       users: { select: { id: true, username: true, name: true, role: true, status: true, active: true }, orderBy: { id: 'asc' } },
     },
   });
   if (!h) return res.status(404).json({ error: 'Không tìm thấy chủ nhà' });
-  res.json(h);
+
+  // Căn nhà xoá mềm — đếm riêng, không lấy _count.homes (xem ghi chú ở GET /).
+  const [soCan, soCanDaXoa] = await Promise.all([
+    prisma.home.count({ where: { hostId: id, active: true } }),
+    prisma.home.count({ where: { hostId: id, active: false } }),
+  ]);
+  res.json({ ...h, soCan, soCanDaXoa });
 });
 
 // ───── MỞ HOST MỚI ─────
