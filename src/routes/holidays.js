@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
-import { requireRole, hostWhere, ownHostId } from '../middleware/auth.js';
+import { requireRole, hostWhere, ownHostId, findOwn, updateOwn, deleteOwn, notFound } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -41,13 +41,14 @@ router.patch('/:id', requireRole('ADMIN'), async (req, res) => {
     if (isNaN(e)) return res.status(400).json({ error: 'Ngày kết thúc không hợp lệ' });
     data.endDate = e;
   }
-  const holiday = await prisma.holiday.update({ where: { id }, data });
-  res.json(holiday);
+  const n = await updateOwn(prisma.holiday, req, id, data);
+  if (!n) return notFound(res, 'ngày lễ');
+  res.json(await findOwn(prisma.holiday, req, id));
 });
 
 router.delete('/:id', requireRole('ADMIN'), async (req, res) => {
-  const id = parseInt(req.params.id);
-  await prisma.holiday.delete({ where: { id } });
+  const n = await deleteOwn(prisma.holiday, req, req.params.id);
+  if (!n) return notFound(res, 'ngày lễ');
   res.json({ ok: true });
 });
 

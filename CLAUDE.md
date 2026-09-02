@@ -119,6 +119,38 @@ API bảng giá: `GET|PUT /v1/homes/:id/prices` (theo tháng, kèm `?year=`), `P
 - **StockEntry**: nhập kho / điều chỉnh tồn theo từng căn (`IMPORT` / `ADJUST`).
 - **Expense**: chi phí vận hành theo ngày/căn/danh mục.
 
+### ⚠️ MULTI-TENANT: THAO TÁC THEO ID PHẢI KIỂM CHỦ SỞ HỮU
+Mỗi bảng đều có cột `hostId`. `hostWhere(req)` lo phần **đọc danh sách** — nhưng thao tác
+**theo id** thì Prisma bắt buộc dùng khoá duy nhất (`where: { id }`), nên không nhét `hostId`
+vào được. Đó từng là lỗ hổng: host B gõ đại id là sửa/xoá được bản ghi của host A.
+
+Bốn helper trong `middleware/auth.js` — **bắt buộc dùng, đừng viết `where: { id }` trần**:
+
+| Dùng thay cho | Helper | Trả về |
+|---|---|---|
+| `findUnique({ where: { id } })` | `findOwn(model, req, id, opts?)` | bản ghi, hoặc `null` |
+| `update({ where: { id } })` | `updateOwn(model, req, id, data)` | số dòng đã sửa (`0` = từ chối) |
+| `delete({ where: { id } })` | `deleteOwn(model, req, id)` | số dòng đã xoá (`0` = từ chối) |
+| id nhận **từ body** (VD `homeId`) | `ownsRecord(model, req, id)` | `true` / `false` |
+
+Cả bốn đều đi qua `hostWhere()` nên **ADMIN không bị lọc** (super-role thấy mọi host).
+Không tìm thấy và không phải của mình đều trả **404 giống hệt nhau** (`notFound(res, '...')`) —
+cố tình không phân biệt, để không lộ ra là id đó có tồn tại.
+
+Ba quy tắc kèm theo:
+1. **Kiểm quyền sở hữu TRƯỚC khi trả lỗi có kèm dữ liệu.** VD `POST /bookings` phải xác nhận
+   căn nhà là của mình rồi mới kiểm trùng lịch — vì lỗi 409 trùng lịch có kèm **tên khách và tiền cọc**.
+2. **Handler đọc `existing` bằng `findOwn` ngay đầu thì cả handler được bảo vệ theo** —
+   `update({ where: { id } })` phía sau đã an toàn vì id đã được chứng minh là của mình.
+3. **Chỉ ADMIN được cấp vai trò ADMIN** (`canAssignRole` trong `users.js`). Thiếu chốt này thì
+   ngày HOST được vào trang tài khoản, họ tự nâng mình lên super-role là thấy toàn bộ 100 host.
+
+Kiểm lại bất cứ lúc nào (script **chỉ đọc**, không ghi gì vào DB thật):
+```
+node scripts/kiem-tra-cach-ly.mjs        # đếm theo hostWhere, mô phỏng xoá/sửa của host lạ
+$env:SMOKE_PASS='...'; powershell -File scripts/smoke-http.ps1   # 40 test qua HTTP
+```
+
 ### Bản sửa gần nhất — "Mức 2: liên kết phụ thu–kho bằng templateId"
 Vấn đề: khi xoá 1 mẫu phụ thu (đồ trong kho), báo cáo kho bị mất phần đã bán của mặt hàng đó (vì trước đây khớp theo **tên**).
 Cách sửa: thêm khoá ngoại **`Charge.templateId → ChargeTemplate.id`** với `onDelete: SetNull`.

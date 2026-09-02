@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
-import { requireRole, hostWhere, ownHostId } from '../middleware/auth.js';
+import { requireRole, hostWhere, ownHostId, findOwn, updateOwn, deleteOwn, ownsRecord, notFound } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -23,6 +23,9 @@ router.post('/', requireRole('ADMIN'), async (req, res) => {
   const { date, category, desc, amount, homeId } = req.body;
   if (!date || !category || !desc || !amount) return res.status(400).json({ error: 'Thiếu thông tin' });
 
+  // homeId đến từ body -> phải là căn của host mình, không thì gắn chi phí sang nhà người khác được.
+  if (!(await ownsRecord(prisma.home, req, homeId))) return notFound(res, 'căn nhà');
+
   const expense = await prisma.expense.create({
     data: {
       date: new Date(date),
@@ -38,21 +41,26 @@ router.post('/', requireRole('ADMIN'), async (req, res) => {
 router.patch('/:id', requireRole('ADMIN'), async (req, res) => {
   const id = parseInt(req.params.id);
   const { date, category, desc, amount, homeId } = req.body;
-  const expense = await prisma.expense.update({
-    where: { id },
-    data: {
-      ...(date && { date: new Date(date) }),
-      ...(category && { category }),
-      ...(desc && { desc }),
-      ...(amount !== undefined && { amount: parseInt(amount) }),
-      ...(homeId !== undefined && { homeId: homeId ? parseInt(homeId) : null })
-    }
+
+  if (homeId !== undefined && !(await ownsRecord(prisma.home, req, homeId))) {
+    return notFound(res, 'căn nhà');
+  }
+
+  const n = await updateOwn(prisma.expense, req, id, {
+    ...(date && { date: new Date(date) }),
+    ...(category && { category }),
+    ...(desc && { desc }),
+    ...(amount !== undefined && { amount: parseInt(amount) }),
+    ...(homeId !== undefined && { homeId: homeId ? parseInt(homeId) : null })
   });
-  res.json(expense);
+  if (!n) return notFound(res, 'khoản thu chi');
+
+  res.json(await findOwn(prisma.expense, req, id, { include: { home: true } }));
 });
 
 router.delete('/:id', requireRole('ADMIN'), async (req, res) => {
-  await prisma.expense.delete({ where: { id: parseInt(req.params.id) } });
+  const n = await deleteOwn(prisma.expense, req, req.params.id);
+  if (!n) return notFound(res, 'khoản thu chi');
   res.json({ ok: true });
 });
 
