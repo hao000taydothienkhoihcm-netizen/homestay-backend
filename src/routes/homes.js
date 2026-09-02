@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
-import { requireRole, hostWhere, ownHostId, findOwn, updateOwn, notFound } from '../middleware/auth.js';
+import { requireRole, hostWhere, ownHostId, findOwn, updateOwn, notFound, CHU_WORKSPACE, QUAN_LY } from '../middleware/auth.js';
 import { loadPriceTable, stayTotal } from '../services/bookingService.js';
 
 const router = Router();
@@ -27,7 +27,7 @@ router.get('/:id', async (req, res) => {
   res.json(home);
 });
 
-router.post('/', requireRole('ADMIN'), async (req, res) => {
+router.post('/', requireRole(...CHU_WORKSPACE), async (req, res) => {
   const { name, address, price, weekendPrice, holidayPrice, maxGuests, emoji, desc } = req.body;
   if (!name || !address || !price) return res.status(400).json({ error: 'Thiếu thông tin' });
 
@@ -45,7 +45,7 @@ router.post('/', requireRole('ADMIN'), async (req, res) => {
   res.status(201).json(home);
 });
 
-router.patch('/:id', requireRole('ADMIN'), async (req, res) => {
+router.patch('/:id', requireRole(...CHU_WORKSPACE), async (req, res) => {
   const id = parseInt(req.params.id);
   const { name, address, price, weekendPrice, holidayPrice, maxGuests, emoji, desc } = req.body;
   const n = await updateOwn(prisma.home, req, id, {
@@ -68,7 +68,7 @@ router.patch('/:id', requireRole('ADMIN'), async (req, res) => {
   res.json(await findOwn(prisma.home, req, id));
 });
 
-router.delete('/:id', requireRole('ADMIN'), async (req, res) => {
+router.delete('/:id', requireRole(...CHU_WORKSPACE), async (req, res) => {
   const id = parseInt(req.params.id);
 
   // Phải xác nhận là căn của mình TRƯỚC, không thì số booking đang ở của host khác bị lộ.
@@ -126,7 +126,7 @@ router.get('/:id/prices', async (req, res) => {
 });
 
 // Lưu giá 1 tháng. Gửi cả 3 ô rỗng -> xoá dòng (tháng đó quay về giá mặc định của căn).
-router.put('/:id/prices', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
+router.put('/:id/prices', requireRole(...QUAN_LY), async (req, res) => {
   const homeId = parseInt(req.params.id);
   const { year, month, price, weekendPrice, holidayPrice, note } = req.body;
   const y = parseInt(year), m = parseInt(month);
@@ -156,7 +156,7 @@ router.put('/:id/prices', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
 });
 
 // Chép giá cả năm sang năm khác (VD nhân bản 2026 -> 2027 rồi sửa)
-router.post('/:id/prices/copy-year', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
+router.post('/:id/prices/copy-year', requireRole(...QUAN_LY), async (req, res) => {
   const homeId = parseInt(req.params.id);
   const from = parseInt(req.body.fromYear), to = parseInt(req.body.toYear);
   if (!from || !to || from === to) return res.status(400).json({ error: 'Năm nguồn / năm đích không hợp lệ' });
@@ -196,7 +196,7 @@ router.get('/:id/date-prices', async (req, res) => {
   res.json(rows.map(r => ({ ...r, date: ymdUTC(r.date) })));
 });
 
-router.put('/:id/date-prices', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
+router.put('/:id/date-prices', requireRole(...QUAN_LY), async (req, res) => {
   const homeId = parseInt(req.params.id);
   const { date, price, note } = req.body;
   if (!date) return res.status(400).json({ error: 'Thiếu ngày' });

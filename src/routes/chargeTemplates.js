@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
-import { requireRole, hostWhere, ownHostId, findOwn, updateOwn, notFound } from '../middleware/auth.js';
+import { requireRole, hostWhere, ownHostId, findOwn, updateOwn, notFound, QUAN_LY } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -26,7 +26,7 @@ function stockFields(body) {
   return out;
 }
 
-router.post('/', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
+router.post('/', requireRole(...QUAN_LY), async (req, res) => {
   const { name, amount, type } = req.body;
   if (!name || !amount || !type) return res.status(400).json({ error: 'Thiếu thông tin' });
   if (!['RULE', 'QUICK'].includes(type)) return res.status(400).json({ error: 'Type không hợp lệ' });
@@ -37,7 +37,7 @@ router.post('/', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
   res.status(201).json(tpl);
 });
 
-router.patch('/:id', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
+router.patch('/:id', requireRole(...QUAN_LY), async (req, res) => {
   const id = parseInt(req.params.id);
   const { name, amount } = req.body;
   const n = await updateOwn(prisma.chargeTemplate, req, id, {
@@ -50,7 +50,7 @@ router.patch('/:id', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
 });
 
 // Xoá mềm: chỉ tắt active, giữ lịch sử phụ thu đã phát sinh.
-router.delete('/:id', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
+router.delete('/:id', requireRole(...QUAN_LY), async (req, res) => {
   const n = await updateOwn(prisma.chargeTemplate, req, req.params.id, { active: false });
   if (!n) return notFound(res, 'mẫu phụ thu');
   res.json({ ok: true });

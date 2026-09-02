@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
-import { requireRole, hostWhere, ownHostId, findOwn, updateOwn, deleteOwn, notFound } from '../middleware/auth.js';
+import { requireRole, hostWhere, ownHostId, findOwn, updateOwn, deleteOwn, notFound, CHU_WORKSPACE } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -13,7 +13,7 @@ router.get('/', async (req, res) => {
   res.json(holidays);
 });
 
-router.post('/', requireRole('ADMIN'), async (req, res) => {
+router.post('/', requireRole(...CHU_WORKSPACE), async (req, res) => {
   const { name, startDate, endDate } = req.body;
   if (!name || !startDate) return res.status(400).json({ error: 'Thiếu tên hoặc ngày bắt đầu' });
   const s = new Date(startDate);
@@ -26,7 +26,7 @@ router.post('/', requireRole('ADMIN'), async (req, res) => {
   res.status(201).json(holiday);
 });
 
-router.patch('/:id', requireRole('ADMIN'), async (req, res) => {
+router.patch('/:id', requireRole(...CHU_WORKSPACE), async (req, res) => {
   const id = parseInt(req.params.id);
   const { name, startDate, endDate } = req.body;
   const data = {};
@@ -46,7 +46,7 @@ router.patch('/:id', requireRole('ADMIN'), async (req, res) => {
   res.json(await findOwn(prisma.holiday, req, id));
 });
 
-router.delete('/:id', requireRole('ADMIN'), async (req, res) => {
+router.delete('/:id', requireRole(...CHU_WORKSPACE), async (req, res) => {
   const n = await deleteOwn(prisma.holiday, req, req.params.id);
   if (!n) return notFound(res, 'ngày lễ');
   res.json({ ok: true });

@@ -29,6 +29,17 @@ export function requireRole(...roles) {
   };
 }
 
+// ───── Nhóm vai trò ─────
+// HOST là CHỦ workspace của chính họ: quyền thao tác ngang ADMIN, nhưng mọi câu truy vấn
+// vẫn đi qua hostWhere() nên chỉ đụng được dữ liệu host của mình. ADMIN là super-role,
+// hostWhere() bỏ lọc nên thấy toàn bộ host.
+//
+// Dùng 3 nhóm này thay vì viết tay từng danh sách vai trò — thêm/bớt một vai sau này
+// chỉ sửa một chỗ, không phải rà lại 26 route.
+export const CHU_WORKSPACE = ['ADMIN', 'HOST'];                    // căn nhà, thu chi, ngày lễ, nhân sự
+export const QUAN_LY = ['ADMIN', 'HOST', 'MANAGER'];               // bảng giá, sửa/xoá booking, điều chỉnh kho
+export const VAN_HANH = ['ADMIN', 'HOST', 'MANAGER', 'STAFF'];     // thao tác hằng ngày: đặt phòng, nhập kho
+
 // ───── Multi-tenant helper ─────
 // Điều kiện lọc theo host để nhét vào Prisma `where`.
 // ADMIN = super-role thấy toàn bộ host (không lọc). Còn lại chỉ thấy host của mình.

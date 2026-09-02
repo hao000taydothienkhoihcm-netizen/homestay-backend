@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../prisma.js';
-import { requireRole, hostWhere, findOwn, updateOwn, deleteOwn, notFound } from '../middleware/auth.js';
+import { requireRole, hostWhere, ownHostId, findOwn, updateOwn, deleteOwn, notFound, CHU_WORKSPACE } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -12,16 +12,28 @@ const normRole = (r) => {
   return VALID_ROLES.includes(up) ? up : null; // null = giá trị không hợp lệ
 };
 
-// Hiện tại chỉ ADMIN vào được đây, nên hostWhere() trả {} và mọi thứ chạy y như cũ.
-// Nhưng GĐ2 sẽ mở cho HOST tự quản nhân viên của mình — lúc đó nới dòng requireRole
-// bên dưới là đủ, phần lọc host đã sẵn sàng, không phải nhớ đi sửa lại từng route.
-router.use(requireRole('ADMIN'));
+// HOST tự quản nhân sự trong workspace của mình. hostWhere() lo phần cách ly:
+// ADMIN thấy toàn bộ, HOST chỉ thấy/sửa/xoá tài khoản cùng hostId.
+router.use(requireRole(...CHU_WORKSPACE));
 
-// Chỉ ADMIN mới được phong quyền ADMIN. Thiếu chốt này thì ngày HOST được vào đây,
-// họ tự nâng mình lên super-role là thấy toàn bộ 100 host.
+// Vai trò nào được cấp vai trò nào. Thiếu bảng này thì HOST tự nâng mình lên ADMIN
+// là thấy toàn bộ 100 host, hoặc tự đẻ ra tài khoản SALES (tài khoản cấp nền tảng,
+// không thuộc workspace nào).
+const ROLE_DUOC_CAP = {
+  ADMIN: ['ADMIN', 'MANAGER', 'STAFF', 'HOST', 'SALES'],
+  HOST: ['MANAGER', 'STAFF'],   // muốn thêm HOST đồng sở hữu thì phải qua ADMIN
+};
 function canAssignRole(req, role) {
-  if (role !== 'ADMIN') return true;
-  return req.user.role === 'ADMIN';
+  return (ROLE_DUOC_CAP[req.user.role] || []).includes(role);
+}
+
+// Không phải ADMIN thì không được đụng vào tài khoản ADMIN — kể cả khi cùng hostId.
+// Admin gốc đang mang hostId = 1, nên nếu không chặn, một HOST của host #1
+// sẽ sửa/xoá được chính tài khoản admin.
+async function laAdminKhac(req, id) {
+  if (req.user.role === 'ADMIN') return false;
+  const u = await prisma.user.findUnique({ where: { id }, select: { role: true } });
+  return u?.role === 'ADMIN';
 }
 
 router.get('/', async (req, res) => {
@@ -42,6 +54,7 @@ router.get('/', async (req, res) => {
 router.patch('/:id/approve', async (req, res) => {
   try {
     const id = parseInt(req.params.id);
+    if (await laAdminKhac(req, id)) return notFound(res, 'tài khoản');
     const n = await updateOwn(prisma.user, req, id, { status: 'ACTIVE' });
     if (!n) return notFound(res, 'tài khoản');
     const user = await findOwn(prisma.user, req, id, {
@@ -64,7 +77,8 @@ router.post('/', async (req, res) => {
 
     const nRole = normRole(role);
     if (nRole === null) return res.status(400).json({ error: 'Vai trò không hợp lệ' });
-    if (!canAssignRole(req, nRole)) return res.status(403).json({ error: 'Không đủ quyền cấp vai trò này' });
+    const roleCap = nRole || 'STAFF';   // không gửi role -> STAFF, nhưng vẫn phải qua bảng quyền
+    if (!canAssignRole(req, roleCap)) return res.status(403).json({ error: 'Không đủ quyền cấp vai trò này' });
 
     const existing = await prisma.user.findUnique({ where: { username } });
     if (existing) return res.status(400).json({ error: 'Username đã tồn tại' });
@@ -73,12 +87,12 @@ router.post('/', async (req, res) => {
     // Chỉ ADMIN được chỉ định host khác; người khác luôn tạo trong host của chính mình.
     const hostId = (req.user.role === 'ADMIN' && req.body.hostId != null)
       ? parseInt(req.body.hostId)
-      : (req.user.hostId ?? null);
+      : ownHostId(req);
     const user = await prisma.user.create({
       data: {
         username, password: bcrypt.hashSync(password, 10),
         name, email: email || null,
-        role: nRole || 'STAFF',
+        role: roleCap,
         active: active !== false,
         status: 'ACTIVE',
         hostId
@@ -94,6 +108,7 @@ router.post('/', async (req, res) => {
 router.patch('/:id', async (req, res) => {
   try {
     const id = parseInt(req.params.id);
+    if (await laAdminKhac(req, id)) return notFound(res, 'tài khoản');
     const { password, name, email, role, active } = req.body;
     const data = {};
     if (password) data.password = bcrypt.hashSync(password, 10);
@@ -124,6 +139,7 @@ router.delete('/:id', async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     if (id === req.user.id) return res.status(400).json({ error: 'Không thể xóa chính mình' });
+    if (await laAdminKhac(req, id)) return notFound(res, 'tài khoản');
     const n = await deleteOwn(prisma.user, req, id);
     if (!n) return notFound(res, 'tài khoản');
     res.json({ ok: true });

@@ -7,18 +7,28 @@ import path from 'node:path';
 const DIR = path.resolve(import.meta.dirname, '../src/routes');
 const RE = /router\.(get|post|patch|put|delete)\(\s*'([^']*)'\s*,?\s*([\s\S]{0,120})/g;
 
+// Route viết requireRole(...QUAN_LY) chứ không liệt kê tay từng vai.
+// Đọc thẳng định nghĩa nhóm trong middleware/auth.js để bung ra danh sách thật —
+// tự đọc file thay vì chép cứng, để sửa nhóm bên kia là báo cáo này đúng theo.
+const AUTH = fs.readFileSync(path.resolve(import.meta.dirname, '../src/middleware/auth.js'), 'utf8');
+const NHOM = {};
+for (const m of AUTH.matchAll(/export const ([A-Z_]+)\s*=\s*\[([^\]]*)\]/g)) {
+  NHOM[m[1]] = m[2].replace(/['\s]/g, '');
+}
+const bung = (s) => s.replace(/\.{3}([A-Z_]+)/g, (all, ten) => NHOM[ten] ?? all);
+
 const rows = [];
 for (const f of fs.readdirSync(DIR).filter(x => x.endsWith('.js'))) {
   const src = fs.readFileSync(path.join(DIR, f), 'utf8');
   // requireRole đặt ở router.use(...) áp cho cả file
   const chung = src.match(/router\.use\(requireRole\(([^)]*)\)\)/);
-  const roleChung = chung ? chung[1].replace(/['\s]/g, '') : null;
+  const roleChung = chung ? bung(chung[1].replace(/['\s]/g, '')) : null;
 
   for (const m of src.matchAll(RE)) {
     const [, method, p, sau] = m;
     if (method === 'get') continue;                 // chỉ quan tâm route GHI
     const r = sau.match(/requireRole\(([^)]*)\)/);
-    const roles = r ? r[1].replace(/['\s]/g, '') : (roleChung || 'MỌI VAI ĐĂNG NHẬP');
+    const roles = r ? bung(r[1].replace(/['\s]/g, '')) : (roleChung || 'MỌI VAI ĐĂNG NHẬP');
     rows.push({ file: f, method: method.toUpperCase(), path: p, roles });
   }
 }

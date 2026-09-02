@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
-import { requireRole, hostWhere, ownHostId, findOwn, updateOwn, deleteOwn, ownsRecord, notFound } from '../middleware/auth.js';
+import { requireRole, hostWhere, ownHostId, findOwn, updateOwn, deleteOwn, ownsRecord, notFound, CHU_WORKSPACE, QUAN_LY, VAN_HANH } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -35,9 +35,10 @@ function isPastDate(dateStr) {
   const dd = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   return dd < startOfToday();
 }
-// Chỉ ADMIN được thao tác trên ngày quá khứ; NV/QL chỉ hôm nay + tương lai
+// Chỉ CHỦ workspace (ADMIN / HOST) được thao tác trên ngày quá khứ; NV/QL chỉ hôm nay + tương lai.
+// Nhập bù quá khứ làm lệch báo cáo tháng đã chốt nên phải là người chịu trách nhiệm sổ sách.
 function canTouchPast(user) {
-  return user && user.role === 'ADMIN';
+  return !!user && CHU_WORKSPACE.includes(user.role);
 }
 
 // ───── TỒN KHO + BÁO CÁO THÁNG ─────
@@ -168,7 +169,7 @@ router.get('/entries', async (req, res) => {
 
 // ───── NHẬP HÀNG ─────
 // POST /v1/inventory/import { templateId, homeId, packs, units, date, note }
-router.post('/import', requireRole('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
+router.post('/import', requireRole(...VAN_HANH), async (req, res) => {
   const { templateId, homeId, packs, units, date, note } = req.body;
   const tid = parseInt(templateId);
   const hid = parseInt(homeId);
@@ -176,7 +177,7 @@ router.post('/import', requireRole('ADMIN', 'MANAGER', 'STAFF'), async (req, res
 
   // NV/QL chỉ được nhập cho hôm nay/tương lai; nhập bù quá khứ chỉ ADMIN
   if (isPastDate(date) && !canTouchPast(req.user)) {
-    return res.status(403).json({ error: 'Chỉ Admin được nhập bù ngày đã qua' });
+    return res.status(403).json({ error: 'Chỉ chủ nhà / Admin được nhập bù ngày đã qua' });
   }
 
   // Cả mặt hàng lẫn căn nhà đều phải là của host mình.
@@ -212,7 +213,7 @@ router.post('/import', requireRole('ADMIN', 'MANAGER', 'STAFF'), async (req, res
 
 // ───── ĐIỀU CHỈNH / KIỂM KÊ ─────
 // POST /v1/inventory/adjust { templateId, homeId, qty (số lệch, có thể âm), date, note }
-router.post('/adjust', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
+router.post('/adjust', requireRole(...QUAN_LY), async (req, res) => {
   const { templateId, homeId, qty, date, note } = req.body;
   const tid = parseInt(templateId);
   const hid = parseInt(homeId);
@@ -220,7 +221,7 @@ router.post('/adjust', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
   if (!tid || !hid) return res.status(400).json({ error: 'Thiếu mặt hàng hoặc căn nhà' });
   if (!q) return res.status(400).json({ error: 'Số điều chỉnh không hợp lệ' });
   if (isPastDate(date) && !canTouchPast(req.user)) {
-    return res.status(403).json({ error: 'Chỉ Admin được điều chỉnh ngày đã qua' });
+    return res.status(403).json({ error: 'Chỉ chủ nhà / Admin được điều chỉnh ngày đã qua' });
   }
 
   if (!(await ownsRecord(prisma.home, req, hid))) return notFound(res, 'căn nhà');
@@ -242,7 +243,7 @@ router.post('/adjust', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
 
 // ───── SỬA PHIẾU NHẬP / ĐIỀU CHỈNH ─────
 // PATCH /v1/inventory/entries/:id { packs, units, qty, date, note }
-router.patch('/entries/:id', requireRole('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
+router.patch('/entries/:id', requireRole(...VAN_HANH), async (req, res) => {
   const id = parseInt(req.params.id);
   const cur = await findOwn(prisma.stockEntry, req, id, { include: { template: true } });
   if (!cur) return notFound(res, 'phiếu');
@@ -250,7 +251,7 @@ router.patch('/entries/:id', requireRole('ADMIN', 'MANAGER', 'STAFF'), async (re
   const { packs, units, qty, date, note } = req.body;
   // NV/QL không được đụng phiếu quá khứ, và không được dời sang ngày quá khứ
   if (!canTouchPast(req.user) && (isPastDate(cur.date) || (date && isPastDate(date)))) {
-    return res.status(403).json({ error: 'Chỉ Admin được sửa phiếu ngày đã qua' });
+    return res.status(403).json({ error: 'Chỉ chủ nhà / Admin được sửa phiếu ngày đã qua' });
   }
 
   const data = {};
@@ -278,12 +279,12 @@ router.patch('/entries/:id', requireRole('ADMIN', 'MANAGER', 'STAFF'), async (re
 });
 
 // ───── XOÁ PHIẾU NHẬP / ĐIỀU CHỈNH ─────
-router.delete('/entries/:id', requireRole('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
+router.delete('/entries/:id', requireRole(...VAN_HANH), async (req, res) => {
   const id = parseInt(req.params.id);
   const cur = await findOwn(prisma.stockEntry, req, id);
   if (!cur) return res.json({ ok: true });
   if (!canTouchPast(req.user) && isPastDate(cur.date)) {
-    return res.status(403).json({ error: 'Chỉ Admin được xoá phiếu ngày đã qua' });
+    return res.status(403).json({ error: 'Chỉ chủ nhà / Admin được xoá phiếu ngày đã qua' });
   }
   await deleteOwn(prisma.stockEntry, req, id);
   res.json({ ok: true });

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
-import { requireRole, hostWhere, ownHostId, findOwn, deleteOwn, notFound } from '../middleware/auth.js';
+import { requireRole, hostWhere, ownHostId, findOwn, deleteOwn, notFound, QUAN_LY, VAN_HANH } from '../middleware/auth.js';
 import { checkBookingConflict, nights, stayTotal, loadPriceTable } from '../services/bookingService.js';
 
 const router = Router();
@@ -95,7 +95,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // ───── CREATE ─────
-router.post('/', requireRole('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
+router.post('/', requireRole(...VAN_HANH), async (req, res) => {
   const { guest, phone, homeId, checkIn, checkOut, checkInTime, checkOutTime,
           guests, deposit, discount, notes, status, charges,
           totalAmount: totalAmountInput } = req.body;
@@ -196,7 +196,7 @@ router.post('/', requireRole('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
 });
 
 // ───── UPDATE ─────
-router.patch('/:id', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
+router.patch('/:id', requireRole(...QUAN_LY), async (req, res) => {
   const id = parseInt(req.params.id);
   // Chặn ngay từ đây: đọc được booking này nghĩa là nó thuộc host mình.
   // Mọi update({ where: { id } }) phía dưới nhờ vậy đã an toàn.
@@ -325,7 +325,7 @@ router.patch('/:id', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
 });
 
 // ───── DELETE ─────
-router.delete('/:id', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
+router.delete('/:id', requireRole(...QUAN_LY), async (req, res) => {
   const n = await deleteOwn(prisma.booking, req, req.params.id);
   if (!n) return notFound(res, 'booking');
   res.json({ ok: true });
