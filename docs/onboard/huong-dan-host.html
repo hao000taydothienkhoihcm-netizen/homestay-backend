@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8">
+<title>Hướng dẫn dùng Sabi Home cho chủ nhà</title>
+<style>
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; }
+  :root {
+    --bg:#f4efe6; --card:#fffdf9; --ink:#3d352a; --muted:#8a7a5c; --brown:#6b4f2a;
+    --line:#e3d8c4; --gold:#c9a227; --pine:#4a6b52; --pine-d:#3c5843; --red:#b4553f;
+  }
+  html, body { margin:0; padding:0; background: var(--bg); color: var(--ink);
+    font-family: "DejaVu Sans", Arial, sans-serif; font-size: 8.4pt; line-height: 1.3; }
+  .page { width: 210mm; height: 297mm; padding: 8mm 11mm 6mm; display:flex; flex-direction:column; gap: 4mm; }
+  h1, h2, h3 { font-family: "DejaVu Serif", Georgia, serif; margin: 0; color: var(--brown); }
+  h1 { font-size: 15pt; white-space: nowrap; letter-spacing: .2px; }
+  h2 { font-size: 10pt; margin-bottom: 1.4mm; padding-bottom: 1mm; border-bottom: 1.5px solid var(--gold); }
+  .head { display:flex; justify-content:space-between; align-items:flex-end; border-bottom: 2px solid var(--brown); padding-bottom: 3mm; }
+  .head .brand { font-family:"DejaVu Serif",Georgia,serif; color: var(--brown); font-size: 9pt; letter-spacing: 2px; text-transform: uppercase; }
+  .head .sub { color: var(--muted); font-size: 9pt; margin-top: 1mm; }
+  .head .tag { text-align:right; color: var(--muted); font-size: 8.5pt; }
+  .head .tag b { color: var(--pine-d); }
+  .grid { display:grid; grid-template-columns: 1fr 1fr; gap: 4mm; flex: 1; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 3mm; padding: 2.8mm 3.5mm; }
+  ol, ul { margin: 0; padding-left: 4.5mm; }
+  li { margin: 0 0 0.9mm; }
+  li b { color: var(--pine-d); }
+  .kbd { display:inline-block; border:1px solid var(--line); background:#fff; border-radius: 1.2mm; padding: 0 1.2mm; font-size: 8pt; white-space: nowrap; }
+  .link { font-family: "DejaVu Sans Mono", monospace; font-size: 8.4pt; color: var(--brown); word-break: break-all; }
+  .note { color: var(--muted); font-size: 8.6pt; }
+  .promise { background: #eef3ee; border: 1px solid #cfdccf; border-left: 4px solid var(--pine); }
+  .promise h2 { border-bottom-color: var(--pine); color: var(--pine-d); }
+  .roles { width:100%; border-collapse: collapse; font-size: 8.2pt; margin-top: 1mm; }
+  .roles th, .roles td { border-bottom: 1px solid var(--line); padding: 1.1mm 1.4mm; text-align:left; vertical-align: top; }
+  .roles th { color: var(--muted); font-weight: 600; font-size: 8pt; }
+  .foot { display:flex; justify-content:space-between; align-items:center; border-top: 1px solid var(--line); padding-top: 2.5mm; color: var(--muted); font-size: 8.4pt; }
+  .foot .contact { color: var(--ink); }
+  .foot .contact b { color: var(--brown); }
+  .blank { display:inline-block; min-width: 38mm; border-bottom: 1px dotted var(--muted); }
+  .two { display:grid; grid-template-columns: 1fr 1fr; gap: 3mm; }
+</style></head><body>
+<div class="page">
+
+  <div class="head">
+    <div>
+      <div class="brand">Sabi Home · HomeStay Manager</div>
+      <h1>Hướng dẫn dùng app cho chủ nhà</h1>
+      <div class="sub">Đọc 5 phút là dùng được. Giữ tờ này lại, có gì cần thì mở ra xem.</div>
+    </div>
+    <div class="tag">Bản 09/2026<br>Dành cho <b>10 host tiên phong</b> — app nội bộ <b>tặng vĩnh viễn</b></div>
+  </div>
+
+  <div class="grid">
+    <!-- CỘT TRÁI -->
+    <div style="display:flex; flex-direction:column; gap:4mm;">
+      <div class="card">
+        <h2>1. Mở app ở đâu</h2>
+        <ul>
+          <li><b>Máy tính / mọi điện thoại:</b> mở link
+            <div class="link">https://homestay-backend-n61g.onrender.com</div></li>
+          <li><b>Android:</b> cài file APK Sabi gửi kèm (mở file → Cài đặt; máy hỏi "cho phép cài từ nguồn này" → Cho phép).</li>
+          <li><b>iPhone:</b> mở link bằng Safari → <span class="kbd">Chia sẻ</span> → <span class="kbd">Thêm vào MH chính</span> → có icon ngoài màn hình, dùng như app.</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2>2. Đăng nhập lần đầu</h2>
+        <ol>
+          <li>Nhập <b>tên đăng nhập</b> và <b>mật khẩu tạm</b> Sabi gửi cho bạn.</li>
+          <li><b>Đổi mật khẩu ngay:</b> <span class="kbd">Tài khoản</span> (web) hoặc <span class="kbd">Thêm → Tài khoản</span> (điện thoại) → bấm <span class="kbd">Sửa</span> ở dòng tên mình → nhập mật khẩu mới → Cập nhật.</li>
+          <li>Quên mật khẩu: nhắn Sabi, chúng tôi đặt lại mật khẩu tạm.</li>
+        </ol>
+      </div>
+
+      <div class="card">
+        <h2>3. Việc đầu tiên: thêm căn nhà</h2>
+        <ol>
+          <li><span class="kbd">Căn nhà</span> → <span class="kbd">+ Thêm căn</span>: tên căn, số khách tối đa, địa chỉ.</li>
+          <li>Nhập 3 mức giá: <b>ngày thường</b> (T2–T5), <b>cuối tuần</b> (T6–CN), <b>lễ</b>. App tự tính tiền từng đêm khi bạn tạo booking.</li>
+          <li>Tháng giá khác (Tết, hè) → <span class="kbd">Bảng giá</span> của căn, sửa riêng tháng đó. Một đêm giá đặc biệt → <span class="kbd">Giá theo ngày</span>.</li>
+        </ol>
+      </div>
+
+      <div class="card">
+        <h2>4. Booking mỗi ngày</h2>
+        <ol>
+          <li><span class="kbd">Booking</span> → <span class="kbd">+ Thêm booking</span>: tên khách, SĐT, căn, ngày nhận – trả, số khách, tiền cọc. App báo ngay nếu <b>trùng lịch</b>.</li>
+          <li>Ngày khách đến: <span class="kbd">Nhận & Trả nhà</span> → <b>Nhận nhà</b>, ghi tiền thu thêm (nếu có).</li>
+          <li>Ngày khách đi: <b>Trả nhà</b> → thêm phụ thu/phạt nếu có → app tính "còn lại phải thu".</li>
+          <li><span class="kbd">Lịch</span> nhìn cả tháng, ô nào có khách là thấy ngay.</li>
+        </ol>
+      </div>
+
+      <div class="card">
+        <h2>8. Mẹo & lỗi hay gặp</h2>
+        <ul>
+          <li>App quay lâu trên 10 giây → tắt mở lại; vẫn vậy thì nhắn Sabi.</li>
+          <li>Không thấy dữ liệu → xem có đang đăng nhập đúng tài khoản không (tên ở góc trên).</li>
+          <li>Trên điện thoại, 10 phút không đụng là app tự đăng xuất để an toàn.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- CỘT PHẢI -->
+    <div style="display:flex; flex-direction:column; gap:4mm;">
+      <div class="card promise">
+        <h2>Cam kết của Sabi Home về dữ liệu của bạn</h2>
+        <ul>
+          <li>Booking, khách, tiền bạc là <b>của riêng bạn</b>. Chủ nhà khác không thấy. <b>Sabi Home cũng không thấy.</b></li>
+          <li>Chỉ khi <b>bạn nhờ</b> (khôi phục, kiểm tra lỗi), Sabi mới bật "chế độ hỗ trợ" tối đa <b>2 giờ</b> — <b>mỗi lần vào đều ghi lại</b>: ai, lúc nào, lý do. Xem ở <span class="kbd">Tài khoản</span> (web) / <span class="kbd">Thêm → Nhật ký hỗ trợ</span> (điện thoại).</li>
+          <li>Dữ liệu được <b>sao lưu tự động mỗi đêm</b>, giữ 30 bản gần nhất.</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2>5. Xoá nhầm? Có thùng rác</h2>
+        <ul>
+          <li>Booking đã xoá nằm trong <b>Thùng rác 30 ngày</b>, bấm <span class="kbd">Khôi phục</span> là về. Web: tab <span class="kbd">🗑 Thùng rác</span> ở màn Booking. Điện thoại: <span class="kbd">Thêm → Thùng rác booking</span>.</li>
+          <li>Căn nhà lỡ xoá cũng không mất dữ liệu — nhắn Sabi là mở lại.</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2>6. Cho nhân viên cùng dùng</h2>
+        <div class="note">Vào <span class="kbd">Tài khoản</span> → <span class="kbd">+ Thêm tài khoản</span>, chọn vai:</div>
+        <table class="roles">
+          <tr><th>Vai</th><th>Làm được</th><th>Không được</th></tr>
+          <tr><td><b>Chủ nhà</b> (bạn)</td><td>Mọi thứ</td><td>—</td></tr>
+          <tr><td><b>Quản lý</b></td><td>Booking, nhận/trả, kho, bảng giá, thống kê</td><td>Căn nhà, thu chi, xoá booking đã trả</td></tr>
+          <tr><td><b>Nhân viên</b></td><td>Thêm booking, nhận/trả nhà, nhập kho</td><td>Thống kê, thu chi, sửa giá</td></tr>
+        </table>
+        <div class="note" style="margin-top:1.5mm">Nghỉ việc → <span class="kbd">Sửa</span> → Trạng thái <b>Tạm khoá</b>, không cần xoá.</div>
+      </div>
+
+      <div class="card">
+        <h2>7. Thu chi, kho, thống kê</h2>
+        <ul>
+          <li><span class="kbd">Thu chi</span>: ghi chi phí (điện, nước, dọn phòng...) theo căn, theo ngày.</li>
+          <li><span class="kbd">Kho</span>: nước, mì, snack bán cho khách — nhập kho, app tự trừ khi phụ thu lúc trả nhà.</li>
+          <li><span class="kbd">Thống kê</span>: doanh thu, công suất, lợi nhuận theo tháng / theo căn.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <div class="contact">Cần hỗ trợ: <b>Zalo / SĐT Sabi Home:</b> <span class="blank">&nbsp;</span> &nbsp;·&nbsp; Giờ hỗ trợ: <span class="blank" style="min-width:22mm">&nbsp;</span></div>
+    <div>Sabi Home · Haotran House</div>
+  </div>
+</div>
+</body></html>

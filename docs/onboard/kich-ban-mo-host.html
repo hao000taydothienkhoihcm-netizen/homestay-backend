@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8">
+<title>Kịch bản mở host — Sabi Home (nội bộ)</title>
+<style>
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; }
+  :root { --bg:#f4efe6; --card:#fffdf9; --ink:#3d352a; --muted:#8a7a5c; --brown:#6b4f2a;
+    --line:#e3d8c4; --gold:#c9a227; --pine:#4a6b52; --pine-d:#3c5843; --red:#b4553f; }
+  html, body { margin:0; padding:0; background: var(--bg); color: var(--ink);
+    font-family: "DejaVu Sans", Arial, sans-serif; font-size: 8.2pt; line-height: 1.28; }
+  .page { width: 210mm; min-height: 297mm; padding: 8mm 11mm 6mm; display:flex; flex-direction:column; gap: 3.5mm; page-break-after: always; }
+  .page:last-child { page-break-after: auto; }
+  h1, h2 { font-family: "DejaVu Serif", Georgia, serif; margin: 0; color: var(--brown); }
+  h1 { font-size: 15pt; white-space: nowrap; }
+  h2 { font-size: 10pt; margin-bottom: 1.4mm; padding-bottom: 1mm; border-bottom: 1.5px solid var(--gold); }
+  .head { display:flex; justify-content:space-between; align-items:flex-end; border-bottom: 2px solid var(--brown); padding-bottom: 2.5mm; }
+  .head .brand { font-family:"DejaVu Serif",Georgia,serif; color: var(--brown); font-size: 9pt; letter-spacing: 2px; text-transform: uppercase; }
+  .head .sub { color: var(--muted); font-size: 8.6pt; margin-top: 1mm; }
+  .head .tag { text-align:right; color: var(--red); font-size: 8.5pt; font-weight: 700; }
+  .grid { display:grid; grid-template-columns: 1fr 1fr; gap: 3.5mm; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 3mm; padding: 2.8mm 3.5mm; }
+  ol, ul { margin: 0; padding-left: 4.5mm; }
+  li { margin: 0 0 0.9mm; }
+  li b { color: var(--pine-d); }
+  .kbd { display:inline-block; border:1px solid var(--line); background:#fff; border-radius: 1.2mm; padding: 0 1.2mm; font-size: 8pt; white-space: nowrap; }
+  .chk li { list-style: none; position: relative; padding-left: 5mm; }
+  .chk li::before { content:""; position:absolute; left:0; top:1px; width: 3.4mm; height: 3.4mm; border: 1.2px solid var(--muted); border-radius: 0.8mm; background:#fff; }
+  .msg { background:#fff; border: 1px dashed var(--muted); border-radius: 2mm; padding: 2mm 2.5mm; font-size: 7.9pt; white-space: pre-line; margin-top: 1.5mm; }
+  .note { color: var(--muted); font-size: 8pt; }
+  .warn { background:#f7ecea; border:1px solid #e3c9c3; border-left: 4px solid var(--red); }
+  .warn h2 { color: var(--red); border-bottom-color: var(--red); }
+  table { width:100%; border-collapse: collapse; font-size: 8.2pt; }
+  th, td { border: 1px solid var(--line); padding: 1.4mm 1.6mm; text-align:left; vertical-align: top; }
+  th { background: #f1ebdf; color: var(--muted); font-weight: 600; font-size: 7.8pt; }
+  .so td { height: 7.2mm; }
+  .qa dt { font-weight: 700; color: var(--pine-d); margin-top: 1.2mm; }
+  .qa dd { margin: 0 0 0.6mm 0; }
+  .foot { border-top: 1px solid var(--line); padding-top: 2mm; color: var(--muted); font-size: 8pt; display:flex; justify-content:space-between; margin-top:auto; }
+</style></head><body>
+
+<div class="page">
+  <div class="head">
+    <div>
+      <div class="brand">Sabi Home · Nội bộ</div>
+      <h1>Kịch bản mở host &amp; checklist trước khi mời</h1>
+      <div class="sub">Tờ này cho chủ dự án. Mục tiêu: mời 10 host mà không ai bỏ vì "app chậm", "không biết dùng", "sợ bị xem dữ liệu".</div>
+    </div>
+    <div class="tag">Không gửi cho host</div>
+  </div>
+
+  <div class="grid">
+    <div style="display:flex; flex-direction:column; gap:3.5mm;">
+      <div class="card">
+        <h2>A. Làm MỘT LẦN trước khi mời host đầu tiên</h2>
+        <ul class="chk">
+          <li><b>Server không ngủ:</b> cron-job.org đang ping <span class="kbd">/health</span> 5 phút/lần, đã bật báo email khi lỗi. Kiểm: mở link web, phải lên trong &lt; 3 giây.</li>
+          <li><b>Render → Environment:</b> DATABASE_URL có đuôi <span class="kbd">&amp;connect_timeout=30&amp;pool_timeout=30</span>.</li>
+          <li><b>Render → Settings → Build Command</b> có <span class="kbd">prisma migrate deploy</span>.</li>
+          <li><b>Sao lưu:</b> thư mục <span class="kbd">G:\My Drive\SabiHome - Sao luu du lieu</span> có file mới nhất ≤ 1 ngày. Máy phải bật lúc 02:00 (hoặc chạy tay <span class="kbd">node scripts/sao-luu.mjs</span>).</li>
+          <li><b>Đã thử đủ 3 vai trên điện thoại</b> (chủ nhà / quản lý / nhân viên) và đăng nhập <span class="kbd">admin</span> thấy màn chặn.</li>
+          <li><b>APK mới nhất</b> đã build (<span class="kbd">eas build -p android --profile preview</span>), tải về máy, đổi tên <span class="kbd">SabiHome.apk</span>, up lên Google Drive, lấy link "ai có link đều xem được".</li>
+          <li><b>Tờ hướng dẫn host</b> đã điền SĐT/Zalo + giờ hỗ trợ, xuất PDF.</li>
+          <li>Có <b>sổ host</b> (bảng trang 2) — ghi ai là host số mấy trong 10.</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2>B. Mỗi lần mở một host (10 phút)</h2>
+        <ol>
+          <li>Đăng nhập <span class="kbd">admin</span> trên web → <span class="kbd">Chủ nhà</span> → <span class="kbd">+ Mở host mới</span>: tên host, thương hiệu, SĐT, <b>username</b> (không dấu, không cách, VD <span class="kbd">nhavuon-dalat</span>), <b>mật khẩu tạm</b> 8 ký tự dễ đọc (VD <span class="kbd">Sabi2026!</span>), họ tên chủ.</li>
+          <li><b>Đăng xuất admin</b>, đăng nhập thử bằng tài khoản vừa tạo: vào được Lịch, thấy 0 căn, 0 booking → đúng.</li>
+          <li>Gửi host <b>một tin nhắn</b> theo mẫu dưới + tờ hướng dẫn PDF + link APK.</li>
+          <li><b>Nói câu tặng vĩnh viễn</b> (host 1–10). Host thứ 11 trở đi: nói rõ "bản chạy thử, có thời hạn".</li>
+          <li>Ghi vào <b>sổ host</b>: số thứ tự, username, ngày mở, dùng iPhone hay Android.</li>
+          <li>Dặn host <b>đổi mật khẩu ngay</b> và thêm căn nhà đầu tiên trong ngày — chưa thêm căn là chưa "vào".</li>
+        </ol>
+        <div class="msg">Chào anh/chị [tên], em là [tên] bên Sabi Home. Em mở xong tài khoản quản lý homestay cho mình rồi ạ:
+• Web: https://homestay-backend-n61g.onrender.com
+• App Android: [link APK]  (iPhone dùng web, hướng dẫn trong tờ đính kèm)
+• Tên đăng nhập: [username]   • Mật khẩu tạm: [mật khẩu] — vào rồi đổi ngay giúp em.
+Anh/chị là 1 trong 10 host đầu tiên nên phần quản lý nội bộ này em tặng vĩnh viễn, không thu phí về sau.
+Dữ liệu booking là của riêng mình, bên em không xem được; chỉ khi anh/chị nhờ khôi phục em mới vào, và mỗi lần vào app đều ghi lại cho mình thấy.
+Có gì vướng nhắn em bất cứ lúc nào, em xử lý trong ngày ạ.</div>
+      </div>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:3.5mm;">
+      <div class="card">
+        <h2>C. Sau khi mở — theo dõi</h2>
+        <ul class="chk">
+          <li><b>Ngày 1:</b> host đã đổi mật khẩu và thêm ≥ 1 căn chưa? (Chủ nhà → cột Căn). Chưa thì gọi hỏi vướng gì.</li>
+          <li><b>Ngày 3:</b> hỏi 3 câu: mở app có chậm không · có chỗ nào không hiểu · có thấy dữ liệu nhà khác không (nếu có → báo ngay, dừng mời thêm).</li>
+          <li><b>Tuần 2:</b> host có booking thật trong app chưa? Có thì mới tính là host "sống". Chưa thì hỏi họ đang ghi ở đâu, vì sao.</li>
+          <li><b>Mỗi tháng:</b> đếm host còn dùng / đã bỏ + lý do bỏ. Đây là số quan trọng nhất của giai đoạn này.</li>
+        </ul>
+      </div>
+
+      <div class="card warn">
+        <h2>D. Khi host nhờ khôi phục / kiểm tra hộ</h2>
+        <ol>
+          <li>Hỏi host mô tả (xoá booking nào, lúc nào). Việc thường gặp: <b>host tự làm được</b> qua Thùng rác — chỉ đường trước.</li>
+          <li>Phải vào thật: web → <span class="kbd">Chủ nhà</span> → <span class="kbd">🛠 Hỗ trợ</span> → <b>ghi lý do rõ</b> ("Khôi phục booking #123 theo yêu cầu qua Zalo 3/9") — host đọc được dòng này.</li>
+          <li>Làm đúng việc đã hứa, <b>không xem lung tung</b>, xong bấm <span class="kbd">✕ Thoát hỗ trợ</span> ngay.</li>
+          <li>Nhắn lại host: đã làm gì, và nhắc họ xem được trong Nhật ký hỗ trợ.</li>
+        </ol>
+      </div>
+
+      <div class="card">
+        <h2>E. Trả lời sẵn cho câu host hay hỏi</h2>
+        <dl class="qa">
+          <dt>"Anh có xem được booking của tôi không?"</dt>
+          <dd>Không. Tài khoản quản trị của em không thuộc nhà nào nên không có dữ liệu để xem. Chỉ khi anh/chị nhờ, em vào tối đa 2 giờ và app ghi lại cho anh/chị thấy.</dd>
+          <dt>"Sau này có thu phí không?"</dt>
+          <dd>Phần quản lý nội bộ này tặng vĩnh viễn cho 10 host đầu, không đổi. Sau này có thêm chợ bán phòng, phần đó tính sau và không ảnh hưởng cái đang dùng.</dd>
+          <dt>"Lỡ mất dữ liệu thì sao?"</dt>
+          <dd>Booking xoá nằm ở Thùng rác 30 ngày, tự khôi phục. Toàn bộ dữ liệu sao lưu tự động mỗi đêm, giữ 30 bản.</dd>
+          <dt>"Tôi dùng iPhone."</dt>
+          <dd>Mở web bằng Safari, Thêm vào màn hình chính, dùng y như app. Bản iOS thật làm khi đủ người cần.</dd>
+          <dt>"App mở chậm."</dt>
+          <dd>Nhờ chụp màn hình + giờ; kiểm cron-job.org có chạy không; quá 2 host than → cân nhắc lên Render Starter sớm.</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot"><div>Bản 09/2026 · nguồn: homestay-backend/docs/onboard/ · trang 1/2</div><div>Sabi Home · Haotran House</div></div>
+</div>
+
+<div class="page" style="min-height:0; page-break-after:auto;">
+  <div class="card">
+    <h2>F. Sổ 10 host tiên phong (tặng app nội bộ vĩnh viễn)</h2>
+    <table class="so">
+      <tr><th style="width:6mm">#</th><th>Host / thương hiệu</th><th>Username</th><th>Ngày mở</th><th>SĐT / Zalo</th><th>Máy</th><th>Đã thêm căn</th><th>Booking thật</th><th>Ghi chú</th></tr>
+      <tr><td>1</td><td>Haotran House / Sabi Home</td><td>haotran</td><td>—</td><td></td><td></td><td>✓</td><td>✓</td><td>host của mình</td></tr>
+      <tr><td>2</td><td>Uyển Nhi / Đậu Đậu Villa</td><td>nuheo</td><td>02/09/26</td><td></td><td></td><td>✓</td><td>✓</td><td></td></tr>
+      <tr><td>3</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>4</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>5</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>6</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>7</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>8</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>9</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>10</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    </table>
+  </div>
+
+  <div class="note" style="margin-top:2mm">Cột "Máy": A = Android (đã cài APK), i = iPhone (dùng web). Host 11+ ghi thêm ngày hết hạn chạy thử ở Ghi chú.</div>
+  <div class="foot" style="margin-top:4mm"><div>trang 2/2</div><div>Sabi Home · Haotran House</div></div>
+</div>
+</body></html>
