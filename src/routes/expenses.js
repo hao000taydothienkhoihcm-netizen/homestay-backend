@@ -1,8 +1,8 @@
-import { Router } from 'express';
+import { routerAnToan } from '../lib/router-an-toan.js';
 import { prisma } from '../prisma.js';
 import { requireRole, hostWhere, ownHostId, findOwn, updateOwn, deleteOwn, ownsRecord, notFound, CHU_WORKSPACE } from '../middleware/auth.js';
 
-const router = Router();
+const router = routerAnToan();
 
 router.get('/', async (req, res) => {
   const { from, to, category, homeId } = req.query;

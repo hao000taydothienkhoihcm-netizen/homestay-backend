@@ -1,8 +1,8 @@
-import { Router } from 'express';
+import { routerAnToan } from '../lib/router-an-toan.js';
 import { prisma } from '../prisma.js';
 import { requireRole, hostWhere, ownHostId, findOwn, updateOwn, deleteOwn, notFound, CHU_WORKSPACE } from '../middleware/auth.js';
 
-const router = Router();
+const router = routerAnToan();
 
 // Ai đăng nhập cũng đọc được (front cần để tính giá booking) — chỉ ngày lễ của host mình.
 router.get('/', async (req, res) => {

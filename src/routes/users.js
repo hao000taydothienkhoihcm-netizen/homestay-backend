@@ -1,9 +1,9 @@
-import { Router } from 'express';
+import { routerAnToan } from '../lib/router-an-toan.js';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../prisma.js';
 import { requireRole, hostWhere, ownHostId, findOwn, updateOwn, deleteOwn, notFound, CHU_WORKSPACE } from '../middleware/auth.js';
 
-const router = Router();
+const router = routerAnToan();
 
 const VALID_ROLES = ['ADMIN', 'MANAGER', 'STAFF', 'HOST', 'SALES'];
 const normRole = (r) => {

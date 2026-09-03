@@ -4,3 +4,6 @@ node_modules/
 dist/
 .DS_Store
 prisma/migrations/
+
+# Ban sao luu du lieu that — KHONG bao gio dua len git
+_sao-luu/

@@ -7,12 +7,12 @@
 // KHÔNG có route xoá. Xoá một host là kéo theo toàn bộ booking, thu chi, kho,
 // bảng giá của họ — mất là không lấy lại được. Cần "dừng" một host thì KHOÁ
 // (active = false); middleware xác thực sẽ chặn mọi tài khoản thuộc host đó.
-import { Router } from 'express';
+import { routerAnToan } from '../lib/router-an-toan.js';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../prisma.js';
 import { requireRole } from '../middleware/auth.js';
 
-const router = Router();
+const router = routerAnToan();
 
 // Toàn bộ file chỉ ADMIN. Cố ý KHÔNG dùng CHU_WORKSPACE: host mà vào được đây
 // là họ thấy tên và mở/khoá được các host khác.

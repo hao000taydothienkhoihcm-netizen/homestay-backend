@@ -1,8 +1,8 @@
-import { Router } from 'express';
+import { routerAnToan } from '../lib/router-an-toan.js';
 import { prisma } from '../prisma.js';
 import { requireRole, hostWhere, ownHostId, findOwn, updateOwn, deleteOwn, ownsRecord, notFound, CHU_WORKSPACE, QUAN_LY, VAN_HANH } from '../middleware/auth.js';
 
-const router = Router();
+const router = routerAnToan();
 
 // Chuẩn hoá key map: obj[a][b]
 function bump(map, a, b, val) {

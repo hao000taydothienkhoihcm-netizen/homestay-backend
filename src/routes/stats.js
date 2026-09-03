@@ -1,9 +1,9 @@
-import { Router } from 'express';
+import { routerAnToan } from '../lib/router-an-toan.js';
 import { prisma } from '../prisma.js';
 import { actualReceived, stillOwed, roomRevenue } from '../services/bookingService.js';
 import { hostWhere } from '../middleware/auth.js';
 
-const router = Router();
+const router = routerAnToan();
 
 // ───── DASHBOARD KPI ─────
 router.get('/dashboard', async (req, res) => {

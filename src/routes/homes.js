@@ -1,9 +1,9 @@
-import { Router } from 'express';
+import { routerAnToan } from '../lib/router-an-toan.js';
 import { prisma } from '../prisma.js';
 import { requireRole, hostWhere, ownHostId, findOwn, updateOwn, notFound, CHU_WORKSPACE, QUAN_LY } from '../middleware/auth.js';
 import { loadPriceTable, stayTotal } from '../services/bookingService.js';
 
-const router = Router();
+const router = routerAnToan();
 
 // '' hoặc null hoặc <= 0  ->  null (nghĩa là "để trống, lùi về mức dưới")
 function optPrice(v) {

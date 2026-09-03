@@ -5,10 +5,10 @@
 // Đứng sau authMiddleware (mount ở server.js sau app.use('/v1', authMiddleware)).
 // ═══════════════════════════════════════════════════════════════
 
-import { Router } from 'express';
+import { routerAnToan } from '../lib/router-an-toan.js';
 import { importFromUrl } from '../services/sheetService.js';
 
-const router = Router();
+const router = routerAnToan();
 
 router.post('/preview', async (req, res) => {
   try {

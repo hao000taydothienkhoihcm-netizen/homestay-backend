@@ -77,11 +77,40 @@ app.get('*', (req, res, next) => {
 });
 
 // ───── Error handler ─────
+// Nhờ routerAnToan() (src/lib/router-an-toan.js) mà lỗi trong handler async
+// giờ mới chạy được tới đây. Trước đó nó thoát ra ngoài Express và giết tiến trình.
 app.use((err, req, res, next) => {
-  console.error('❌ Error:', err);
+  const ma = Math.random().toString(36).slice(2, 8).toUpperCase();   // mã để dò log
+  console.error(`❌ [${ma}] ${req.method} ${req.originalUrl}`, err);
+
   if (err.code === 'P2002') return res.status(400).json({ error: 'Dữ liệu trùng lặp' });
   if (err.code === 'P2025') return res.status(404).json({ error: 'Không tìm thấy bản ghi' });
-  res.status(err.status || 500).json({ error: err.message || 'Lỗi server' });
+
+  // Prisma không nối được database (Neon đang ngủ / mạng chớp). Nói đúng bệnh
+  // để người dùng biết chờ một nhịp rồi thử lại, thay vì tưởng app hỏng.
+  if (err.code === 'P1001' || err.code === 'P1002' || err.code === 'P2024') {
+    return res.status(503).json({ error: 'Hệ thống đang bận, thử lại sau vài giây' });
+  }
+
+  // Lỗi CÓ status là lỗi mình chủ động ném ra -> nói thật cho người dùng.
+  // Lỗi không có status là lỗi ngoài dự tính -> KHÔNG đưa err.message ra ngoài,
+  // vì nó hay kèm câu truy vấn, tên cột, đường dẫn file.
+  if (err.status) return res.status(err.status).json({ error: err.message });
+  res.status(500).json({ error: `Lỗi hệ thống (mã ${ma})` });
+});
+
+// ───── Lưới an toàn cuối cùng ─────
+// routerAnToan() lo phần trong route. Nhưng còn lỗi sinh ra NGOÀI route:
+// setTimeout, sự kiện, thư viện gọi ngược lại… Node mặc định giết tiến trình
+// khi gặp promise bị từ chối mà không ai bắt.
+//
+// Ở đây CỐ Ý không tắt máy: app chỉ có một instance trên Render, chết là cả
+// nhà cùng mất dịch vụ. Ghi log rồi chạy tiếp — sai một request còn hơn sập cả app.
+process.on('unhandledRejection', (ly, o) => {
+  console.error('⚠️  Promise bị từ chối mà không ai bắt — app vẫn chạy tiếp:', ly);
+});
+process.on('uncaughtException', (e) => {
+  console.error('⚠️  Lỗi không ai bắt — app vẫn chạy tiếp:', e);
 });
 
 // ───── Start ─────

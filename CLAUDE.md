@@ -242,3 +242,62 @@ KHÔNG chạy các lệnh sau trên bất kỳ máy nào — chúng **xoá sạc
 
 An toàn: `npm start`, `npm run dev`, `npx prisma studio` (chỉ xem), `npx prisma generate`.
 Đổi schema thật thì dùng `npx prisma db push` (không có `--force-reset`) — thêm cột nullable là an toàn.
+
+## 8. Sao lưu dữ liệu
+
+Neon Free chỉ giữ lịch sử khôi phục **6 tiếng**. Phát hiện mất dữ liệu sau một ngày
+là hết đường lùi. Đây là bản sao duy nhất của toàn bộ booking / thu chi / kho của các host.
+
+Máy này **không có `pg_dump`**, và bắt cài PostgreSQL chỉ để sao lưu thì lần sau đổi
+máy lại vướng. Nên sao lưu bằng Node — chỗ nào chạy được app là chạy được nó.
+
+```
+node scripts/sao-luu.mjs
+```
+
+- Ghi ra `../_sao-luu/sabi-YYYYMMDD-HHMM.json.gz` (ngoài repo, đã gitignore).
+- Giữ 30 bản gần nhất, tự dọn bản cũ. Đổi bằng `BACKUP_KEEP`, đổi chỗ lưu bằng `BACKUP_DIR`.
+- Ghi xong **tự đọc lại kiểm chứng** — bản sao lưu hỏng mà tưởng là có mới là tình huống tệ nhất.
+- Chỉ sao lưu DỮ LIỆU. Cấu trúc bảng nằm ở `prisma/schema.prisma`, đã có trong git.
+
+**Hẹn giờ chạy hằng đêm** (Windows, chạy PowerShell dưới quyền admin một lần):
+
+```powershell
+$hd = "E:\project\homestay\homestay-backend"
+schtasks /create /tn "SabiHome sao luu" /tr "cmd /c cd /d $hd && node scripts\sao-luu.mjs" /sc daily /st 02:00 /f
+```
+
+Máy phải bật lúc 2 giờ sáng. Nếu hay tắt máy thì đổi `/sc daily /st 02:00` thành
+`/sc onlogon` để chạy mỗi lần đăng nhập.
+
+### Khôi phục
+
+```
+node scripts/phuc-hoi.mjs ..\_sao-luu\<file>.json.gz              # xem trước, KHÔNG ghi
+node scripts/phuc-hoi.mjs ..\_sao-luu\<file>.json.gz --ghi-that   # ghi đè thật
+```
+
+`--ghi-that` **xoá sạch mọi bảng rồi chèn lại từ file**. Dữ liệu phát sinh sau thời điểm
+sao lưu sẽ mất. Luôn chạy `sao-luu.mjs` trước khi khôi phục — lỡ chọn nhầm file còn quay lại được.
+
+⚠️ Đường khôi phục **chưa từng chạy thật** trên database này. Muốn chắc thì tạo một
+branch trên Neon rồi khôi phục thử vào đó, đừng thử trên nhánh chính.
+
+## 9. Lỗi trong route không còn giết được app
+
+Express 4 **không bắt lỗi trong hàm async**. Trước đây 46/55 route async không có
+try/catch, nên chỉ cần Neon chớp một nhịp là lời hứa bị từ chối mà không ai bắt →
+Node giết luôn tiến trình → Render Free chỉ có một instance nên cả app sập.
+
+`src/lib/router-an-toan.js` bọc ở tầng Router: mọi file route dùng `routerAnToan()`
+thay cho `Router()`, từ đó handler async ném lỗi là tự chuyển sang `next(err)` →
+rơi vào error handler ở `server.js`.
+
+**Viết route mới thì cứ viết async bình thường, không cần try/catch.** Nhưng nhớ
+file route mới phải dùng `routerAnToan()`; chạy `node scripts/doi-router.mjs` là nó
+tự đổi giúp.
+
+`server.js` còn bắt `unhandledRejection` / `uncaughtException` và **cố ý không tắt máy** —
+app chỉ có một instance, sai một request còn hơn sập cả app.
+
+Kiểm chứng: `node scripts/thu-boc-loi.mjs` (12 phép, không đụng database).

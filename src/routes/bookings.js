@@ -1,9 +1,9 @@
-import { Router } from 'express';
+import { routerAnToan } from '../lib/router-an-toan.js';
 import { prisma } from '../prisma.js';
 import { requireRole, hostWhere, ownHostId, findOwn, deleteOwn, notFound, QUAN_LY, VAN_HANH } from '../middleware/auth.js';
 import { checkBookingConflict, nights, stayTotal, loadPriceTable } from '../services/bookingService.js';
 
-const router = Router();
+const router = routerAnToan();
 
 // Map tên phụ thu → id mẫu (ChargeTemplate) để gắn liên kết cứng vào Charge.
 // Ưu tiên mẫu đang hoạt động khi trùng tên.

@@ -1,10 +1,10 @@
-import { Router } from 'express';
+import { routerAnToan } from '../lib/router-an-toan.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../prisma.js';
 import { authMiddleware } from '../middleware/auth.js';
 
-const router = Router();
+const router = routerAnToan();
 
 router.post('/login', async (req, res) => {
   const { username, password } = req.body;
