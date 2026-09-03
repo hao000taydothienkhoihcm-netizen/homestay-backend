@@ -27,6 +27,10 @@ Phần mềm quản lý homestay cho thuê theo đêm: đặt phòng, nhận/tr�
 | Database | **Neon PostgreSQL** (free tier), trên cloud — chung cho mọi máy + Render |
 | Tài khoản | `admin` (ADMIN nền tảng, **không** thuộc host nào, không thấy booking) · `haotran` (HOST — chủ Sabi Home, host #1) · `nuheo` (HOST — Đậu Đậu Villa, host #3). Mật khẩu hỏi chủ dự án, không ghi ở đây. |
 
+**Render Free ngủ sau 15 phút** → có **cron-job.org** (tài khoản của chủ dự án) gọi `/health` mỗi 5 phút
+để server không ngủ, host không phải chờ ~50 giây. 750 giờ/tháng free đủ chạy 24/24. Nếu thấy app
+"quay lâu" bất thường thì kiểm cái cron này trước. Kế hoạch: lên Render Starter khi ~20 host.
+
 **Auto-deploy trên Render đang TẮT.** Muốn cập nhật web/backend thật phải deploy tay: Render Dashboard → service → **Manual Deploy** → *Deploy latest commit* (hoặc *Clear build cache & deploy* khi đổi schema).
 Build của Render chạy `prisma generate` + `prisma migrate deploy` (chỉ áp migration mới, không phá dữ liệu).
 `DATABASE_URL` trên Render phải có đuôi `&connect_timeout=30&pool_timeout=30` (Neon ngủ đông, Prisma mặc định chờ 5s là bỏ).
