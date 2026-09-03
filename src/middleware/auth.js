@@ -59,6 +59,9 @@ export function kyTokenHoTro(adminId, hostId) {
 export function requireRole(...roles) {
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {
+      // Ghi log để lần sau nhìn Render Logs là biết ai bị chặn ở route nào —
+      // morgan 'tiny' chỉ ghi mã 403, không ghi user/vai.
+      console.warn(`403 ${req.method} ${req.originalUrl} user=${req.user.username} role=${req.user.role} can=${roles.join('|')}`);
       return res.status(403).json({ error: 'Không đủ quyền thao tác' });
     }
     next();
