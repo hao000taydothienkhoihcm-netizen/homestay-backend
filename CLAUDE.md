@@ -25,10 +25,11 @@ Phần mềm quản lý homestay cho thuê theo đêm: đặt phòng, nhận/tr�
 | Web chạy thật (live) | https://homestay-backend-n61g.onrender.com/index.html |
 | Hosting backend | **Render Free** — service ID `srv-d970p958nd3s73bt01a0`, project `prj-d970p8t8nd3s73bt0140` |
 | Database | **Neon PostgreSQL** (free tier), trên cloud — chung cho mọi máy + Render |
-| Tài khoản admin mặc định | `admin` / `admin123` |
+| Tài khoản | `admin` (ADMIN nền tảng, **không** thuộc host nào, không thấy booking) · `haotran` (HOST — chủ Sabi Home, host #1) · `nuheo` (HOST — Đậu Đậu Villa, host #3). Mật khẩu hỏi chủ dự án, không ghi ở đây. |
 
 **Auto-deploy trên Render đang TẮT.** Muốn cập nhật web/backend thật phải deploy tay: Render Dashboard → service → **Manual Deploy** → *Deploy latest commit* (hoặc *Clear build cache & deploy* khi đổi schema).
-Build của Render tự chạy `prisma generate` + `prisma db push` (thêm cột kiểu nullable, không phá dữ liệu).
+Build của Render chạy `prisma generate` + `prisma migrate deploy` (chỉ áp migration mới, không phá dữ liệu).
+`DATABASE_URL` trên Render phải có đuôi `&connect_timeout=30&pool_timeout=30` (Neon ngủ đông, Prisma mặc định chờ 5s là bỏ).
 
 ---
 
@@ -95,7 +96,9 @@ homestay-backend/
 
 ## 5. Mô hình dữ liệu (Prisma) — điểm cần nhớ
 
-- **User**: role `ADMIN` / `MANAGER` / `STAFF`. Nhân viên (STAFF) bị ẩn Thống kê + Thu/Chi.
+- **User**: role `ADMIN` (nền tảng, `hostId=null`) / `HOST` (chủ workspace) / `MANAGER` / `STAFF` / `SALES`. Nhân viên (STAFF) bị ẩn Thống kê + Thu/Chi. Nhóm quyền: `CHU_WORKSPACE` / `QUAN_LY` / `VAN_HANH` trong `middleware/auth.js`, gương ở web `lib/quyen.ts` + mobile `utils/quyen.js` (`scripts/ra-lech-quyen.mjs` bắt lệch).
+- **Host**: workspace. `active=false` = khoá cả workspace (mọi user của host không đăng nhập được). Không có xoá host.
+- **HoTroLog**: mỗi lần admin vào chế độ hỗ trợ một host (adminId, hostId, lyDo, luc). Xem mục "ADMIN KHÔNG THẤY DỮ LIỆU HOST" dưới.
 - **Home** (căn nhà): `price` = giá ngày thường (T2–T5), `weekendPrice` = giá cuối tuần (T6,T7,CN), `holidayPrice` = giá lễ. Đây là giá **mặc định**, dùng khi tháng đó chưa có bảng giá riêng.
 - **HomeMonthlyPrice**: bảng giá theo **từng tháng của từng năm** cho mỗi căn (`price` / `weekendPrice` / `holidayPrice`, đều nullable). Ô trống → lùi về giá mặc định của căn.
 - **HomeDatePrice**: giá ghi đè cho **một đêm** cụ thể. Ưu tiên cao nhất, thắng cả giá lễ.
@@ -133,9 +136,39 @@ Bốn helper trong `middleware/auth.js` — **bắt buộc dùng, đừng viết
 | `delete({ where: { id } })` | `deleteOwn(model, req, id)` | số dòng đã xoá (`0` = từ chối) |
 | id nhận **từ body** (VD `homeId`) | `ownsRecord(model, req, id)` | `true` / `false` |
 
-Cả bốn đều đi qua `hostWhere()` nên **ADMIN không bị lọc** (super-role thấy mọi host).
+Cả bốn đều đi qua `hostWhere()` → `{ hostId: hostHieuLuc(req) ?? -1 }`.
 Không tìm thấy và không phải của mình đều trả **404 giống hệt nhau** (`notFound(res, '...')`) —
 cố tình không phân biệt, để không lộ ra là id đó có tồn tại.
+
+### ⚠️ ADMIN KHÔNG THẤY DỮ LIỆU HOST — chỉ thấy khi "hỗ trợ" (từ 03/09/2026)
+Trước đây ADMIN là super-role không bị lọc, và tài khoản admin lại gắn `hostId=1` (Sabi Home)
+→ Sabi và Đậu Đậu Villa trộn vào một màn, rất rối; và host sẽ không dùng app nếu biết admin
+thấy booking/sao kê của họ. **Nay:**
+- ADMIN nền tảng có `hostId = null`. `hostHieuLuc(req)`: với ADMIN trả `req.hoTroHostId`
+  (null nếu không hỗ trợ), với vai khác trả `user.hostId`. Ngoài hỗ trợ, admin đếm được **0**
+  dòng ở mọi bảng (`hostId: -1`); `ownHostId(req)` ném 400 nếu admin cố thêm dữ liệu.
+- **Sabi Home là một host bình thường** (host #1, chủ = `haotran` vai HOST). Tài khoản `admin`
+  chỉ để mở/khoá host, quản tài khoản. Muốn xem booking Sabi thì đăng nhập `haotran`.
+- **Chế độ hỗ trợ**: `POST /hosts/:id/ho-tro {lyDo}` → ghi `HoTroLog` (host đọc được ở
+  `GET /users/nhat-ky-ho-tro`, admin xem ở `GET /hosts/:id/ho-tro-log`) rồi trả JWT
+  `{loai:'ho-tro', adminId, hostId}` sống **2h**. Client gửi header `X-Ho-Tro`;
+  `authMiddleware` gán `req.hoTroHostId`. Trong hỗ trợ, admin = đúng chủ host đó.
+- Ngoại lệ duy nhất: **tài khoản**. `hostWhereTaiKhoan(req)` cho admin ngoài hỗ trợ thấy
+  mọi user (để mở khoá, reset mật khẩu). Không dùng helper này cho bảng khác.
+- Web: `lib/api.ts` giữ token hỗ trợ trong `sessionStorage`, `state/auth.tsx` có
+  `hoTro / vaoHoTro / thoatHoTro`; AppShell chỉ hiện Chủ nhà + Tài khoản khi admin ngoài hỗ trợ,
+  banner đỏ khi đang hỗ trợ. Nút "🛠 Hỗ trợ" ở màn Chủ nhà.
+- Tách tài khoản (chạy một lần, đã chạy trên production khi deploy bản này):
+  `node scripts/tach-sabi-khoi-admin.mjs [--ghi-that]`. Kiểm: `scripts/thu-che-do-ho-tro.ps1`.
+
+### 🗑 Booking xoá là XOÁ MỀM (thùng rác 30 ngày)
+`Booking.deletedAt / deletedById`. `src/prisma.js` xuất `prisma` đã `$extends`: mọi
+findMany/findFirst/count/aggregate/groupBy/updateMany/deleteMany trên `booking` tự thêm
+`deletedAt: null` **trừ khi where đã nói rõ `deletedAt`**. `prismaGoc` là client thô, chỉ dùng
+cho sao lưu/phục hồi. `DELETE /bookings/:id` chỉ đặt `deletedAt`; `GET /bookings/thung-rac`
+liệt kê (và tiện tay xoá thật những dòng quá 30 ngày); `POST /bookings/:id/khoi-phuc` kiểm
+trùng lịch lại rồi mới trả về. Query qua quan hệ (`where: { booking: {...} }`) **không** được
+extension lọc — phải tự thêm `deletedAt: null` (đã làm ở `inventory.js`).
 
 Ba quy tắc kèm theo:
 1. **Kiểm quyền sở hữu TRƯỚC khi trả lỗi có kèm dữ liệu.** VD `POST /bookings` phải xác nhận
@@ -224,10 +257,12 @@ Năm chỗ dễ vỡ, đã rà 01/09/2026:
 - Đường lùi: giữ nguyên `sabihome`, không xoá gì cho tới khi Render build xanh.
 - App mobile **không** import code từ `sabihome` (đã kiểm) → gộp repo không ảnh hưởng.
 
-**2. Bỏ `prisma db push`, chuyển sang `prisma migrate deploy`.**
-`render.yaml` đang chạy `db push` mỗi lần deploy → không có lịch sử, không quay lui được,
-không biết lần nào đổi gì. Chịu được khi schema nhỏ và chỉ có một môi trường; hỏng khi
-GĐ3 thêm 3 bảng mới và cần rollback.
+**2. ✅ ĐÃ LÀM (03/09/2026): bỏ `prisma db push`, chuyển sang `prisma migrate deploy`.**
+Baseline `prisma/migrations/0_init` (commit 09167bd) + migration
+`20260903094122_ho_tro_log_va_booking_xoa_mem`. `render.yaml` build:
+`npm install && npx prisma generate && npx prisma migrate deploy && node prisma/seed-prod.js`.
+Lưu ý: `render.yaml` chỉ áp cho service tạo bằng Blueprint — nếu service tạo tay thì phải
+sửa Build Command trong dashboard Render cho khớp. Quy trình đổi schema xem §7.
 (`seed-prod.js` chạy kèm thì AN TOÀN — thấy có user là bỏ qua ngay, không xoá gì.)
 
 ---
@@ -235,13 +270,22 @@ GĐ3 thêm 3 bảng mới và cần rollback.
 ## 7. ⚠️ Cấm làm (vì DB dùng chung dữ liệu thật)
 
 KHÔNG chạy các lệnh sau trên bất kỳ máy nào — chúng **xoá sạch dữ liệu thật** trên Neon:
-- `npm run db:reset` / `npm run db:clean`
-- `npx prisma db push --force-reset`
-- `npx prisma migrate reset`
+- `npx prisma db push --force-reset` / `npx prisma db push` (đã chuyển sang migrate, xem dưới)
+- `npx prisma migrate reset` / `npx prisma migrate dev` trỏ vào production
 - `node prisma/seed.js` (seed đè dữ liệu)
+- `node scripts/phuc-hoi.mjs ... --ghi-that` khi `DATABASE_URL` là production mà chưa sao lưu mới
+- (`db:reset` / `db:clean` đã gỡ khỏi package.json — đừng thêm lại)
 
-An toàn: `npm start`, `npm run dev`, `npx prisma studio` (chỉ xem), `npx prisma generate`.
-Đổi schema thật thì dùng `npx prisma db push` (không có `--force-reset`) — thêm cột nullable là an toàn.
+An toàn: `npm start`, `npm run dev`, `npx prisma studio` (chỉ xem), `npx prisma generate`,
+`npx prisma migrate deploy`, `node scripts/sao-luu.mjs`, `node scripts/kiem-tra-cach-ly.mjs` (chỉ đọc).
+
+**Đổi schema đi qua migration** (từ 03/09/2026, baseline `0_init`):
+1. Sửa `prisma/schema.prisma`.
+2. Trỏ `DATABASE_URL` sang **nhánh Neon** (tạo nhánh từ production, xem §8) rồi
+   `npx prisma migrate dev --name ten_thay_doi` → sinh file trong `prisma/migrations/`.
+3. Xem lại SQL sinh ra (chỉ ADD COLUMN nullable / CREATE TABLE là an toàn; DROP/ALTER TYPE
+   phải cân nhắc), sao lưu production, rồi `npx prisma migrate deploy` với DATABASE_URL production.
+4. Render Build Command đã có `npx prisma migrate deploy` nên deploy xong là DB khớp code.
 
 ## 8. Sao lưu dữ liệu
 
