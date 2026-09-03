@@ -208,4 +208,63 @@ router.patch('/:id/active', async (req, res) => {
   }
 });
 
+// ═══════════════════ GĐ3: DUYỆT CĂN LÊN CHỢ ═══════════════════
+// Admin KHÔNG thấy booking/thu chi của host, nhưng thông tin đăng chợ thì host CHỦ ĐỘNG
+// đưa ra công khai để bán — nên admin đọc được để duyệt, không cần chế độ hỗ trợ.
+// Chỉ trả về các cột đăng chợ + tên host; không kèm booking.
+
+const CHON_CAN_CHO = {
+  id: true, name: true, address: true, emoji: true, maxGuests: true, price: true, weekendPrice: true,
+  choTrangThai: true, salesTitle: true, street: true, ward: true, landmark: true,
+  bedrooms: true, bedroomsSingle: true, bedroomsDouble: true, minGuests: true,
+  amenities: true, coverImages: true, albumUrl: true, salesInfo: true, caretakerPhone: true,
+  coCheHoaHong: true, listPrice: true, commissionPct: true, floorPrice: true, markupMin: true, markupMax: true,
+  updatedAt: true, hostId: true,
+  host: { select: { id: true, name: true, brand: true, phone: true } },
+};
+
+const bo = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/\s+/g, ' ').trim();
+
+// Nghi trùng: cùng phường và (tên gần giống hoặc cùng số nhà & đường). Chỉ so với căn host KHÁC.
+function timTrung(can, tatCa) {
+  const ten = bo(can.name), duong = bo(can.street);
+  return tatCa.filter((k) => k.id !== can.id && k.hostId !== can.hostId && k.ward && k.ward === can.ward && (
+    (ten && bo(k.name) && (bo(k.name).includes(ten) || ten.includes(bo(k.name)))) ||
+    (duong && bo(k.street) && bo(k.street) === duong)
+  )).map((k) => ({ id: k.id, name: k.name, street: k.street, ward: k.ward, host: k.host?.name, choTrangThai: k.choTrangThai }));
+}
+
+// Căn chờ duyệt (mọi host) + gợi ý trùng.
+router.get('/can/cho-duyet', async (_req, res) => {
+  const cho = await prisma.home.findMany({ where: { active: true, choTrangThai: 'CHO_DUYET' }, select: CHON_CAN_CHO, orderBy: { updatedAt: 'asc' } });
+  if (!cho.length) return res.json([]);
+  const tatCa = await prisma.home.findMany({
+    where: { active: true, ward: { in: [...new Set(cho.map((c) => c.ward).filter(Boolean))] } },
+    select: { id: true, name: true, street: true, ward: true, hostId: true, choTrangThai: true, host: { select: { name: true } } },
+  });
+  res.json(cho.map((c) => ({ ...c, nghiTrung: timTrung(c, tatCa) })));
+});
+
+// Toàn cảnh chợ: đếm theo trạng thái + danh sách đang bán (để admin nhìn tổng quan).
+router.get('/can/tong-quan', async (_req, res) => {
+  const dem = await prisma.home.groupBy({ by: ['choTrangThai'], where: { active: true }, _count: { _all: true } });
+  const dangBan = await prisma.home.findMany({ where: { active: true, choTrangThai: { in: ['DANG_BAN', 'AN'] } }, select: CHON_CAN_CHO, orderBy: { updatedAt: 'desc' } });
+  res.json({ dem: Object.fromEntries(dem.map((d) => [d.choTrangThai, d._count._all])), dangBan });
+});
+
+// Duyệt / từ chối / gỡ khỏi chợ. body: { quyetDinh: 'DUYET' | 'TU_CHOI' | 'GO' }
+router.post('/can/:id/duyet', async (req, res) => {
+  const id = parseInt(req.params.id);
+  const can = await prisma.home.findFirst({ where: { id, active: true }, select: { id: true, choTrangThai: true, name: true } });
+  if (!can) return res.status(404).json({ error: 'Không tìm thấy căn' });
+  const qd = req.body?.quyetDinh;
+  let moi;
+  if (qd === 'DUYET' && can.choTrangThai === 'CHO_DUYET') moi = 'DANG_BAN';
+  else if (qd === 'TU_CHOI' && can.choTrangThai === 'CHO_DUYET') moi = 'NHAP';
+  else if (qd === 'GO' && (can.choTrangThai === 'DANG_BAN' || can.choTrangThai === 'AN')) moi = 'NHAP';
+  else return res.status(400).json({ error: `Không áp dụng được "${qd}" cho căn đang ${can.choTrangThai}` });
+  const h = await prisma.home.update({ where: { id }, data: { choTrangThai: moi }, select: { id: true, name: true, choTrangThai: true } });
+  res.json(h);
+});
+
 export default router;

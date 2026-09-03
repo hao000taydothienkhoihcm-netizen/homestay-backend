@@ -21,6 +21,9 @@ router.get('/', async (req, res) => {
   res.json(homes);
 });
 
+// Danh sách phường/xã cho form đăng chợ (phải đứng TRƯỚC /:id). Hằng số khai ở mục "ĐĂNG CĂN LÊN CHỢ".
+router.get('/phuong', (_req, res) => res.json(PHUONG_DA_LAT));
+
 router.get('/:id', async (req, res) => {
   const home = await findOwn(prisma.home, req, req.params.id);
   if (!home) return notFound(res, 'căn nhà');
@@ -261,6 +264,82 @@ router.get('/:id/price-preview', async (req, res) => {
     total: stayTotal(home, checkIn, checkOut, holidays, priceTable),
     detail: nightsList
   });
+});
+
+// ═══════════════════ GĐ3: ĐĂNG CĂN LÊN CHỢ ═══════════════════
+// Host khai thông tin bán hàng (mockup marketplace-final màn "addhome") rồi Gửi duyệt.
+// Admin duyệt ở routes/hosts.js (kiểm trùng căn). Trạng thái: NHAP -> CHO_DUYET -> DANG_BAN / AN.
+// Tên căn + số nhà + phường là "danh tính" chống trùng: đã DANG_BAN thì host không tự đổi nữa.
+
+const PHUONG_DA_LAT = ['Phường 1', 'Phường 2', 'Phường 3', 'Phường 4', 'Phường 5', 'Phường 6', 'Phường 7',
+  'Phường 8', 'Phường 9', 'Phường 10', 'Phường 11', 'Phường 12', 'Phường Xuân Hương', 'Phường Cam Ly',
+  'Phường Trại Mát', 'Xã Xuân Trường', 'Xã Xuân Thọ', 'Khác'];
+const CHILD_U6 = ['MIEN_PHI', 'PHU_THU_NHE'];
+const CHILD_6 = ['NHU_NGUOI_LON', 'PHU_THU_50', 'MIEN_PHI'];
+
+const chuoi = (v, max = 500) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : null);
+const soNguyen = (v) => { const n = parseInt(v); return Number.isFinite(n) && n >= 0 ? n : null; };
+const mangChuoi = (v, max = 20, len = 120) =>
+  Array.isArray(v) ? [...new Set(v.map((s) => chuoi(s, len)).filter(Boolean))].slice(0, max) : [];
+
+// (GET /phuong khai ở đầu file, TRƯỚC /:id — không thì "phuong" bị hiểu là id.)
+
+// Lưu nháp / cập nhật thông tin chợ. body.guiDuyet = true -> chuyển CHO_DUYET (nếu đủ điều kiện).
+router.patch('/:id/cho', requireRole(...CHU_WORKSPACE), async (req, res) => {
+  const id = parseInt(req.params.id);
+  const cu = await findOwn(prisma.home, req, id);
+  if (!cu) return notFound(res, 'căn nhà');
+  const b = req.body || {};
+
+  const data = {
+    salesTitle: chuoi(b.salesTitle, 150),
+    landmark: chuoi(b.landmark, 200),
+    bedrooms: soNguyen(b.bedrooms), bedroomsSingle: soNguyen(b.bedroomsSingle), bedroomsDouble: soNguyen(b.bedroomsDouble),
+    minGuests: soNguyen(b.minGuests),
+    roomNotes: mangChuoi(b.roomNotes, 20, 200),
+    amenities: mangChuoi(b.amenities, 40, 60),
+    parkingFree: chuoi(b.parkingFree, 120), parkingFee: chuoi(b.parkingFee, 120), parkingNote: chuoi(b.parkingNote, 200),
+    childUnder6: CHILD_U6.includes(b.childUnder6) ? b.childUnder6 : null,
+    childFrom6: CHILD_6.includes(b.childFrom6) ? b.childFrom6 : null,
+    albumUrl: chuoi(b.albumUrl, 500),
+    coverImages: mangChuoi(b.coverImages, 8, 500),
+    salesInfo: chuoi(b.salesInfo, 5000),
+    rules: chuoi(b.rules, 3000),
+    caretakerPhone: chuoi(b.caretakerPhone, 30),
+    coCheHoaHong: ['PHAN_TRAM', 'GIA_SAN'].includes(b.coCheHoaHong) ? b.coCheHoaHong : null,
+    listPrice: soNguyen(b.listPrice), commissionPct: soNguyen(b.commissionPct),
+    floorPrice: soNguyen(b.floorPrice), markupMin: soNguyen(b.markupMin), markupMax: soNguyen(b.markupMax),
+  };
+  // Danh tính căn: chỉ sửa khi chưa lên chợ (NHAP / CHO_DUYET). Đang bán thì phải báo admin.
+  if (cu.choTrangThai === 'NHAP' || cu.choTrangThai === 'CHO_DUYET') {
+    data.street = chuoi(b.street, 150);
+    data.ward = PHUONG_DA_LAT.includes(b.ward) ? b.ward : null;
+  }
+  if (data.commissionPct != null && data.commissionPct > 50) return res.status(400).json({ error: '% hoa hồng tối đa 50' });
+  if (data.coCheHoaHong === 'GIA_SAN' && data.markupMin != null && data.markupMax != null && data.markupMin > data.markupMax) {
+    return res.status(400).json({ error: 'Mức kê "từ" phải nhỏ hơn "đến"' });
+  }
+
+  if (b.guiDuyet === true) {
+    const thieu = [];
+    if (!data.salesTitle) thieu.push('tiêu đề bán hàng');
+    if (!(data.street ?? cu.street)) thieu.push('số nhà & đường');
+    if (!(data.ward ?? cu.ward)) thieu.push('phường / xã');
+    if (!data.salesInfo) thieu.push('bài giới thiệu');
+    if (!data.coCheHoaHong) thieu.push('cơ chế hoa hồng');
+    if (data.coCheHoaHong === 'PHAN_TRAM' && (!data.listPrice || data.commissionPct == null)) thieu.push('giá bán niêm yết + % hoa hồng');
+    if (data.coCheHoaHong === 'GIA_SAN' && !data.floorPrice) thieu.push('giá sàn');
+    if (thieu.length) return res.status(400).json({ error: 'Chưa đủ để gửi duyệt: ' + thieu.join(', '), thieu });
+    if (cu.choTrangThai !== 'DANG_BAN') data.choTrangThai = 'CHO_DUYET';
+  } else if (b.an === true && cu.choTrangThai === 'DANG_BAN') {
+    data.choTrangThai = 'AN';           // host tự tạm ẩn khỏi chợ
+  } else if (b.an === false && cu.choTrangThai === 'AN') {
+    data.choTrangThai = 'DANG_BAN';     // đã được duyệt rồi thì mở lại không cần duyệt lại
+  }
+
+  const n = await updateOwn(prisma.home, req, id, data);
+  if (!n) return notFound(res, 'căn nhà');
+  res.json(await findOwn(prisma.home, req, id));
 });
 
 // ═══════════════════ GĐ3: LỊCH KHOÁ TAY ═══════════════════

@@ -189,7 +189,14 @@ CREATE TABLE, không đụng dữ liệu cũ:
   DANG_BAN/AN), salesTitle, street, ward, landmark, bedrooms/-Single/-Double, minGuests, roomNotes[],
   amenities[], parking*, child*, albumUrl, coverImages[], salesInfo, rules, caretakerPhone,
   `coCheHoaHong` (PHAN_TRAM = A, GIA_SAN = B) + listPrice/commissionPct/floorPrice/markupMin/markupMax.
-  **Chưa có form nào ghi các cột này** — màn "Thêm căn lên chợ" là việc tiếp theo của GĐ3.
+  Form ghi: web **Căn nhà → 🛒 Đăng chợ** (`DangChoModal.tsx`) → `PATCH /homes/:id/cho` (CHU_WORKSPACE;
+  `guiDuyet:true` → CHO_DUYET nếu đủ tiêu đề/đường/phường/bài giới thiệu/hoa hồng; `an:true|false` ẩn/hiện
+  khi đã DANG_BAN; đã lên chợ thì street/ward bị khoá). `GET /homes/phuong` = danh sách phường Đà Lạt
+  (route phải đứng TRƯỚC `/:id`). Admin duyệt ở **Chủ nhà → "🛒 Chợ — duyệt căn"**: `GET /hosts/can/cho-duyet`
+  (kèm `nghiTrung`: cùng phường + tên gần giống hoặc cùng số nhà), `GET /hosts/can/tong-quan`,
+  `POST /hosts/can/:id/duyet {quyetDinh: DUYET|TU_CHOI|GO}`. Admin đọc được thông tin đăng chợ mà không cần
+  hỗ trợ — vì host chủ động công khai để bán; route chỉ trả cột chợ, không kèm booking. Kiểm:
+  `scripts/thu-dang-cho.ps1` (19 kiểm). Ảnh bìa hiện là dán link URL, chưa có upload.
 - **`LichKhoa`**: 1 dòng = 1 ĐÊM bị khoá của 1 căn (`@@unique homeId+ngay`), `nguon` MANUAL/SHEET/ICAL.
   **Quy tắc bắt buộc:** đồng bộ SHEET/ICAL chỉ được thêm/xoá dòng cùng nguồn, KHÔNG đụng dòng MANUAL
   (khoá tay thắng sheet). Ngày trống trên chợ = không booking VÀ không LichKhoa.
