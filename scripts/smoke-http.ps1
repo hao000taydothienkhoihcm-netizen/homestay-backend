@@ -17,8 +17,14 @@ function Code($sb) {
 
 $r = Invoke-RestMethod -Uri "$B/auth/login" -Method Post -ContentType 'application/json' `
      -Body (@{ username=$U; password=$P } | ConvertTo-Json)
-$hdr = @{ Authorization = "Bearer $($r.token)" }
 Kt ($null -ne $r.token) "login admin  (role=$($r.user.role) hostId=$($r.user.hostId))"
+
+# Tu 09/2026 admin ngoai che do ho tro KHONG thay du lieu host nao. Bai smoke nay
+# kiem duong gia + cach ly theo id tren du lieu host #1, nen phai vao ho tro #1 truoc.
+# Chi tiet che do ho tro: scripts\thu-che-do-ho-tro.ps1
+$ht = Invoke-RestMethod -Uri "$B/hosts/1/ho-tro" -Method Post -Headers @{ Authorization = "Bearer $($r.token)" } -ContentType 'application/json' -Body '{"lyDo":"smoke test"}'
+$hdr = @{ Authorization = "Bearer $($r.token)"; 'X-Ho-Tro' = $ht.token }
+Kt ($null -ne $ht.token) "vao ho tro host #1 ($($ht.host.name))"
 
 Write-Host "`n--- LIST endpoints: khong duoc hut dong nao ---"
 # Khong chot cung con so: du lieu that van tang moi ngay, chot cung la test do

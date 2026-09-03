@@ -1,7 +1,7 @@
 import { routerAnToan } from '../lib/router-an-toan.js';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../prisma.js';
-import { requireRole, hostWhere, ownHostId, findOwn, updateOwn, deleteOwn, notFound, CHU_WORKSPACE } from '../middleware/auth.js';
+import { requireRole, hostWhereTaiKhoan, hostHieuLuc, ownHostId, notFound, CHU_WORKSPACE } from '../middleware/auth.js';
 
 const router = routerAnToan();
 
@@ -12,8 +12,10 @@ const normRole = (r) => {
   return VALID_ROLES.includes(up) ? up : null; // null = giá trị không hợp lệ
 };
 
-// HOST tự quản nhân sự trong workspace của mình. hostWhere() lo phần cách ly:
-// ADMIN thấy toàn bộ, HOST chỉ thấy/sửa/xoá tài khoản cùng hostId.
+// HOST tự quản nhân sự trong workspace của mình. hostWhereTaiKhoan() lo phần cách ly:
+// ADMIN ngoài hỗ trợ thấy TOÀN BỘ tài khoản (việc cấp nền tảng: duyệt, khoá, đổi mật
+// khẩu — không phải dữ liệu kinh doanh); ADMIN đang hỗ trợ host nào thì thấy host đó;
+// HOST chỉ thấy/sửa/xoá tài khoản cùng hostId.
 router.use(requireRole(...CHU_WORKSPACE));
 
 // Vai trò nào được cấp vai trò nào. Thiếu bảng này thì HOST tự nâng mình lên ADMIN
@@ -36,9 +38,25 @@ async function laAdminKhac(req, id) {
   return u?.role === 'ADMIN';
 }
 
+// ───── Nhật ký admin vào hỗ trợ workspace này ─────
+// Đây là bằng chứng cho lời hứa với host: "ngày thường tôi không nhìn; khi bạn cần
+// hỗ trợ tôi phải bật chế độ riêng, và mỗi lần bật đều ghi lại — bạn xem được".
+// HOST xem của host mình; ADMIN đang hỗ trợ host nào thì xem host đó.
+router.get('/nhat-ky-ho-tro', async (req, res) => {
+  const h = hostHieuLuc(req);
+  if (h == null) return res.json([]);
+  const logs = await prisma.hoTroLog.findMany({
+    where: { hostId: h },
+    orderBy: { luc: 'desc' },
+    take: 100,
+    include: { admin: { select: { name: true, username: true } } },
+  });
+  res.json(logs.map((l) => ({ id: l.id, luc: l.luc, lyDo: l.lyDo, admin: l.admin.name || l.admin.username })));
+});
+
 router.get('/', async (req, res) => {
   const users = await prisma.user.findMany({
-    where: hostWhere(req),
+    where: hostWhereTaiKhoan(req),
     select: {
       id: true, username: true, name: true, email: true, role: true,
       active: true, status: true, hostId: true,
@@ -55,9 +73,9 @@ router.patch('/:id/approve', async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     if (await laAdminKhac(req, id)) return notFound(res, 'tài khoản');
-    const n = await updateOwn(prisma.user, req, id, { status: 'ACTIVE' });
+    const n = (await prisma.user.updateMany({ where: hostWhereTaiKhoan(req, { id }), data: { status: 'ACTIVE' } })).count;
     if (!n) return notFound(res, 'tài khoản');
-    const user = await findOwn(prisma.user, req, id, {
+    const user = await prisma.user.findFirst({ where: hostWhereTaiKhoan(req, { id }),
       select: { id: true, username: true, name: true, role: true, status: true, hostId: true }
     });
     if (user.role === 'HOST' && user.hostId) {
@@ -124,9 +142,9 @@ router.patch('/:id', async (req, res) => {
     }
     if (active !== undefined) data.active = active;
 
-    const n = await updateOwn(prisma.user, req, id, data);
+    const n = (await prisma.user.updateMany({ where: hostWhereTaiKhoan(req, { id }), data })).count;
     if (!n) return notFound(res, 'tài khoản');
-    res.json(await findOwn(prisma.user, req, id, {
+    res.json(await prisma.user.findFirst({ where: hostWhereTaiKhoan(req, { id }),
       select: { id: true, username: true, name: true, email: true, role: true, active: true }
     }));
   } catch (err) {
@@ -140,7 +158,7 @@ router.delete('/:id', async (req, res) => {
     const id = parseInt(req.params.id);
     if (id === req.user.id) return res.status(400).json({ error: 'Không thể xóa chính mình' });
     if (await laAdminKhac(req, id)) return notFound(res, 'tài khoản');
-    const n = await deleteOwn(prisma.user, req, id);
+    const n = (await prisma.user.deleteMany({ where: hostWhereTaiKhoan(req, { id }) })).count;
     if (!n) return notFound(res, 'tài khoản');
     res.json({ ok: true });
   } catch (err) {

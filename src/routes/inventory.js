@@ -58,7 +58,10 @@ router.get('/', async (req, res) => {
     prisma.home.findMany({ where: hostWhere(req, { active: true }), orderBy: { id: 'asc' } }),
     prisma.stockEntry.findMany({ where: hostWhere(req) }),
     prisma.charge.findMany({
-      where: { booking: hostWhere(req) },
+      // deletedAt: null phải ghi TAY ở đây — đây là truy vấn trên Charge, lọc qua
+      // quan hệ booking, nên extension thùng rác ở prisma.js không chạm tới.
+      // Thiếu là phụ thu của booking đã xoá vẫn bị tính thành hàng đã bán.
+      where: { booking: hostWhere(req, { deletedAt: null }) },
       include: { booking: { select: { homeId: true, checkIn: true, checkOut: true } } }
     })
   ]);

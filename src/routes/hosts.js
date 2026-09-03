@@ -10,7 +10,7 @@
 import { routerAnToan } from '../lib/router-an-toan.js';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../prisma.js';
-import { requireRole } from '../middleware/auth.js';
+import { requireRole, kyTokenHoTro } from '../middleware/auth.js';
 
 const router = routerAnToan();
 
@@ -33,7 +33,8 @@ router.get('/', async (req, res) => {
     prisma.host.findMany({
       orderBy: { id: 'asc' },
       include: {
-        _count: { select: { bookings: true, users: true } },
+        // Booking cũng xoá mềm từ 09/2026 -> đếm có lọc, không thì gộp cả thùng rác.
+        _count: { select: { bookings: { where: { deletedAt: null } }, users: true } },
         users: {
           where: { role: 'HOST' },
           select: { id: true, username: true, name: true, status: true, active: true },
@@ -69,7 +70,7 @@ router.get('/:id', async (req, res) => {
   const h = await prisma.host.findUnique({
     where: { id },
     include: {
-      _count: { select: { bookings: true, users: true, expenses: true } },
+      _count: { select: { bookings: { where: { deletedAt: null } }, users: true, expenses: true } },
       users: { select: { id: true, username: true, name: true, role: true, status: true, active: true }, orderBy: { id: 'asc' } },
     },
   });
@@ -150,6 +151,40 @@ router.patch('/:id', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: 'Lỗi cập nhật chủ nhà' });
   }
+});
+
+// ───── VÀO HỖ TRỢ ─────
+// Đây là "tính năng ẩn" duy nhất để admin nhìn thấy dữ liệu của một host.
+// Thứ tự bắt buộc: GHI NHẬT KÝ TRƯỚC, cấp token SAU. Token là thứ duy nhất mở
+// được hostWhere() cho admin, và không có đường nào lấy token mà không đi qua
+// đây — nên không thể vào hỗ trợ mà không để lại dấu vết. Host xem được nhật ký
+// qua GET /users/nhat-ky-ho-tro.
+router.post('/:id/ho-tro', async (req, res) => {
+  const id = parseInt(req.params.id);
+  const host = await prisma.host.findUnique({ where: { id }, select: { id: true, name: true, brand: true } });
+  if (!host) return res.status(404).json({ error: 'Không tìm thấy chủ nhà' });
+
+  await prisma.hoTroLog.create({
+    data: { adminId: req.user.id, hostId: id, lyDo: chuoi(req.body?.lyDo) },
+  });
+
+  res.json({
+    token: kyTokenHoTro(req.user.id, id),
+    host,
+    hetHanSau: '2h',
+  });
+});
+
+// Nhật ký hỗ trợ của một host — admin xem để tự soi lại mình đã vào khi nào.
+router.get('/:id/ho-tro-log', async (req, res) => {
+  const id = parseInt(req.params.id);
+  const logs = await prisma.hoTroLog.findMany({
+    where: { hostId: id },
+    orderBy: { luc: 'desc' },
+    take: 100,
+    include: { admin: { select: { name: true, username: true } } },
+  });
+  res.json(logs.map((l) => ({ id: l.id, luc: l.luc, lyDo: l.lyDo, admin: l.admin.name || l.admin.username })));
 });
 
 // ───── KHOÁ / MỞ ─────

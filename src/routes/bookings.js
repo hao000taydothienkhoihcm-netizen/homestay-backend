@@ -1,6 +1,6 @@
 import { routerAnToan } from '../lib/router-an-toan.js';
 import { prisma } from '../prisma.js';
-import { requireRole, hostWhere, ownHostId, findOwn, deleteOwn, notFound, QUAN_LY, VAN_HANH } from '../middleware/auth.js';
+import { requireRole, hostWhere, ownHostId, findOwn, updateOwn, notFound, QUAN_LY, VAN_HANH } from '../middleware/auth.js';
 import { checkBookingConflict, nights, stayTotal, loadPriceTable } from '../services/bookingService.js';
 
 const router = routerAnToan();
@@ -82,6 +82,54 @@ router.get('/calendar', async (req, res) => {
     include: { home: true }
   });
   res.json(bookings);
+});
+
+// ───── THÙNG RÁC ─────
+// Booking đã xoá mềm trong 30 ngày gần đây. Đặt TRƯỚC '/:id' để Express không
+// hiểu "thung-rac" là một id. Truy vấn nói rõ deletedAt nên extension ở prisma.js
+// không chèn `deletedAt: null` đè lên.
+const NGAY_GIU_RAC = 30;
+router.get('/thung-rac', requireRole(...QUAN_LY), async (req, res) => {
+  const moc = new Date(Date.now() - NGAY_GIU_RAC * 86400000);
+
+  // Tiện thể dọn: quá 30 ngày thì xoá thật. Không cần cron riêng — ai mở thùng
+  // rác thì lúc đó dọn, thùng rác không ai mở thì rác nằm đó cũng chẳng hại gì.
+  await prisma.booking.deleteMany({
+    where: hostWhere(req, { deletedAt: { not: null, lt: moc } }),
+  });
+
+  const rac = await prisma.booking.findMany({
+    where: hostWhere(req, { deletedAt: { not: null } }),
+    include: { home: { select: { name: true, emoji: true } } },
+    orderBy: { deletedAt: 'desc' },
+  });
+  res.json(rac.map((b) => ({
+    ...b,
+    conLai: Math.max(0, NGAY_GIU_RAC - Math.floor((Date.now() - new Date(b.deletedAt).getTime()) / 86400000)),
+  })));
+});
+
+// Khôi phục: bỏ deletedAt. Kiểm trùng lịch lại — trong lúc nằm trong thùng rác,
+// có thể ai đó đã đặt đè lên đúng ngày đó rồi.
+router.post('/:id/khoi-phuc', requireRole(...QUAN_LY), async (req, res) => {
+  const id = parseInt(req.params.id);
+  const b = await prisma.booking.findFirst({
+    where: hostWhere(req, { id, deletedAt: { not: null } }),
+  });
+  if (!b) return notFound(res, 'booking trong thùng rác');
+
+  const trung = await checkBookingConflict(b.homeId, b.checkIn, b.checkOut, id);
+  if (trung) {
+    return res.status(409).json({
+      error: `Không khôi phục được: ngày này đã có booking khác của ${trung.guest} (${trung.checkIn.toISOString().slice(0, 10)} → ${trung.checkOut.toISOString().slice(0, 10)})`,
+    });
+  }
+
+  await prisma.booking.updateMany({
+    where: hostWhere(req, { id, deletedAt: { not: null } }),
+    data: { deletedAt: null, deletedById: null },
+  });
+  res.json(await prisma.booking.findFirst({ where: hostWhere(req, { id }), include: { home: true, charges: true } }));
 });
 
 // ───── DETAIL ─────
@@ -325,10 +373,17 @@ router.patch('/:id', requireRole(...QUAN_LY), async (req, res) => {
 });
 
 // ───── DELETE ─────
+// XOÁ MỀM: chỉ đặt deletedAt, dòng vẫn còn. Host xoá lộn thì tự vào Thùng rác
+// khôi phục trong 30 ngày — không phải nhờ admin quay ngược cả hệ thống về bản
+// sao lưu đêm qua (làm mất luôn dữ liệu host khác nhập trong ngày).
+// Charge đi kèm giữ nguyên, khôi phục là có lại đủ.
 router.delete('/:id', requireRole(...QUAN_LY), async (req, res) => {
-  const n = await deleteOwn(prisma.booking, req, req.params.id);
+  const n = await updateOwn(prisma.booking, req, req.params.id, {
+    deletedAt: new Date(),
+    deletedById: req.user.id,
+  });
   if (!n) return notFound(res, 'booking');
-  res.json({ ok: true });
+  res.json({ ok: true, thungRac: true });
 });
 
 // ───── CHECK-IN ─────

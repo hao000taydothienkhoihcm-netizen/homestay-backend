@@ -16,41 +16,44 @@ datasource db {
 // Bước 2: chỉ thêm bảng + cột hostId (nullable). Dữ liệu Sabi cũ backfill về host #1.
 model Host {
   id        Int      @id @default(autoincrement())
-  name      String   // Tên hiển thị, VD "Haotran House"
-  brand     String?  // Thương hiệu, VD "Sabi Home"
-  phone     String?  // SĐT host (chỉ hiện cho sales SAU khi giữ chỗ + duyệt)
+  name      String // Tên hiển thị, VD "Haotran House"
+  brand     String? // Thương hiệu, VD "Sabi Home"
+  phone     String? // SĐT host (chỉ hiện cho sales SAU khi giữ chỗ + duyệt)
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users          User[]
-  homes          Home[]
-  holidays       Holiday[]
-  bookings       Booking[]
+  users           User[]
+  homes           Home[]
+  holidays        Holiday[]
+  bookings        Booking[]
   chargeTemplates ChargeTemplate[]
-  stockEntries   StockEntry[]
-  expenses       Expense[]
-  monthlyPrices  HomeMonthlyPrice[]
-  datePrices     HomeDatePrice[]
+  stockEntries    StockEntry[]
+  expenses        Expense[]
+  monthlyPrices   HomeMonthlyPrice[]
+  datePrices      HomeDatePrice[]
+  hoTroLogs       HoTroLog[]
 }
 
 // ───── User & Auth ─────
 model User {
-  id        Int      @id @default(autoincrement())
-  username  String   @unique
-  password  String   // bcrypt hash
-  name      String
-  email     String?
-  role      Role     @default(STAFF)
-  active    Boolean  @default(true)
+  id       Int     @id @default(autoincrement())
+  username String  @unique
+  password String // bcrypt hash
+  name     String
+  email    String?
+  role     Role    @default(STAFF)
+  active   Boolean @default(true)
 
   // Trạng thái duyệt cho tài khoản tự đăng ký (Host/Sales). Mặc định ACTIVE
   // để mọi tài khoản CŨ không bị chặn. Đăng ký mới -> PENDING, admin duyệt -> ACTIVE.
-  status    UserStatus @default(ACTIVE)
+  status UserStatus @default(ACTIVE)
 
-  // Multi-tenant: user thuộc host nào. Null = chưa gán (Admin super-role không cần).
-  hostId    Int?
-  host      Host?    @relation(fields: [hostId], references: [id])
+  // Multi-tenant: user thuộc host nào. Null = tài khoản cấp nền tảng (ADMIN, SALES).
+  hostId Int?
+  host   Host? @relation(fields: [hostId], references: [id])
+
+  hoTroLogs HoTroLog[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -58,41 +61,57 @@ model User {
   @@index([hostId])
 }
 
+// ───── Nhật ký admin vào hỗ trợ ─────
+// Admin ngày thường KHÔNG thấy dữ liệu của host nào. Muốn xem/sửa hộ thì phải
+// "vào hỗ trợ" một host cụ thể — mỗi lần vào ghi một dòng ở đây. Host xem được
+// nhật ký này: đó là bằng chứng cho lời hứa "tôi không nhìn trừ khi bạn cần".
+model HoTroLog {
+  id      Int      @id @default(autoincrement())
+  adminId Int
+  admin   User     @relation(fields: [adminId], references: [id])
+  hostId  Int
+  host    Host     @relation(fields: [hostId], references: [id])
+  lyDo    String?
+  luc     DateTime @default(now())
+
+  @@index([hostId, luc])
+}
+
 enum Role {
-  ADMIN     // Super-role nền tảng: thấy toàn bộ host
-  MANAGER   // Quản lý trong workspace của 1 host
-  STAFF     // Nhân viên trong workspace của 1 host
-  HOST      // Chủ nhà: sở hữu 1 workspace (multi-tenant)
-  SALES     // Cộng tác viên bán phòng ở marketplace
+  ADMIN // Chủ nền tảng: quản lý host + tài khoản; KHÔNG thấy dữ liệu host trừ khi vào hỗ trợ
+  MANAGER // Quản lý trong workspace của 1 host
+  STAFF // Nhân viên trong workspace của 1 host
+  HOST // Chủ nhà: sở hữu 1 workspace (multi-tenant)
+  SALES // Cộng tác viên bán phòng ở marketplace
 }
 
 enum UserStatus {
-  PENDING   // Vừa đăng ký, chờ admin duyệt
-  ACTIVE    // Đã duyệt / tài khoản cũ
+  PENDING // Vừa đăng ký, chờ admin duyệt
+  ACTIVE // Đã duyệt / tài khoản cũ
 }
 
 // ───── Homes ─────
 model Home {
-  id        Int      @id @default(autoincrement())
-  name      String
-  address   String
-  price     Int      // VND/đêm (giá ngày thường T2–T5)
-  weekendPrice Int?  // VND/đêm cuối tuần (T6, T7, CN). Null = dùng price
-  holidayPrice Int?  // VND/đêm ngày lễ (theo danh sách Holiday). Null = dùng giá cuối tuần
-  maxGuests Int      @default(8)
-  emoji     String   @default("🏡")
-  desc      String?
-  active    Boolean  @default(true)
+  id           Int     @id @default(autoincrement())
+  name         String
+  address      String
+  price        Int // VND/đêm (giá ngày thường T2–T5)
+  weekendPrice Int? // VND/đêm cuối tuần (T6, T7, CN). Null = dùng price
+  holidayPrice Int? // VND/đêm ngày lễ (theo danh sách Holiday). Null = dùng giá cuối tuần
+  maxGuests    Int     @default(8)
+  emoji        String  @default("🏡")
+  desc         String?
+  active       Boolean @default(true)
 
-  hostId    Int?
-  host      Host?    @relation(fields: [hostId], references: [id])
+  hostId Int?
+  host   Host? @relation(fields: [hostId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  bookings  Booking[]
-  expenses  Expense[]
-  stockEntries StockEntry[]
+  bookings      Booking[]
+  expenses      Expense[]
+  stockEntries  StockEntry[]
   monthlyPrices HomeMonthlyPrice[]
   datePrices    HomeDatePrice[]
 
@@ -104,18 +123,18 @@ model Home {
 // Ô nào để trống -> lùi về giá mặc định của căn (Home.price / weekendPrice / holidayPrice),
 // nên căn nào chưa nhập bảng giá vẫn chạy y như trước.
 model HomeMonthlyPrice {
-  id           Int      @id @default(autoincrement())
+  id           Int     @id @default(autoincrement())
   homeId       Int
-  home         Home     @relation(fields: [homeId], references: [id], onDelete: Cascade)
-  year         Int      // VD 2026
-  month        Int      // 1–12
-  price        Int?     // giá ngày thường T2–T5
-  weekendPrice Int?     // giá T6, T7, CN
-  holidayPrice Int?     // giá ngày lễ (theo danh sách Holiday)
-  note         String?  // ghi chú tuỳ ý, VD "mùa thấp điểm"
+  home         Home    @relation(fields: [homeId], references: [id], onDelete: Cascade)
+  year         Int // VD 2026
+  month        Int // 1–12
+  price        Int? // giá ngày thường T2–T5
+  weekendPrice Int? // giá T6, T7, CN
+  holidayPrice Int? // giá ngày lễ (theo danh sách Holiday)
+  note         String? // ghi chú tuỳ ý, VD "mùa thấp điểm"
 
-  hostId    Int?
-  host      Host?    @relation(fields: [hostId], references: [id])
+  hostId Int?
+  host   Host? @relation(fields: [hostId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -131,12 +150,12 @@ model HomeDatePrice {
   id     Int      @id @default(autoincrement())
   homeId Int
   home   Home     @relation(fields: [homeId], references: [id], onDelete: Cascade)
-  date   DateTime @db.Date  // đêm bắt đầu từ ngày này
+  date   DateTime @db.Date // đêm bắt đầu từ ngày này
   price  Int
   note   String?
 
-  hostId    Int?
-  host      Host?    @relation(fields: [hostId], references: [id])
+  hostId Int?
+  host   Host? @relation(fields: [hostId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -149,12 +168,12 @@ model HomeDatePrice {
 // ───── Ngày lễ (áp giá lễ cho mọi căn) ─────
 model Holiday {
   id        Int      @id @default(autoincrement())
-  name      String   // VD: Tết Nguyên Đán, Lễ 30/4...
+  name      String // VD: Tết Nguyên Đán, Lễ 30/4...
   startDate DateTime @db.Date
-  endDate   DateTime @db.Date  // = startDate nếu chỉ 1 ngày
+  endDate   DateTime @db.Date // = startDate nếu chỉ 1 ngày
 
-  hostId    Int?
-  host      Host?    @relation(fields: [hostId], references: [id])
+  hostId Int?
+  host   Host? @relation(fields: [hostId], references: [id])
 
   createdAt DateTime @default(now())
 
@@ -164,66 +183,74 @@ model Holiday {
 
 // ───── Bookings ─────
 model Booking {
-  id            Int       @id @default(autoincrement())
-  guest         String
-  phone         String
-  homeId        Int
-  home          Home      @relation(fields: [homeId], references: [id])
-  
-  checkIn       DateTime  @db.Date
-  checkInTime   String    @default("14:00")
-  checkOut      DateTime  @db.Date
-  checkOutTime  String    @default("12:00")
-  guests        Int       @default(2)
-  
+  id     Int    @id @default(autoincrement())
+  guest  String
+  phone  String
+  homeId Int
+  home   Home   @relation(fields: [homeId], references: [id])
+
+  checkIn      DateTime @db.Date
+  checkInTime  String   @default("14:00")
+  checkOut     DateTime @db.Date
+  checkOutTime String   @default("12:00")
+  guests       Int      @default(2)
+
   // Dòng tiền
-  totalAmount   Int       // = price × nights
-  discount      Int       @default(0)  // Giảm giá trên tổng đơn (VND)
-  deposit       Int       @default(0)
-  paidAtCheckIn Int       @default(0)
-  chargesTotal   Int      @default(0)   // Phụ thu TRẢ nhà (doanh thu khi CHECKEDOUT)
-  checkinCharges Int      @default(0)   // Phụ thu NHẬN nhà (doanh thu ngay khi CHECKEDIN)
+  totalAmount    Int // = price × nights
+  discount       Int @default(0) // Giảm giá trên tổng đơn (VND)
+  deposit        Int @default(0)
+  paidAtCheckIn  Int @default(0)
+  chargesTotal   Int @default(0) // Phụ thu TRẢ nhà (doanh thu khi CHECKEDOUT)
+  checkinCharges Int @default(0) // Phụ thu NHẬN nhà (doanh thu ngay khi CHECKEDIN)
 
-  status        BookingStatus @default(CONFIRMED)
-  notes         String?
-  
+  status BookingStatus @default(CONFIRMED)
+  notes  String?
+
   // Check-in/out thực tế
-  actualCheckIn   DateTime?
-  actualCheckOut  DateTime?
-  waterMeter      Float?
-  inspectionNote  String?
-  
-  charges       Charge[]
+  actualCheckIn  DateTime?
+  actualCheckOut DateTime?
+  waterMeter     Float?
+  inspectionNote String?
 
-  hostId        Int?
-  host          Host?     @relation(fields: [hostId], references: [id])
+  charges Charge[]
 
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  hostId Int?
+  host   Host? @relation(fields: [hostId], references: [id])
+
+  // Xoá mềm (thùng rác). Null = đang dùng. Có giá trị = đã xoá, còn khôi phục
+  // được trong 30 ngày. Host xoá lộn thì tự cứu, không phải quay lại bản sao lưu
+  // toàn hệ thống (làm mất luôn dữ liệu host khác nhập trong ngày).
+  // MỌI truy vấn booking phải lọc deletedAt: null — xem bookingService.dangDung().
+  deletedAt   DateTime?
+  deletedById Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([homeId, checkIn, checkOut])
   @@index([status])
   @@index([hostId])
+  @@index([deletedAt])
 }
 
 enum BookingStatus {
-  CONFIRMED       // Đã đặt
-  CHECKEDIN       // Đang ở
-  CHECKOUT_TODAY  // Trả hôm nay
-  CHECKEDOUT      // Đã trả
+  CONFIRMED // Đã đặt
+  CHECKEDIN // Đang ở
+  CHECKOUT_TODAY // Trả hôm nay
+  CHECKEDOUT // Đã trả
 }
 
 // ───── Charges (phụ thu — nhận nhà hoặc trả nhà) ─────
 model Charge {
-  id        Int      @id @default(autoincrement())
+  id        Int     @id @default(autoincrement())
   bookingId Int
-  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
-  name      String
-  unit      Int      // Đơn giá
-  qty       Int      @default(1)
-  amount    Int      // = unit × qty
-  phase     ChargePhase @default(CHECKOUT)  // CHECKIN = thu lúc nhận nhà, CHECKOUT = thu lúc trả nhà
+  name   String
+  unit   Int // Đơn giá
+  qty    Int         @default(1)
+  amount Int // = unit × qty
+  phase  ChargePhase @default(CHECKOUT) // CHECKIN = thu lúc nhận nhà, CHECKOUT = thu lúc trả nhà
 
   // Liên kết cứng tới mặt hàng/mẫu phụ thu (để báo cáo kho khớp theo ID, không lệ thuộc tên).
   // Nullable + SetNull: xoá mẫu KHÔNG xoá lịch sử phụ thu; chỉ gỡ liên kết.
@@ -236,31 +263,31 @@ model Charge {
 }
 
 enum ChargePhase {
-  CHECKIN    // Phụ thu khi nhận nhà (kê nệm...)
-  CHECKOUT   // Phụ thu khi trả nhà (dọn dẹp, nước uống...)
+  CHECKIN // Phụ thu khi nhận nhà (kê nệm...)
+  CHECKOUT // Phụ thu khi trả nhà (dọn dẹp, nước uống...)
 }
 
 // ───── Charge Templates (RULES + QUICK) ─────
 model ChargeTemplate {
-  id        Int      @id @default(autoincrement())
-  name      String
-  amount    Int
-  type      ChargeType
-  active    Boolean  @default(true)
+  id     Int        @id @default(autoincrement())
+  name   String
+  amount Int
+  type   ChargeType
+  active Boolean    @default(true)
 
   // ── Quản lý kho (chỉ áp dụng cho QUICK — đồ tiêu thụ) ──
-  trackStock Boolean @default(false)  // Có theo dõi tồn kho không
-  packSize   Int     @default(1)      // Số đơn vị lẻ trong 1 thùng/lốc (VD 1 thùng = 24 chai)
-  packLabel  String  @default("thùng")// Tên đơn vị nhập (thùng / lốc / kiện)
-  unitLabel  String  @default("cái")  // Tên đơn vị lẻ (chai / lon / gói)
-  lowStock   Int     @default(0)      // Ngưỡng cảnh báo tồn thấp (theo đơn vị lẻ)
-  costPrice  Int     @default(0)      // Giá vốn / giá nhập 1 đơn vị lẻ (để tính lợi nhuận)
+  trackStock Boolean @default(false) // Có theo dõi tồn kho không
+  packSize   Int     @default(1) // Số đơn vị lẻ trong 1 thùng/lốc (VD 1 thùng = 24 chai)
+  packLabel  String  @default("thùng") // Tên đơn vị nhập (thùng / lốc / kiện)
+  unitLabel  String  @default("cái") // Tên đơn vị lẻ (chai / lon / gói)
+  lowStock   Int     @default(0) // Ngưỡng cảnh báo tồn thấp (theo đơn vị lẻ)
+  costPrice  Int     @default(0) // Giá vốn / giá nhập 1 đơn vị lẻ (để tính lợi nhuận)
 
   stockEntries StockEntry[]
   charges      Charge[]
 
-  hostId    Int?
-  host      Host?    @relation(fields: [hostId], references: [id])
+  hostId Int?
+  host   Host? @relation(fields: [hostId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -269,25 +296,25 @@ model ChargeTemplate {
 }
 
 enum ChargeType {
-  RULE      // Nội quy phạt — không có số lượng
-  QUICK     // Tiêu thụ — có số lượng
+  RULE // Nội quy phạt — không có số lượng
+  QUICK // Tiêu thụ — có số lượng
 }
 
 // ───── Nhập kho / điều chỉnh tồn (theo từng căn) ─────
 model StockEntry {
-  id         Int      @id @default(autoincrement())
+  id         Int            @id @default(autoincrement())
   templateId Int
   template   ChargeTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
   homeId     Int
-  home       Home     @relation(fields: [homeId], references: [id])
+  home       Home           @relation(fields: [homeId], references: [id])
 
-  qty   Int          // Số đơn vị lẻ (đã quy đổi từ thùng). ADJUST có thể âm.
-  type  StockType @default(IMPORT)
-  note  String?
-  date  DateTime  @db.Date
+  qty  Int // Số đơn vị lẻ (đã quy đổi từ thùng). ADJUST có thể âm.
+  type StockType @default(IMPORT)
+  note String?
+  date DateTime  @db.Date
 
-  hostId    Int?
-  host      Host?    @relation(fields: [hostId], references: [id])
+  hostId Int?
+  host   Host? @relation(fields: [hostId], references: [id])
 
   createdAt DateTime @default(now())
 
@@ -297,22 +324,22 @@ model StockEntry {
 }
 
 enum StockType {
-  IMPORT   // Nhập hàng
-  ADJUST   // Kiểm kê / điều chỉnh tồn
+  IMPORT // Nhập hàng
+  ADJUST // Kiểm kê / điều chỉnh tồn
 }
 
 // ───── Expenses (chi phí vận hành) ─────
 model Expense {
-  id        Int      @id @default(autoincrement())
-  date      DateTime @db.Date
-  category  String
-  desc      String
-  amount    Int
-  homeId    Int?
-  home      Home?    @relation(fields: [homeId], references: [id])
+  id       Int      @id @default(autoincrement())
+  date     DateTime @db.Date
+  category String
+  desc     String
+  amount   Int
+  homeId   Int?
+  home     Home?    @relation(fields: [homeId], references: [id])
 
-  hostId    Int?
-  host      Host?    @relation(fields: [hostId], references: [id])
+  hostId Int?
+  host   Host? @relation(fields: [hostId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -87,9 +87,15 @@ router.post('/register', async (req, res) => {
   }
 });
 
-router.get('/me', authMiddleware, (req, res) => {
+router.get('/me', authMiddleware, async (req, res) => {
   const { password, ...user } = req.user;
-  res.json({ user });
+  // Admin đang hỗ trợ host nào thì nói luôn, để giao diện tải lại vẫn hiện băng-rôn đúng.
+  let hoTro = null;
+  if (req.hoTroHostId) {
+    const h = await prisma.host.findUnique({ where: { id: req.hoTroHostId }, select: { id: true, name: true, brand: true } });
+    if (h) hoTro = h;
+  }
+  res.json({ user, hoTro });
 });
 
 export default router;
