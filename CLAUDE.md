@@ -258,26 +258,32 @@ node scripts/sao-luu.mjs
 - Ghi ra `../_sao-luu/sabi-YYYYMMDD-HHMM.json.gz` (ngoài repo, đã gitignore).
 - Giữ 30 bản gần nhất, tự dọn bản cũ. Đổi bằng `BACKUP_KEEP`.
 
-### ⚠️ Phải lưu ra NGOÀI máy này
+### Lưu ra NGOÀI máy này — đã bật
 
 Lưu một chỗ ngay trên máy đang chạy là **chưa phải backup**: máy hỏng, mất máy, hay
-đổi máy là mất luôn cả dữ liệu lẫn bản sao lưu. `BACKUP_DIR` nhận **nhiều chỗ**, ngăn
-cách bằng dấu chấm phẩy — script ghi vào từng chỗ, đọc lại kiểm chứng từng chỗ, và
-báo riêng chỗ nào hỏng (chạy hằng đêm mà im lặng bỏ qua một chỗ thì vài tháng sau
-mới phát hiện chỗ đó rỗng):
+đổi máy là mất luôn cả dữ liệu lẫn bản sao lưu.
 
-    set BACKUP_DIR=E:\project\homestay\_sao-luu;G:\My Drive\SabiHome - Sao luu du lieu
+Script **tự dò thư mục Google Drive**, thấy thì lưu thêm một bản vào đó. Cố ý không
+ghi cứng `G:\My Drive`: chữ cái ổ của Drive for desktop không cố định (tuỳ máy đã
+dùng tới ổ nào), và nếu cài kiểu "thư mục" thì nó lại nằm trong hồ sơ người dùng.
+Dò cả ổ D:–Z: (`My Drive` / `Drive của tôi`) lẫn `%USERPROFILE%\Google Drive`.
 
-Chỗ thứ hai nên nằm trong thư mục **Google Drive for desktop** — Drive tự đồng bộ lên
-mây, nên máy này hỏng thì máy mới cài Drive vào là thấy lại đủ bản sao lưu.
+Máy hiện tại (03/09/2026): Drive for desktop đã cài, gắn ở **ổ G:**, nên mỗi lần
+sao lưu ra **2 bản**:
 
-**Máy hiện tại CHƯA cài Drive for desktop** (kiểm tra 03/09/2026: không có Google
-Drive, không có OneDrive, không có rclone). Cài từ https://www.google.com/drive/download/
-rồi đăng nhập haotran12380@gmail.com, sau đó thêm đường dẫn Drive vào `BACKUP_DIR`.
+    E:\project\homestay\_sao-luu\                      (khôi phục nhanh)
+    G:\My Drive\SabiHome - Sao luu du lieu\             (Drive tự đồng bộ lên mây)
 
-Trên Drive đã có sẵn thư mục **"SabiHome — Sao lưu dữ liệu"** với một bản
-(`sabi-20260903-0818.json.gz`, 274 dòng) đưa lên tay ngày 03/09/2026. Cài Drive for
-desktop xong thì thư mục đó hiện ra trong `G:\My Drive\`.
+Đổi máy thì chỉ cần cài Drive, đăng nhập `haotran12380@gmail.com`, thư mục đó hiện
+ra là có lại đủ bản sao lưu.
+
+Muốn chỉ định tay (VD thêm ổ cứng ngoài) thì đặt `BACKUP_DIR`, nhiều chỗ ngăn bằng
+dấu chấm phẩy — lúc đó script dùng đúng danh sách đó, không tự dò nữa:
+
+    set BACKUP_DIR=E:\project\homestay\_sao-luu;D:\o-cung-ngoai\sao-luu
+
+Script đọc lại kiểm chứng **riêng từng chỗ** và báo riêng chỗ nào hỏng — chạy tự
+động hằng đêm mà im lặng bỏ qua một chỗ thì vài tháng sau mới phát hiện chỗ đó rỗng.
 - Ghi xong **tự đọc lại kiểm chứng** — bản sao lưu hỏng mà tưởng là có mới là tình huống tệ nhất.
 - Chỉ sao lưu DỮ LIỆU. Cấu trúc bảng nằm ở `prisma/schema.prisma`, đã có trong git.
 
@@ -285,7 +291,7 @@ desktop xong thì thư mục đó hiện ra trong `G:\My Drive\`.
 
 ```powershell
 $hd = "E:\project\homestay\homestay-backend"
-schtasks /create /tn "SabiHome sao luu" /tr "cmd /c cd /d $hd && set \"BACKUP_DIR=E:\project\homestay\_sao-luu;G:\My Drive\SabiHome - Sao luu du lieu\" && node scripts\sao-luu.mjs" /sc daily /st 02:00 /f
+schtasks /create /tn "SabiHome sao luu" /tr "cmd /c cd /d $hd && node scripts\sao-luu.mjs" /sc daily /st 02:00 /f
 ```
 
 Máy phải bật lúc 2 giờ sáng. Nếu hay tắt máy thì đổi `/sc daily /st 02:00` thành

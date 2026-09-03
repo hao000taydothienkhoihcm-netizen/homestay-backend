@@ -26,17 +26,44 @@ const prisma = new PrismaClient();
 
 // Nơi lưu. Đặt ngoài repo để không lỡ tay commit dữ liệu thật lên GitHub.
 //
-// GHI ĐƯỢC NHIỀU CHỖ, ngăn cách bằng dấu chấm phẩy. Lưu một chỗ trên chính máy
-// này là chưa đủ: máy hỏng hoặc đổi máy là mất luôn cả dữ liệu lẫn bản sao lưu.
-// Chỗ thứ hai nên nằm trong thư mục Google Drive (Drive for desktop tự đồng bộ
-// lên mây), hoặc ổ ngoài.
+// Lưu MỘT chỗ trên chính máy đang chạy thì chưa gọi là backup: máy hỏng hoặc đổi
+// máy là mất luôn cả dữ liệu lẫn bản sao lưu. Nên mặc định script tự tìm thư mục
+// Google Drive; thấy thì lưu thêm một bản vào đó, không thấy thì nhắc.
 //
-//   set BACKUP_DIR=E:\project\homestay\_sao-luu;G:\My Drive\SabiHome - Sao luu du lieu
+// Muốn chỉ định tay (nhiều chỗ, ngăn bằng dấu chấm phẩy) thì đặt BACKUP_DIR —
+// lúc đó script dùng đúng danh sách đó, không tự dò nữa:
 //
-const THU_MUC = (process.env.BACKUP_DIR
-  || path.resolve(import.meta.dirname, '../../_sao-luu'))
-  .split(';').map((s) => s.trim()).filter(Boolean);
+//   set BACKUP_DIR=E:\project\homestay\_sao-luu;D:\o-cung-ngoai\sao-luu
+//
 const GIU_LAI = parseInt(process.env.BACKUP_KEEP || '30');   // giữ bao nhiêu bản gần nhất
+const TEN_TM = 'SabiHome - Sao luu du lieu';
+
+// Tự dò thư mục Google Drive.
+// Drive for desktop gắn thành một ổ riêng, NHƯNG chữ cái ổ không cố định (máy này
+// đang dùng tới F:, nên Drive sẽ nhận G: hoặc chữ khác), và nếu cài kiểu "thư mục"
+// thì lại nằm trong hồ sơ người dùng. Đoán cứng "G:\My Drive" là sai — dò thật.
+// Chưa cài Drive thì trả null, script vẫn chạy và chỉ nhắc.
+function timGoogleDrive() {
+  const ung = [];
+  for (const o of 'DEFGHIJKLMNOPQRSTUVWXYZ') {
+    ung.push(`${o}:\\My Drive`, `${o}:\\Drive của tôi`, `${o}:\\Drive cua toi`);
+  }
+  const nha = process.env.USERPROFILE || '';
+  if (nha) ung.push(path.join(nha, 'Google Drive', 'My Drive'), path.join(nha, 'Google Drive'));
+  for (const d of ung) {
+    try { if (fs.statSync(d).isDirectory()) return d; } catch { /* không có thì thôi */ }
+  }
+  return null;
+}
+
+let THU_MUC;
+if (process.env.BACKUP_DIR) {
+  THU_MUC = process.env.BACKUP_DIR.split(';').map((s) => s.trim()).filter(Boolean);
+} else {
+  THU_MUC = [path.resolve(import.meta.dirname, '../../_sao-luu')];
+  const gd = timGoogleDrive();
+  if (gd) THU_MUC.push(path.join(gd, TEN_TM));   // có Drive thì tự lưu thêm vào đó
+}
 
 // Thứ tự không quan trọng khi sao lưu, nhưng giữ đúng thứ tự cha-trước-con
 // để lúc khôi phục đọc lại theo đúng thứ tự này là chèn được ngay.
@@ -123,7 +150,9 @@ if (soChoGhiDuoc < THU_MUC.length) {
   console.log(`\n  ⚠ Chỉ ghi được ${soChoGhiDuoc}/${THU_MUC.length} chỗ. Xem lại chỗ HỎNG ở trên.\n`);
 } else if (THU_MUC.length === 1) {
   console.log('\n  ⚠ Mới lưu ở MỘT chỗ, ngay trên máy này. Máy hỏng là mất cả.');
-  console.log('    Thêm chỗ thứ hai (thư mục Google Drive) — xem CLAUDE.md mục 8.\n');
+  console.log('    Không tìm thấy Google Drive trên máy. Cài Drive for desktop từ');
+  console.log('    https://www.google.com/drive/download/ rồi chạy lại — script tự');
+  console.log('    dò ra và lưu thêm một bản vào đó, không phải sửa gì.\n');
 } else {
   console.log('');
 }
