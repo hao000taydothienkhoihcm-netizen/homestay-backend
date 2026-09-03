@@ -3,7 +3,6 @@ node_modules/
 *.log
 dist/
 .DS_Store
-prisma/migrations/
 
-# Ban sao luu du lieu that — KHONG bao gio dua len git
+# Ban sao luu du lieu that ï¿½ KHONG bao gio dua len git
 _sao-luu/
