@@ -24,9 +24,18 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// Thư mục lưu. Đặt ngoài repo để không lỡ tay commit dữ liệu thật lên GitHub.
-const THU_MUC = process.env.BACKUP_DIR
-  || path.resolve(import.meta.dirname, '../../_sao-luu');
+// Nơi lưu. Đặt ngoài repo để không lỡ tay commit dữ liệu thật lên GitHub.
+//
+// GHI ĐƯỢC NHIỀU CHỖ, ngăn cách bằng dấu chấm phẩy. Lưu một chỗ trên chính máy
+// này là chưa đủ: máy hỏng hoặc đổi máy là mất luôn cả dữ liệu lẫn bản sao lưu.
+// Chỗ thứ hai nên nằm trong thư mục Google Drive (Drive for desktop tự đồng bộ
+// lên mây), hoặc ổ ngoài.
+//
+//   set BACKUP_DIR=E:\project\homestay\_sao-luu;G:\My Drive\SabiHome - Sao luu du lieu
+//
+const THU_MUC = (process.env.BACKUP_DIR
+  || path.resolve(import.meta.dirname, '../../_sao-luu'))
+  .split(';').map((s) => s.trim()).filter(Boolean);
 const GIU_LAI = parseInt(process.env.BACKUP_KEEP || '30');   // giữ bao nhiêu bản gần nhất
 
 // Thứ tự không quan trọng khi sao lưu, nhưng giữ đúng thứ tự cha-trước-con
@@ -51,8 +60,6 @@ function tenFile(d = new Date()) {
        + `-${hai(d.getHours())}${hai(d.getMinutes())}.json.gz`;
 }
 
-fs.mkdirSync(THU_MUC, { recursive: true });
-
 console.log('\nĐang sao lưu…\n');
 const duLieu = { taoLuc: new Date().toISOString(), bang: {} };
 let tongDong = 0;
@@ -70,32 +77,53 @@ for (const [ten, m] of BANG) {
 const json = JSON.stringify(duLieu, (_k, v) => (typeof v === 'bigint' ? String(v) : v));
 const nen = zlib.gzipSync(Buffer.from(json, 'utf8'), { level: 9 });
 
-const duong = path.join(THU_MUC, tenFile());
-fs.writeFileSync(duong, nen);
+const ten = tenFile();
+console.log(`\n  ${tongDong} dòng  ->  ${(nen.length / 1024).toFixed(1)} KB\n`);
 
-console.log(`\n  ${tongDong} dòng  ->  ${(nen.length / 1024).toFixed(1)} KB`);
-console.log(`  ${duong}`);
+let soChoGhiDuoc = 0;
+for (const thuMuc of THU_MUC) {
+  try {
+    fs.mkdirSync(thuMuc, { recursive: true });
+    const duong = path.join(thuMuc, ten);
+    fs.writeFileSync(duong, nen);
 
-// ───── Dọn bản cũ ─────
-const cu = fs.readdirSync(THU_MUC)
-  .filter((f) => f.startsWith('sabi-') && f.endsWith('.json.gz'))
-  .sort()
-  .reverse();
-const xoa = cu.slice(GIU_LAI);
-for (const f of xoa) fs.unlinkSync(path.join(THU_MUC, f));
+    // Đọc lại NGAY tại chỗ vừa ghi. Ghi xong mà không đọc lại thì không biết
+    // file có dùng được không — bản sao lưu hỏng mà tưởng là có mới là tình
+    // huống tệ nhất. Với thư mục Google Drive thì bước này còn bắt được cả
+    // trường hợp Drive chưa gắn ổ.
+    const docLai = JSON.parse(zlib.gunzipSync(fs.readFileSync(duong)).toString('utf8'));
+    const demLai = Object.values(docLai.bang).reduce((s, r) => s + r.length, 0);
+    if (demLai !== tongDong) throw new Error(`đọc lại chỉ thấy ${demLai}/${tongDong} dòng`);
 
-console.log(`  Đang giữ ${Math.min(cu.length, GIU_LAI)} bản` + (xoa.length ? `, đã dọn ${xoa.length} bản cũ` : ''));
+    // Dọn bản cũ, tính riêng từng chỗ.
+    const cu = fs.readdirSync(thuMuc)
+      .filter((f) => f.startsWith('sabi-') && f.endsWith('.json.gz'))
+      .sort().reverse();
+    const xoa = cu.slice(GIU_LAI);
+    for (const f of xoa) fs.unlinkSync(path.join(thuMuc, f));
 
-// ───── Tự kiểm: đọc lại file vừa ghi ─────
-// Ghi xong mà không đọc lại thì không biết file có dùng được không. Bản sao lưu
-// hỏng mà tưởng là có mới là tình huống tệ nhất.
-const docLai = JSON.parse(zlib.gunzipSync(fs.readFileSync(duong)).toString('utf8'));
-const demLai = Object.values(docLai.bang).reduce((s, r) => s + r.length, 0);
-if (demLai !== tongDong) {
-  console.log(`\n  LỖI: đọc lại chỉ thấy ${demLai}/${tongDong} dòng. Bản sao lưu này KHÔNG dùng được.\n`);
-  await prisma.$disconnect();
-  process.exit(1);
+    soChoGhiDuoc++;
+    console.log(`  OK   ${duong}`);
+    console.log(`       giữ ${Math.min(cu.length, GIU_LAI)} bản` + (xoa.length ? `, dọn ${xoa.length} bản cũ` : '') + `, đọc lại khớp ${demLai} dòng`);
+  } catch (e) {
+    console.log(`  HỎNG ${thuMuc}`);
+    console.log(`       ${e.message}`);
+  }
 }
-console.log(`  Đã đọc lại kiểm chứng: ${demLai} dòng, file dùng được.\n`);
 
 await prisma.$disconnect();
+
+if (soChoGhiDuoc === 0) {
+  console.log('\n  KHÔNG ghi được chỗ nào. Chưa có bản sao lưu nào cả.\n');
+  process.exit(1);
+}
+if (soChoGhiDuoc < THU_MUC.length) {
+  // Vẫn coi là thành công nhưng phải kêu lên: chạy tự động hằng đêm mà im lặng
+  // bỏ qua một chỗ thì vài tháng sau mới phát hiện chỗ đó rỗng.
+  console.log(`\n  ⚠ Chỉ ghi được ${soChoGhiDuoc}/${THU_MUC.length} chỗ. Xem lại chỗ HỎNG ở trên.\n`);
+} else if (THU_MUC.length === 1) {
+  console.log('\n  ⚠ Mới lưu ở MỘT chỗ, ngay trên máy này. Máy hỏng là mất cả.');
+  console.log('    Thêm chỗ thứ hai (thư mục Google Drive) — xem CLAUDE.md mục 8.\n');
+} else {
+  console.log('');
+}
