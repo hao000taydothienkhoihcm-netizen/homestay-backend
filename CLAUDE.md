@@ -174,6 +174,33 @@ liệt kê (và tiện tay xoá thật những dòng quá 30 ngày); `POST /book
 trùng lịch lại rồi mới trả về. Query qua quan hệ (`where: { booking: {...} }`) **không** được
 extension lọc — phải tự thêm `deletedAt: null` (đã làm ở `inventory.js`).
 
+### 🔒 GĐ3 nền (03/09/2026): schema chợ + LỊCH KHOÁ TAY
+Migration `20260903140000_gd3_nen_cho_va_lich_khoa` — toàn bộ ADD COLUMN nullable/có default +
+CREATE TABLE, không đụng dữ liệu cũ:
+- `Host.plan` (FREE/PER_BOOKING/FLAT, mặc định FREE) · `Host.internalAppEnabled` (true) ·
+  `Host.internalAppNote` ("GIFT_FOUNDING", "TRIAL:2026-12-31"). **Chưa có code nào đọc 2 cột này** —
+  để sẵn cho lúc bật thu phí; khoá app nội bộ theo cờ này làm ở GĐ3 sau.
+- `Booking.source` (INTERNAL/MARKETPLACE) — đếm phí "10k/booking qua chợ" sau này.
+- `Home.*` mở rộng theo mockup `marketplace-final.html` màn addhome: `choTrangThai` (NHAP/CHO_DUYET/
+  DANG_BAN/AN), salesTitle, street, ward, landmark, bedrooms/-Single/-Double, minGuests, roomNotes[],
+  amenities[], parking*, child*, albumUrl, coverImages[], salesInfo, rules, caretakerPhone,
+  `coCheHoaHong` (PHAN_TRAM = A, GIA_SAN = B) + listPrice/commissionPct/floorPrice/markupMin/markupMax.
+  **Chưa có form nào ghi các cột này** — màn "Thêm căn lên chợ" là việc tiếp theo của GĐ3.
+- **`LichKhoa`**: 1 dòng = 1 ĐÊM bị khoá của 1 căn (`@@unique homeId+ngay`), `nguon` MANUAL/SHEET/ICAL.
+  **Quy tắc bắt buộc:** đồng bộ SHEET/ICAL chỉ được thêm/xoá dòng cùng nguồn, KHÔNG đụng dòng MANUAL
+  (khoá tay thắng sheet). Ngày trống trên chợ = không booking VÀ không LichKhoa.
+
+API (`routes/homes.js`, cuối file):
+- `GET /homes/:id/lich-khoa?tu&den` — chỉ các ngày khoá. `GET /homes/:id/lich?tu&den` — từng ngày
+  trống/booking/khoa (nguồn sự thật cho lịch; màn chợ sau này đọc từ đây).
+- `PUT /homes/:id/lich-khoa {khoa:[], mo:[], ghiChu?}` (QUAN_LY): khoá = thêm MANUAL (bỏ qua ngày đã
+  có booking → `boQuaViCoBooking`); mở = chỉ xoá MANUAL (ngày do SHEET/ICAL → `khongMoDuoc`).
+  Transaction có `timeout: 30000` vì Neon ở US.
+- `bookingService.checkLichKhoaConflict()` chạy ở POST/PATCH booking và khôi phục thùng rác → 409
+  "Ngày dd/mm/yyyy đã bị khoá (khoá tay: lý do)". Đêm checkOut không tính.
+- Web: màn **Khoá lịch** (`/khoa-lich`, `KhoaLichScreen.tsx`, QUAN_LY): chạm ngày → Lưu một lần.
+  Mobile chưa có (việc sau). Kiểm: `scripts/thu-lich-khoa.ps1` (chạy trên nhánh Neon, ~3 phút vì latency).
+
 Ba quy tắc kèm theo:
 1. **Kiểm quyền sở hữu TRƯỚC khi trả lỗi có kèm dữ liệu.** VD `POST /bookings` phải xác nhận
    căn nhà là của mình rồi mới kiểm trùng lịch — vì lỗi 409 trùng lịch có kèm **tên khách và tiền cọc**.

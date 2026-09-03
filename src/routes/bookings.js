@@ -1,7 +1,7 @@
 import { routerAnToan } from '../lib/router-an-toan.js';
 import { prisma } from '../prisma.js';
 import { requireRole, hostWhere, ownHostId, findOwn, updateOwn, notFound, QUAN_LY, VAN_HANH } from '../middleware/auth.js';
-import { checkBookingConflict, nights, stayTotal, loadPriceTable } from '../services/bookingService.js';
+import { checkBookingConflict, checkLichKhoaConflict, moTaLichKhoa, nights, stayTotal, loadPriceTable } from '../services/bookingService.js';
 
 const router = routerAnToan();
 
@@ -124,6 +124,8 @@ router.post('/:id/khoi-phuc', requireRole(...QUAN_LY), async (req, res) => {
       error: `Không khôi phục được: ngày này đã có booking khác của ${trung.guest} (${trung.checkIn.toISOString().slice(0, 10)} → ${trung.checkOut.toISOString().slice(0, 10)})`,
     });
   }
+  const khoa = await checkLichKhoaConflict(b.homeId, b.checkIn, b.checkOut);
+  if (khoa) return res.status(409).json({ error: `Không khôi phục được: ${moTaLichKhoa(khoa)}` });
 
   await prisma.booking.updateMany({
     where: hostWhere(req, { id, deletedAt: { not: null } }),
@@ -178,6 +180,8 @@ router.post('/', requireRole(...VAN_HANH), async (req, res) => {
       conflict: { guest: conflict.guest, checkIn: conflict.checkIn, checkOut: conflict.checkOut, deposit: conflict.deposit }
     });
   }
+  const khoa = await checkLichKhoaConflict(homeId, checkIn, checkOut);
+  if (khoa) return res.status(409).json({ error: moTaLichKhoa(khoa), lichKhoa: { ngay: khoa.ngay, nguon: khoa.nguon, ghiChu: khoa.ghiChu } });
 
   const holidays = await prisma.holiday.findMany({ where: hostWhere(req) });
   const priceTable = await loadPriceTable(homeId, checkIn, checkOut);
@@ -264,6 +268,8 @@ router.patch('/:id', requireRole(...QUAN_LY), async (req, res) => {
   if (homeId && checkIn && checkOut) {
     const conflict = await checkBookingConflict(homeId, checkIn, checkOut, id);
     if (conflict) return res.status(409).json({ error: 'Trùng lịch', conflict });
+    const khoa = await checkLichKhoaConflict(homeId, checkIn, checkOut);
+    if (khoa) return res.status(409).json({ error: moTaLichKhoa(khoa) });
   }
   // Không cho đổi ngày nhận về quá khứ
   // (Chỉ check khi user thực sự đổi checkIn, và booking chưa CHECKEDIN)

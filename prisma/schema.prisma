@@ -33,6 +33,22 @@ model Host {
   monthlyPrices   HomeMonthlyPrice[]
   datePrices      HomeDatePrice[]
   hoTroLogs       HoTroLog[]
+  lichKhoa        LichKhoa[]
+
+  // ───── GĐ3: gói & quyền lợi (chưa thu phí, chỉ để sẵn) ─────
+  // plan: giai đoạn miễn phí tất cả để FREE. internalAppEnabled tách rời plan:
+  // 10 host tiên phong ở FREE nhưng vẫn mở app nội bộ vĩnh viễn (ghi lý do ở internalAppNote,
+  // VD "GIFT_FOUNDING" / "TRIAL:2026-12-31"). Admin khoá được bất cứ lúc nào nhưng KHÔNG khoá
+  // nhóm tặng vĩnh viễn vì lý do thương mại (skill homestay-manager-full mục 2b).
+  plan               HostPlan @default(FREE)
+  internalAppEnabled Boolean  @default(true)
+  internalAppNote    String?
+}
+
+enum HostPlan {
+  FREE
+  PER_BOOKING // 10.000đ / booking qua chợ
+  FLAT // khoán 200.000đ / tháng
 }
 
 // ───── User & Auth ─────
@@ -114,8 +130,81 @@ model Home {
   stockEntries  StockEntry[]
   monthlyPrices HomeMonthlyPrice[]
   datePrices    HomeDatePrice[]
+  lichKhoa      LichKhoa[]
+
+  // ───── GĐ3: thông tin đăng chợ (theo mockup/marketplace-final.html, màn "addhome") ─────
+  // Tất cả nullable — căn cũ không đụng. Giá host/đêm vẫn là price / weekendPrice / holidayPrice.
+  choTrangThai   ChoTrangThai  @default(NHAP) // NHAP: chưa đăng · CHO_DUYET · DANG_BAN · AN
+  salesTitle     String? // tiêu đề bán hàng, VD "Home mới xây chuẩn nghỉ dưỡng ngay trung tâm"
+  street         String? // số nhà & tên đường (address = địa chỉ chính xác, chỉ sales thấy sau duyệt)
+  ward           String? // phường/xã — lọc khu vực + chống trùng
+  landmark       String? // điểm mốc gần
+  bedrooms       Int? // số phòng ngủ
+  bedroomsSingle Int? // phòng đơn
+  bedroomsDouble Int? // phòng đôi
+  minGuests      Int? // "6–8 khách" → minGuests 6, maxGuests 8
+  roomNotes      String[]      @default([]) // mô tả từng phòng
+  amenities      String[]      @default([]) // chip tiện ích (chuẩn + host tự thêm)
+  parkingFree    String? // "1 xe (4–7 chỗ) trước nhà"
+  parkingFee     String? // "200.000đ / xe / đêm"
+  parkingNote    String?
+  childUnder6    String? // MIEN_PHI | PHU_THU_NHE
+  childFrom6     String? // NHU_NGUOI_LON | PHU_THU_50 | MIEN_PHI
+  albumUrl       String? // link Drive bộ ảnh đầy đủ
+  coverImages    String[]      @default([]) // tối đa 8 ảnh bìa (URL)
+  salesInfo      String? // bài giới thiệu host tự điền — Sales bấm "Gửi khách" lấy nguyên khối này
+  rules          String? // quy định của căn — chỉ đính vào phiếu khách lúc chốt
+  caretakerPhone String? // hotline quản gia (chỉ sales thấy sau khi host duyệt giữ chỗ)
+  // Hoa hồng sales — host chọn cho TỪNG CĂN (skill mục 4b). A = % giá bán, B = giá sàn + kê.
+  coCheHoaHong   CoCheHoaHong?
+  listPrice      Int? // A: giá bán niêm yết / đêm
+  commissionPct  Int? // A: % hoa hồng
+  floorPrice     Int? // B: giá sàn (host nhận) / đêm
+  markupMin      Int? // B: cho kê từ
+  markupMax      Int? // B: cho kê đến
 
   @@index([hostId])
+  @@index([ward])
+}
+
+enum ChoTrangThai {
+  NHAP // host chưa gửi lên chợ
+  CHO_DUYET // đã gửi, chờ admin duyệt (kiểm trùng căn)
+  DANG_BAN // đang hiện trên chợ
+  AN // host/admin tạm ẩn
+}
+
+enum CoCheHoaHong {
+  PHAN_TRAM // A · trả % theo giá bán, sales không được kê
+  GIA_SAN // B · giá sàn + kê, sales kê tự do trong khoảng
+}
+
+// ───── GĐ3: LỊCH KHOÁ THEO NGÀY ─────
+// Một dòng = một đêm bị khoá của một căn, ngoài booking nội bộ. Nguồn:
+//   MANUAL = host bấm tay trên chợ (khách nhà, bảo trì, đã bán ngoài...)
+//   SHEET  = đổ từ Google Sheet · ICAL = đổ từ link .ics
+// QUY TẮC BẮT BUỘC (skill mục 5b): re-sync SHEET/ICAL chỉ được thêm/xoá dòng CÙNG nguồn,
+// tuyệt đối không đụng dòng MANUAL. Ngày trống trên chợ = không booking AND không LichKhoa.
+model LichKhoa {
+  id          Int           @id @default(autoincrement())
+  hostId      Int
+  host        Host          @relation(fields: [hostId], references: [id])
+  homeId      Int
+  home        Home          @relation(fields: [homeId], references: [id], onDelete: Cascade)
+  ngay        DateTime      @db.Date
+  nguon       NguonLichKhoa @default(MANUAL)
+  ghiChu      String?
+  createdById Int?
+  createdAt   DateTime      @default(now())
+
+  @@unique([homeId, ngay])
+  @@index([hostId, ngay])
+}
+
+enum NguonLichKhoa {
+  MANUAL
+  SHEET
+  ICAL
 }
 
 // ───── Bảng giá THEO THÁNG của từng căn ─────
@@ -206,6 +295,11 @@ model Booking {
   status BookingStatus @default(CONFIRMED)
   notes  String?
 
+  // GĐ3: booking từ đâu tới. INTERNAL = host/nhân viên nhập trong app nội bộ.
+  // MARKETPLACE = sales chốt trên chợ rồi tự đẩy vào (GĐ4). Sau này tính phí
+  // "10k/booking qua chợ" đếm theo cột này — để sẵn để khỏi sửa schema lần nữa.
+  source BookingSource @default(INTERNAL)
+
   // Check-in/out thực tế
   actualCheckIn  DateTime?
   actualCheckOut DateTime?
@@ -238,6 +332,11 @@ enum BookingStatus {
   CHECKEDIN // Đang ở
   CHECKOUT_TODAY // Trả hôm nay
   CHECKEDOUT // Đã trả
+}
+
+enum BookingSource {
+  INTERNAL // nhập trong app nội bộ
+  MARKETPLACE // chốt qua chợ (GĐ4)
 }
 
 // ───── Charges (phụ thu — nhận nhà hoặc trả nhà) ─────

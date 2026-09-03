@@ -39,6 +39,7 @@ const BANG = [
   ['holiday',          () => prisma.holiday],
   ['chargeTemplate',   () => prisma.chargeTemplate],
   ['stockEntry',       () => prisma.stockEntry],
+  ['lichKhoa',         () => prisma.lichKhoa],   // GĐ3: lịch khoá tay theo ngày
   ['user',             () => prisma.user],
 ];
 
@@ -50,7 +51,8 @@ const tong = {}, cua1 = {};
 for (const [ten, m] of BANG) {
   tong[ten] = await m().count();
   cua1[ten] = await m().count({ where: { hostId: 1 } });
-  const khongHost = await m().count({ where: { hostId: null } });
+  // Bảng có hostId NOT NULL (LichKhoa) thì Prisma không cho lọc null -> coi như 0.
+  const khongHost = await m().count({ where: { hostId: null } }).catch(() => 0);
   console.log(`  ${ten.padEnd(16)} tổng ${String(tong[ten]).padStart(4)}  |  host#1 ${String(cua1[ten]).padStart(4)}  |  hostId rỗng ${khongHost}`);
   // hostId rỗng: với user là admin nền tảng (đúng thiết kế); bảng khác thì là lỗi.
   if (ten === 'user') {

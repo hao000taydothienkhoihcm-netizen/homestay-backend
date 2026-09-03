@@ -41,6 +41,27 @@ export async function checkBookingConflict(homeId, checkIn, checkOut, excludeId 
 }
 
 /**
+ * Kiểm tra trùng với LỊCH KHOÁ TAY (LichKhoa): mỗi dòng là một ĐÊM bị khoá.
+ * Booking chiếm các đêm [checkIn, checkOut) — đêm checkOut không tính (khách trả 12h).
+ * Trả về dòng khoá đầu tiên đụng phải, hoặc null.
+ */
+export async function checkLichKhoaConflict(homeId, checkIn, checkOut) {
+  return prisma.lichKhoa.findFirst({
+    where: {
+      homeId: parseInt(homeId),
+      ngay: { gte: new Date(checkIn), lt: new Date(checkOut) },
+    },
+    orderBy: { ngay: 'asc' },
+  });
+}
+
+export function moTaLichKhoa(k) {
+  const d = k.ngay.toISOString().slice(0, 10).split('-').reverse().join('/');
+  const nguon = k.nguon === 'MANUAL' ? 'khoá tay' : k.nguon === 'SHEET' ? 'từ Google Sheet' : 'từ iCal';
+  return `Ngày ${d} đã bị khoá (${nguon}${k.ghiChu ? ': ' + k.ghiChu : ''})`;
+}
+
+/**
  * Tính số đêm
  */
 export function nights(checkIn, checkOut) {

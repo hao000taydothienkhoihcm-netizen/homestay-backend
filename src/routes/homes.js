@@ -263,4 +263,130 @@ router.get('/:id/price-preview', async (req, res) => {
   });
 });
 
+// ═══════════════════ GĐ3: LỊCH KHOÁ TAY ═══════════════════
+// Một dòng LichKhoa = một ĐÊM bị khoá ngoài booking (khách nhà, bảo trì, đã bán ngoài...).
+// Host bấm khoá/mở ngay trên lịch. Nguồn MANUAL là của host; SHEET/ICAL do đồng bộ ghi —
+// và đồng bộ KHÔNG được đụng dòng MANUAL (quy tắc "khoá tay thắng sheet").
+
+const YMD = /^\d{4}-\d{2}-\d{2}$/;
+const ngayUTC = (s) => new Date(s + 'T00:00:00.000Z');
+const ymd = (d) => new Date(d).toISOString().slice(0, 10);
+
+// Khoảng ngày mặc định: từ đầu tháng này tới hết 3 tháng sau.
+function khoangNgay(q) {
+  const now = new Date();
+  const tu = YMD.test(q.tu) ? q.tu : ymd(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)));
+  const den = YMD.test(q.den) ? q.den : ymd(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 4, 0)));
+  return { tu, den };
+}
+
+// Chỉ ngày khoá tay / sheet / ical của căn — dùng cho màn "Khoá lịch tay".
+router.get('/:id/lich-khoa', async (req, res) => {
+  const home = await findOwn(prisma.home, req, req.params.id, { select: { id: true } });
+  if (!home) return notFound(res, 'căn nhà');
+  const { tu, den } = khoangNgay(req.query);
+  const rows = await prisma.lichKhoa.findMany({
+    where: { homeId: home.id, ngay: { gte: ngayUTC(tu), lte: ngayUTC(den) } },
+    orderBy: { ngay: 'asc' },
+    select: { ngay: true, nguon: true, ghiChu: true, createdAt: true },
+  });
+  res.json({ tu, den, ngay: rows.map((r) => ({ ...r, ngay: ymd(r.ngay) })) });
+});
+
+// Lịch tổng hợp từng ngày: trống / booking / khoá — nguồn sự thật duy nhất cho lịch,
+// sau này màn chợ (public: chỉ trống/bận) và sales (giá) đều đọc từ đây.
+router.get('/:id/lich', async (req, res) => {
+  const home = await findOwn(prisma.home, req, req.params.id, { select: { id: true } });
+  if (!home) return notFound(res, 'căn nhà');
+  const { tu, den } = khoangNgay(req.query);
+  const [khoa, bks] = await Promise.all([
+    prisma.lichKhoa.findMany({
+      where: { homeId: home.id, ngay: { gte: ngayUTC(tu), lte: ngayUTC(den) } },
+      select: { ngay: true, nguon: true, ghiChu: true },
+    }),
+    prisma.booking.findMany({
+      where: { homeId: home.id, checkIn: { lte: ngayUTC(den) }, checkOut: { gt: ngayUTC(tu) } },
+      select: { id: true, guest: true, checkIn: true, checkOut: true, status: true },
+    }),
+  ]);
+  const map = {};
+  for (const b of bks) {
+    // booking chiếm các đêm [checkIn, checkOut)
+    for (let d = new Date(b.checkIn); d < b.checkOut; d.setUTCDate(d.getUTCDate() + 1)) {
+      map[ymd(d)] = { trangThai: 'booking', bookingId: b.id, guest: b.guest, status: b.status };
+    }
+  }
+  for (const k of khoa) {
+    const key = ymd(k.ngay);
+    if (!map[key]) map[key] = { trangThai: 'khoa', nguon: k.nguon, ghiChu: k.ghiChu };
+    else map[key].khoaThem = k.nguon; // vừa booking vừa khoá — hiếm, nhưng phải thấy
+  }
+  const ngay = [];
+  for (let d = ngayUTC(tu); d <= ngayUTC(den); d.setUTCDate(d.getUTCDate() + 1)) {
+    const key = ymd(d);
+    ngay.push({ ngay: key, ...(map[key] || { trangThai: 'trong' }) });
+  }
+  res.json({ tu, den, ngay });
+});
+
+// Host bấm khoá / mở. body: { khoa: ['2026-09-10', ...], mo: ['2026-09-12', ...], ghiChu?: string }
+// - khoa: thêm dòng MANUAL (đã có thì bỏ qua — kể cả đã khoá bởi SHEET/ICAL).
+// - mo: chỉ xoá dòng MANUAL. Ngày do SHEET/ICAL khoá thì trả về trong `khongMoDuoc`,
+//   vì mở tay xong lần đồng bộ sau lại khoá — phải sửa ở nguồn (sheet/ical).
+// - Không khoá ngày đã có booking: booking đã chiếm rồi, khoá thêm chỉ gây rối.
+router.put('/:id/lich-khoa', requireRole(...QUAN_LY), async (req, res) => {
+  const home = await findOwn(prisma.home, req, req.params.id, { select: { id: true, hostId: true } });
+  if (!home) return notFound(res, 'căn nhà');
+  const hostId = ownHostId(req);
+
+  // Đúng dạng YYYY-MM-DD VÀ là ngày có thật (2026-13-99 khớp regex nhưng Date ra NaN -> 500).
+  const chuan = (arr) => [...new Set((Array.isArray(arr) ? arr : []).map(String)
+    .filter((s) => YMD.test(s) && !Number.isNaN(ngayUTC(s).getTime()) && ymd(ngayUTC(s)) === s))];
+  const khoa = chuan(req.body?.khoa);
+  const mo = chuan(req.body?.mo);
+  const ghiChu = typeof req.body?.ghiChu === 'string' && req.body.ghiChu.trim() ? req.body.ghiChu.trim().slice(0, 200) : null;
+  if (!khoa.length && !mo.length) return res.status(400).json({ error: 'Không có ngày nào để khoá/mở' });
+  if (khoa.length + mo.length > 400) return res.status(400).json({ error: 'Mỗi lần tối đa 400 ngày' });
+
+  // Ngày đã có booking thì không khoá thêm.
+  const daCoBooking = new Set();
+  if (khoa.length) {
+    const ds = khoa.map(ngayUTC);
+    const min = new Date(Math.min(...ds)), max = new Date(Math.max(...ds));
+    const bks = await prisma.booking.findMany({
+      where: { homeId: home.id, checkIn: { lte: max }, checkOut: { gt: min } },
+      select: { checkIn: true, checkOut: true },
+    });
+    for (const b of bks) {
+      for (let d = new Date(b.checkIn); d < b.checkOut; d.setUTCDate(d.getUTCDate() + 1)) daCoBooking.add(ymd(d));
+    }
+  }
+  const khoaThat = khoa.filter((s) => !daCoBooking.has(s));
+
+  const ketQua = await prisma.$transaction(async (tx) => {
+    let daKhoa = 0;
+    if (khoaThat.length) {
+      const r = await tx.lichKhoa.createMany({
+        data: khoaThat.map((s) => ({ hostId, homeId: home.id, ngay: ngayUTC(s), nguon: 'MANUAL', ghiChu, createdById: req.user.id })),
+        skipDuplicates: true,
+      });
+      daKhoa = r.count;
+    }
+    let daMo = 0, khongMoDuoc = [];
+    if (mo.length) {
+      const ds = mo.map(ngayUTC);
+      const conLai = await tx.lichKhoa.findMany({
+        where: { homeId: home.id, ngay: { in: ds }, nguon: { not: 'MANUAL' } },
+        select: { ngay: true, nguon: true },
+      });
+      khongMoDuoc = conLai.map((k) => ({ ngay: ymd(k.ngay), nguon: k.nguon }));
+      const r = await tx.lichKhoa.deleteMany({ where: { homeId: home.id, ngay: { in: ds }, nguon: 'MANUAL' } });
+      daMo = r.count;
+    }
+    return { daKhoa, daMo, khongMoDuoc };
+  }, { maxWait: 15000, timeout: 30000 }); // Neon ở US: mặc định 5s là đứt khi mạng chậm
+
+  res.json({ ...ketQua, boQuaViCoBooking: khoa.filter((s) => daCoBooking.has(s)) });
+});
+
 export default router;
