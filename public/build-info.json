@@ -1,10 +1,10 @@
 {
-  "web_commit": "7ec911441980dbc88ac77aa55c08233143b49ddd",
-  "web_commit_ngan": "7ec9114",
+  "web_commit": "7894375f12024a36df56091ebfa171860e3a08a9",
+  "web_commit_ngan": "7894375",
   "web_nhanh": "main",
-  "build_luc": "2026-09-03T15:37:28.611Z",
+  "build_luc": "2026-09-03T16:22:34.370Z",
   "assets": [
-    "index-COlAmdtR.css",
-    "index-DN-1Wx-Q.js"
+    "index-Bdvrq4vf.js",
+    "index-COlAmdtR.css"
   ]
 }
