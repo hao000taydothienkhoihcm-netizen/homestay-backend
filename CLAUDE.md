@@ -34,6 +34,10 @@ Phần mềm quản lý homestay cho thuê theo đêm: đặt phòng, nhận/tr�
 **Auto-deploy trên Render đang TẮT.** Muốn cập nhật web/backend thật phải deploy tay: Render Dashboard → service → **Manual Deploy** → *Deploy latest commit* (hoặc *Clear build cache & deploy* khi đổi schema).
 Build của Render chạy `prisma generate` + `prisma migrate deploy` (chỉ áp migration mới, không phá dữ liệu).
 `DATABASE_URL` trên Render phải có đuôi `&connect_timeout=30&pool_timeout=30` (Neon ngủ đông, Prisma mặc định chờ 5s là bỏ).
+**Từ máy ở VN dùng host `-pooler`** (`ep-cool-shape-at19thbu-pooler.c-9...`): endpoint trực tiếp (không `-pooler`)
+hay rớt "P1001 Can't reach database" dù DB vẫn sống — đã mất 20 phút vì cái này ngày 03/09. `.env` local đã đổi
+sang pooler. Áp migration vào DB thật: `powershell -File scripts\ap-migration-that.ps1` (đánh thức Neon trước rồi
+mới `migrate deploy`); kiểm: `node scripts/xem-migration.mjs`.
 
 ---
 
