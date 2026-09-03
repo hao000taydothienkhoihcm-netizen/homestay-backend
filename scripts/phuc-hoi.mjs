@@ -51,7 +51,16 @@ const BANG = [
 ];
 
 const dl = JSON.parse(zlib.gunzipSync(fs.readFileSync(duong)).toString('utf8'));
-console.log(`\nBản sao lưu tạo lúc: ${dl.taoLuc}\n`);
+
+// Nói rõ đang nhắm vào database NÀO trước khi làm gì. Khôi phục nhầm vào nhánh
+// chính trong khi tưởng đang thử trên nhánh nháp là hỏng không cứu được.
+let moTa = '(không đọc được DATABASE_URL)';
+try {
+  const u = new URL(process.env.DATABASE_URL);
+  moTa = `${u.hostname}${u.pathname}`;
+} catch { /* để nguyên dòng mặc định */ }
+console.log(`\nĐANG NHẮM VÀO: ${moTa}`);
+console.log(`Bản sao lưu tạo lúc: ${dl.taoLuc}\n`);
 console.log('  bảng                trong file    đang có');
 console.log('  ' + '─'.repeat(45));
 

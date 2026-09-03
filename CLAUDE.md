@@ -307,8 +307,43 @@ node scripts/phuc-hoi.mjs ..\_sao-luu\<file>.json.gz --ghi-that   # ghi đè th�
 `--ghi-that` **xoá sạch mọi bảng rồi chèn lại từ file**. Dữ liệu phát sinh sau thời điểm
 sao lưu sẽ mất. Luôn chạy `sao-luu.mjs` trước khi khôi phục — lỡ chọn nhầm file còn quay lại được.
 
-⚠️ Đường khôi phục **chưa từng chạy thật** trên database này. Muốn chắc thì tạo một
-branch trên Neon rồi khôi phục thử vào đó, đừng thử trên nhánh chính.
+### Đường khôi phục ĐÃ diễn tập thật (03/09/2026)
+
+Một bản sao lưu chưa từng khôi phục thử thì chưa gọi là bản sao lưu. Đã diễn tập
+đủ kịch bản trên **nhánh nháp** của Neon (nhánh chính không đụng tới):
+
+    xoá sạch 51 booking + 88 charge   -> mất thật, còn 0
+    chạy phuc-hoi.mjs --ghi-that      -> 274/274 dòng
+    đối chiếu dấu vân tay             -> 18/18 khớp
+
+Không chỉ đếm số dòng — đối chiếu cả **tổng tiền phòng 534.000.000đ**, **tổng tiền
+cọc 194.600.000đ**, và **từng trường của 5 booking** (tên khách, SĐT, ngày nhận/trả,
+tiền, trạng thái). Kèm một phép nữa: sau khi khôi phục, tạo bản ghi mới có bị đụng
+id cũ không — Postgres không tự đẩy bộ đếm id lên theo dữ liệu chèn tay, không sửa
+thì host tạo booking đầu tiên sau khôi phục là gãy ngay. `phuc-hoi.mjs` có bước
+`setval`, đã kiểm: Host mới lấy id 4 (max cũ 3), Home mới lấy id 10 (max cũ 9).
+
+Muốn diễn tập lại (nên làm sau mỗi lần đổi schema):
+
+1. Neon Console → project → **Branches** → **New Branch**, đặt tên `thu-phuc-hoi`,
+   Auto-delete **After 1 day**, kiểu **Branch data and schema**.
+2. **Connect** → chọn nhánh vừa tạo → copy chuỗi kết nối.
+3. Chạy:
+
+       set TEST_DB_URL=<chuỗi của nhánh nháp>
+       node scripts/thu-kich-ban-mat-du-lieu.mjs truoc
+
+       set DATABASE_URL=<chuỗi của nhánh nháp>
+       node scripts/phuc-hoi.mjs ..\_sao-luu\<file>.json.gz --ghi-that
+
+       set DATABASE_URL=            (trả lại, để khỏi lỡ tay chạy tiếp trên nhánh nháp)
+       node scripts/thu-kich-ban-mat-du-lieu.mjs sau
+       node scripts/thu-bo-dem-id.mjs
+
+Cả hai script thử đều **tự từ chối chạy** nếu `TEST_DB_URL` trùng endpoint với
+`DATABASE_URL` thật — đã thử cố tình đưa URL thật vào, nó dừng đúng.
+`phuc-hoi.mjs` cũng in **ĐANG NHẮM VÀO: \<host\>** trước khi làm gì: khôi phục nhầm
+vào nhánh chính trong khi tưởng đang thử trên nhánh nháp là hỏng không cứu được.
 
 ## 9. Lỗi trong route không còn giết được app
 
