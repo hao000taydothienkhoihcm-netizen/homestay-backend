@@ -339,7 +339,10 @@ router.patch('/:id/cho', requireRole(...CHU_WORKSPACE), async (req, res) => {
     if (!data.salesTitle) thieu.push('tiêu đề bán hàng');
     if (!cu.address) thieu.push('địa chỉ (tab Thông tin căn)');
     if (!(data.ward ?? cu.ward)) thieu.push('phường / xã (tab Thông tin căn)');
-    if (!(data.bedrooms ?? cu.bedrooms)) thieu.push('số phòng ngủ (tab Thông tin căn)');
+    // Dùng data.* chứ không fallback về cu.*: route này ghi đè toàn bộ cột chợ, host xoá
+    // trắng ô phòng ngủ rồi gửi duyệt thì phải chặn, không được lấy giá trị cũ ra "cứu".
+    // (Riêng ward vẫn phải fallback vì khi DANG_BAN thì data.ward cố tình không được gán.)
+    if (!data.bedrooms) thieu.push('số phòng ngủ (tab Thông tin căn)');
     // Không ảnh thì Sales không bán được: chấp nhận link album HOẶC ít nhất 1 ảnh bìa.
     if (!data.albumUrl && !(data.coverImages || []).length) thieu.push('ảnh (link album hoặc ít nhất 1 ảnh bìa)');
     if (!data.salesInfo) thieu.push('bài giới thiệu');

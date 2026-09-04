@@ -2,8 +2,9 @@
 # Tu bat backend o cong 3100, doi /health, chay 2 script thu, roi tat.
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
-$db = 'postgresql://neondb_owner:npg_b5d0mkIrzBDN@ep-dry-sunset-atgn22q1-pooler.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require'
-if ($db -notmatch 'ep-dry-sunset') { Write-Host 'CHAN: khong phai nhanh thu'; exit 1 }
+# NHANH THU "thu-phuc-hoi" (tao lai 04/09/2026, auto-delete = Never). KHONG BAO GIO tro production.
+$db = 'postgresql://neondb_owner:npg_b5d0mkIrzBDN@ep-hidden-scene-atguv0j6-pooler.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require'
+if ($db -notmatch 'ep-hidden-scene') { Write-Host 'CHAN: khong phai nhanh thu'; exit 1 }
 
 $env:DATABASE_URL = $db
 $env:PORT = '3100'
@@ -27,8 +28,8 @@ $env:SMOKE_PASS = 'admin@123'
 $thuc = $false
 for ($i = 0; $i -lt 12; $i++) {
   try {
-    Invoke-RestMethod -Uri "$($env:SMOKE_BASE)/auth/login" -Method Post -ContentType 'application/json' `
-      -Body (,[Text.Encoding]::UTF8.GetBytes('{"username":"admin","password":"' + $env:SMOKE_PASS + '"}')) | Out-Null
+    $body = '{"username":"admin","password":"' + $env:SMOKE_PASS + '"}'   # thuan ASCII, khoi can byte[]
+    Invoke-RestMethod -Uri "$($env:SMOKE_BASE)/auth/login" -Method Post -ContentType 'application/json' -Body $body | Out-Null
     $thuc = $true; break
   } catch { Write-Host "  danh thuc Neon... lan $($i+1)"; Start-Sleep -Seconds 6 }
 }
