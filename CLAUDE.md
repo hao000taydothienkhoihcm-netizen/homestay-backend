@@ -186,17 +186,29 @@ CREATE TABLE, không đụng dữ liệu cũ:
   để sẵn cho lúc bật thu phí; khoá app nội bộ theo cờ này làm ở GĐ3 sau.
 - `Booking.source` (INTERNAL/MARKETPLACE) — đếm phí "10k/booking qua chợ" sau này.
 - `Home.*` mở rộng theo mockup `marketplace-final.html` màn addhome: `choTrangThai` (NHAP/CHO_DUYET/
-  DANG_BAN/AN), salesTitle, street, ward, landmark, bedrooms/-Single/-Double, minGuests, roomNotes[],
+  DANG_BAN/AN), salesTitle, ward, landmark, bedrooms/-Single/-Double, minGuests, roomNotes[],
   amenities[], parking*, child*, albumUrl, coverImages[], salesInfo, rules, caretakerPhone,
   `coCheHoaHong` (PHAN_TRAM = A, GIA_SAN = B) + listPrice/commissionPct/floorPrice/markupMin/markupMax.
-  Form ghi: web **Căn nhà → 🛒 Đăng chợ** (`DangChoModal.tsx`) → `PATCH /homes/:id/cho` (CHU_WORKSPACE;
-  `guiDuyet:true` → CHO_DUYET nếu đủ tiêu đề/đường/phường/bài giới thiệu/hoa hồng; `an:true|false` ẩn/hiện
-  khi đã DANG_BAN; đã lên chợ thì street/ward bị khoá). `GET /homes/phuong` = danh sách phường Đà Lạt
+  Cột `street` vẫn còn trong DB nhưng **BỎ KHÔNG DÙNG** (trùng chức năng với `Home.address`) —
+  đừng đọc/ghi nó nữa; địa chỉ chính xác chỉ có một chỗ là `address`.
+  Form ghi: web **Căn nhà → ✏️ Sửa / 🛒 Bán trên chợ** — CHUNG một modal `CanNhaModal.tsx` 2 tab
+  ("Thông tin căn" → `PATCH /homes/:id`, "Bán trên chợ" → `PATCH /homes/:id/cho`), một nút Lưu ghi cả hai.
+  Tab 2 không hỏi lại tên/địa chỉ/giá — hiện lại dạng chỉ đọc; khi căn chưa từng khai chợ thì mồi sẵn
+  tiêu đề ← tên căn, bài giới thiệu ← mô tả, giá sàn ← giá ngày thường.
+  (`guiDuyet:true` → CHO_DUYET nếu đủ tiêu đề/địa chỉ/phường/bài giới thiệu/hoa hồng; `an:true|false`
+  ẩn/hiện khi đã DANG_BAN. Đã lên chợ thì **tên + địa chỉ khoá ở `PATCH /homes/:id` (báo 400)** và
+  **phường khoá ở `PATCH /homes/:id/cho` (bỏ qua im lặng)** — danh tính chống trùng, đổi phải báo Sabi.)
+  `GET /homes/phuong` = danh sách phường Đà Lạt
   (route phải đứng TRƯỚC `/:id`). Admin duyệt ở **Chủ nhà → "🛒 Chợ — duyệt căn"**: `GET /hosts/can/cho-duyet`
-  (kèm `nghiTrung`: cùng phường + tên gần giống hoặc cùng số nhà), `GET /hosts/can/tong-quan`,
+  (kèm `nghiTrung`: cùng phường + tên gần giống hoặc **cùng `address`**), `GET /hosts/can/tong-quan`,
   `POST /hosts/can/:id/duyet {quyetDinh: DUYET|TU_CHOI|GO}`. Admin đọc được thông tin đăng chợ mà không cần
   hỗ trợ — vì host chủ động công khai để bán; route chỉ trả cột chợ, không kèm booking. Kiểm:
-  `scripts/thu-dang-cho.ps1` (19 kiểm). Ảnh bìa hiện là dán link URL, chưa có upload.
+  `scripts/thu-dang-cho.ps1` (22 kiểm). Ảnh bìa hiện là dán link URL, chưa có upload.
+  Chạy bộ kiểm: `powershell -File scripts/chay-thu-nen.ps1` (tự bật backend cổng 3100 trỏ NHÁNH Neon
+  thu-phuc-hoi, đánh thức DB, chạy `thu-lich-khoa.ps1` + `thu-dang-cho.ps1`, log ra `ket-qua-thu.log`).
+  ⚠ 04/09/2026: endpoint nhánh thu `ep-dry-sunset-atgn22q1` KHÔNG còn kết nối được (P1001) —
+  cần tạo lại nhánh thu trên Neon rồi sửa chuỗi trong `scripts/chay-thu-nhanh.ps1`.
+  Kiểm nhanh một chuỗi DB có sống không: `set THU_URL=... && node scripts/thu-ket-noi-db.mjs`.
 - **`LichKhoa`**: 1 dòng = 1 ĐÊM bị khoá của 1 căn (`@@unique homeId+ngay`), `nguon` MANUAL/SHEET/ICAL.
   **Quy tắc bắt buộc:** đồng bộ SHEET/ICAL chỉ được thêm/xoá dòng cùng nguồn, KHÔNG đụng dòng MANUAL
   (khoá tay thắng sheet). Ngày trống trên chợ = không booking VÀ không LichKhoa.

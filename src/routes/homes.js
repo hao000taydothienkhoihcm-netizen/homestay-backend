@@ -51,6 +51,19 @@ router.post('/', requireRole(...CHU_WORKSPACE), async (req, res) => {
 router.patch('/:id', requireRole(...CHU_WORKSPACE), async (req, res) => {
   const id = parseInt(req.params.id);
   const { name, address, price, weekendPrice, holidayPrice, maxGuests, emoji, desc } = req.body;
+
+  // Căn đã lên chợ thì TÊN + ĐỊA CHỈ là danh tính chống trùng — đổi phải qua admin.
+  // (Chỉ chặn khi đổi thật; gửi lại đúng giá trị cũ vẫn cho qua để form khỏi vướng.)
+  const cu = await findOwn(prisma.home, req, id, { select: { name: true, address: true, choTrangThai: true } });
+  if (!cu) return notFound(res, 'căn nhà');
+  if (cu.choTrangThai === 'DANG_BAN' || cu.choTrangThai === 'AN') {
+    const doiTen = name !== undefined && String(name).trim() !== cu.name;
+    const doiDc = address !== undefined && String(address).trim() !== cu.address;
+    if (doiTen || doiDc) {
+      return res.status(400).json({ error: 'Căn đang trên chợ — đổi tên / địa chỉ phải báo Sabi Home (tránh trùng với căn khác).' });
+    }
+  }
+
   const n = await updateOwn(prisma.home, req, id, {
       ...(name !== undefined && { name }),
       ...(address !== undefined && { address }),
@@ -310,9 +323,10 @@ router.patch('/:id/cho', requireRole(...CHU_WORKSPACE), async (req, res) => {
     listPrice: soNguyen(b.listPrice), commissionPct: soNguyen(b.commissionPct),
     floorPrice: soNguyen(b.floorPrice), markupMin: soNguyen(b.markupMin), markupMax: soNguyen(b.markupMax),
   };
-  // Danh tính căn: chỉ sửa khi chưa lên chợ (NHAP / CHO_DUYET). Đang bán thì phải báo admin.
+  // Địa chỉ chính xác dùng chung cột `address` của căn (nhập ở tab "Thông tin căn"),
+  // KHÔNG có ô riêng ở đây — trước có cột `street` trùng chức năng, nay bỏ không dùng.
+  // Phường là danh tính chống trùng: chỉ sửa khi chưa lên chợ, đang bán thì báo admin.
   if (cu.choTrangThai === 'NHAP' || cu.choTrangThai === 'CHO_DUYET') {
-    data.street = chuoi(b.street, 150);
     data.ward = PHUONG_DA_LAT.includes(b.ward) ? b.ward : null;
   }
   if (data.commissionPct != null && data.commissionPct > 50) return res.status(400).json({ error: '% hoa hồng tối đa 50' });
@@ -323,7 +337,7 @@ router.patch('/:id/cho', requireRole(...CHU_WORKSPACE), async (req, res) => {
   if (b.guiDuyet === true) {
     const thieu = [];
     if (!data.salesTitle) thieu.push('tiêu đề bán hàng');
-    if (!(data.street ?? cu.street)) thieu.push('số nhà & đường');
+    if (!cu.address) thieu.push('địa chỉ (tab Thông tin căn)');
     if (!(data.ward ?? cu.ward)) thieu.push('phường / xã');
     if (!data.salesInfo) thieu.push('bài giới thiệu');
     if (!data.coCheHoaHong) thieu.push('cơ chế hoa hồng');

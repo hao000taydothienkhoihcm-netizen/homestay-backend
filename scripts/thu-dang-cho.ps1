@@ -30,7 +30,7 @@ Kt ($c -eq 400) "% hoa hong 80 -> 400 ($c)"
 Write-Host "`n--- gui duyet ---"
 $c = Code { Invoke-RestMethod -Uri "$B/homes/$hid/cho" -Method Patch -Headers $H -ContentType 'application/json' -Body (J @{ salesTitle='Thu'; guiDuyet=$true }) }
 Kt ($c -eq 400) "gui duyet thieu truong -> 400 ($c)"
-$full = @{ salesTitle='Thu dang cho'; street='12 Nguyen Chi Thanh'; ward=$ph[0]; salesInfo='Bai gioi thieu thu'; coCheHoaHong='GIA_SAN'; floorPrice='4500000'; markupMin='300000'; markupMax='1000000'; guiDuyet=$true }
+$full = @{ salesTitle='Thu dang cho'; ward=$ph[0]; salesInfo='Bai gioi thieu thu'; coCheHoaHong='GIA_SAN'; floorPrice='4500000'; markupMin='300000'; markupMax='1000000'; guiDuyet=$true }
 $gd = Invoke-RestMethod -Uri "$B/homes/$hid/cho" -Method Patch -Headers $H -ContentType 'application/json' -Body (J $full)
 Kt ($gd.choTrangThai -eq 'CHO_DUYET' -and $gd.ward -eq $ph[0] -and $gd.floorPrice -eq 4500000) "gui duyet du truong -> CHO_DUYET"
 
@@ -47,9 +47,17 @@ $c = Code { Invoke-RestMethod -Uri "$B/hosts/can/cho-duyet" -Headers $H }
 Kt ($c -eq 200) "admin trong ho tro van goi duoc route admin ($c)"
 
 Write-Host "`n--- host sau khi len cho ---"
-$full2 = $full.Clone(); $full2.Remove('guiDuyet'); $full2.street = 'DOI DIA CHI'; $full2.salesTitle = 'Tieu de moi'
+$full2 = $full.Clone(); $full2.Remove('guiDuyet'); $full2.ward = $ph[1]; $full2.salesTitle = 'Tieu de moi'
 $s = Invoke-RestMethod -Uri "$B/homes/$hid/cho" -Method Patch -Headers $H -ContentType 'application/json' -Body (J $full2)
-Kt ($s.street -eq '12 Nguyen Chi Thanh' -and $s.salesTitle -eq 'Tieu de moi' -and $s.choTrangThai -eq 'DANG_BAN') "dang ban: doi tieu de duoc, doi dia chi bi bo qua, van DANG_BAN"
+Kt ($s.ward -eq $ph[0] -and $s.salesTitle -eq 'Tieu de moi' -and $s.choTrangThai -eq 'DANG_BAN') "dang ban: doi tieu de duoc, doi phuong bi bo qua, van DANG_BAN"
+# Danh tinh (ten + dia chi) nam o PATCH /homes/:id - dang tren cho thi khoa lai, bao 400.
+$can0 = Invoke-RestMethod -Uri "$B/homes/$hid" -Headers $H
+$c = Code { Invoke-RestMethod -Uri "$B/homes/$hid" -Method Patch -Headers $H -ContentType 'application/json' -Body (J @{ name='DOI TEN CAN'; address=$can0.address; price=[string]$can0.price; maxGuests=[string]$can0.maxGuests }) }
+Kt ($c -eq 400) "dang ban: doi TEN can qua PATCH /homes/:id -> 400 ($c)"
+$c = Code { Invoke-RestMethod -Uri "$B/homes/$hid" -Method Patch -Headers $H -ContentType 'application/json' -Body (J @{ name=$can0.name; address='DOI DIA CHI'; price=[string]$can0.price; maxGuests=[string]$can0.maxGuests }) }
+Kt ($c -eq 400) "dang ban: doi DIA CHI qua PATCH /homes/:id -> 400 ($c)"
+$s = Invoke-RestMethod -Uri "$B/homes/$hid" -Method Patch -Headers $H -ContentType 'application/json' -Body (J @{ name=$can0.name; address=$can0.address; price=[string]$can0.price; maxGuests=[string]$can0.maxGuests; desc='mo ta moi' })
+Kt ($s.desc -eq 'mo ta moi' -and $s.name -eq $can0.name) "dang ban: giu nguyen ten/dia chi thi sua mo ta van duoc"
 $full2.an = $true
 $s = Invoke-RestMethod -Uri "$B/homes/$hid/cho" -Method Patch -Headers $H -ContentType 'application/json' -Body (J $full2)
 Kt ($s.choTrangThai -eq 'AN') "host tam an -> AN"

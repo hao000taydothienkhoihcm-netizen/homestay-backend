@@ -215,7 +215,7 @@ router.patch('/:id/active', async (req, res) => {
 
 const CHON_CAN_CHO = {
   id: true, name: true, address: true, emoji: true, maxGuests: true, price: true, weekendPrice: true,
-  choTrangThai: true, salesTitle: true, street: true, ward: true, landmark: true,
+  choTrangThai: true, salesTitle: true, ward: true, landmark: true,
   bedrooms: true, bedroomsSingle: true, bedroomsDouble: true, minGuests: true,
   amenities: true, coverImages: true, albumUrl: true, salesInfo: true, caretakerPhone: true,
   coCheHoaHong: true, listPrice: true, commissionPct: true, floorPrice: true, markupMin: true, markupMax: true,
@@ -225,13 +225,14 @@ const CHON_CAN_CHO = {
 
 const bo = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/\s+/g, ' ').trim();
 
-// Nghi trùng: cùng phường và (tên gần giống hoặc cùng số nhà & đường). Chỉ so với căn host KHÁC.
+// Nghi trùng: cùng phường và (tên gần giống hoặc cùng địa chỉ). Chỉ so với căn host KHÁC.
+// Địa chỉ lấy từ cột `address` của căn (host nhập một lần ở tab "Thông tin căn").
 function timTrung(can, tatCa) {
-  const ten = bo(can.name), duong = bo(can.street);
+  const ten = bo(can.name), dc = bo(can.address);
   return tatCa.filter((k) => k.id !== can.id && k.hostId !== can.hostId && k.ward && k.ward === can.ward && (
     (ten && bo(k.name) && (bo(k.name).includes(ten) || ten.includes(bo(k.name)))) ||
-    (duong && bo(k.street) && bo(k.street) === duong)
-  )).map((k) => ({ id: k.id, name: k.name, street: k.street, ward: k.ward, host: k.host?.name, choTrangThai: k.choTrangThai }));
+    (dc && bo(k.address) && bo(k.address) === dc)
+  )).map((k) => ({ id: k.id, name: k.name, address: k.address, ward: k.ward, host: k.host?.name, choTrangThai: k.choTrangThai }));
 }
 
 // Căn chờ duyệt (mọi host) + gợi ý trùng.
@@ -240,7 +241,7 @@ router.get('/can/cho-duyet', async (_req, res) => {
   if (!cho.length) return res.json([]);
   const tatCa = await prisma.home.findMany({
     where: { active: true, ward: { in: [...new Set(cho.map((c) => c.ward).filter(Boolean))] } },
-    select: { id: true, name: true, street: true, ward: true, hostId: true, choTrangThai: true, host: { select: { name: true } } },
+    select: { id: true, name: true, address: true, ward: true, hostId: true, choTrangThai: true, host: { select: { name: true } } },
   });
   res.json(cho.map((c) => ({ ...c, nghiTrung: timTrung(c, tatCa) })));
 });
