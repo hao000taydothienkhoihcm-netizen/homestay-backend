@@ -41,6 +41,8 @@ Write-Host "`n===== THU LICH KHOA ====="
 & powershell -NoProfile -File (Join-Path $PSScriptRoot 'thu-lich-khoa.ps1') 2>&1 | ForEach-Object { "$_" }; $loi += $LASTEXITCODE
 Write-Host "`n===== THU DANG CHO ====="
 & powershell -NoProfile -File (Join-Path $PSScriptRoot 'thu-dang-cho.ps1') 2>&1 | ForEach-Object { "$_" }; $loi += $LASTEXITCODE
+Write-Host "`n===== THU CHO SALES ====="
+& powershell -NoProfile -File (Join-Path $PSScriptRoot 'thu-cho-sales.ps1') 2>&1 | ForEach-Object { "$_" }; $loi += $LASTEXITCODE
 
 Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
 Write-Host "`n===== TONG: $loi loi ====="

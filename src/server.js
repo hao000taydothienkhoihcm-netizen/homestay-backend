@@ -23,6 +23,7 @@ import chargeTemplatesRouter from './routes/chargeTemplates.js';
 import statsRouter from './routes/stats.js';
 import inventoryRouter from './routes/inventory.js';
 import sheetRouter from './routes/sheet.js';
+import choRouter from './routes/cho.js';
 
 const app = express();
 
@@ -67,6 +68,7 @@ app.use('/v1/charge-templates', chargeTemplatesRouter);
 app.use('/v1/stats', statsRouter);
 app.use('/v1/inventory', inventoryRouter);
 app.use('/v1/sheet', sheetRouter);
+app.use('/v1/cho', choRouter);      // chợ căn cho SALES — CỐ Ý không lọc hostId, xem routes/cho.js
 
 // ───── SPA fallback cho React (BrowserRouter) ─────
 // Mọi đường dẫn không phải API/health/file tĩnh → trả index.html của React ở root.

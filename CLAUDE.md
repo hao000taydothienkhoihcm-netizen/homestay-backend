@@ -225,6 +225,31 @@ CREATE TABLE, không đụng dữ liệu cũ:
   `ep-dry-sunset-atgn22q1` đã tự bốc hơi vì để mặc định. Host phải có `-pooler` (từ VN không
   vào được endpoint trực tiếp). Đổi nhánh thì sửa chuỗi trong `scripts/chay-thu-nhanh.ps1`.
   Kiểm nhanh một chuỗi DB có sống không: `set THU_URL=... && node scripts/thu-ket-noi-db.mjs`.
+### 🛒 GĐ3 tầng 2 (04/09/2026): CHỢ CĂN cho vai SALES
+`src/routes/cho.js` mount ở `/v1/cho`. **ĐÂY LÀ NGOẠI LỆ THỨ HAI CỦA `hostWhere()`**
+(sau `hostWhereTaiKhoan` cho bảng User): chợ CỐ Ý không lọc `hostId` vì sales là tài khoản
+cấp nền tảng, phải thấy căn của mọi host. An toàn nằm ở 3 lớp — sửa route này thì giữ đủ cả 3:
+1. Chỉ căn `choTrangThai = DANG_BAN` + `active` (host tự gửi, Sabi duyệt rồi mới lên).
+2. `CHON_CHO` là **danh sách trắng cứng** — không `include`, không trải nguyên bản ghi.
+   Thêm cột mới vào `Home` cũng không tự lọt ra chợ.
+3. KHÔNG BAO GIỜ trả: `address`, `caretakerPhone`, `rules`, `name`, `desc`, `price`,
+   `floorPrice`/`listPrice` thô, tên/SĐT host, và tên khách trong lịch.
+   Mấy thứ đó chỉ lộ SAU KHI host duyệt giữ chỗ (GĐ4).
+
+Route: `GET /cho?ward&khach&q&tu&den` (lọc ngày = chỉ giữ căn trống TRỌN khoảng, một đêm bận
+là loại; `khach` lọc cả `maxGuests >=` lẫn `minGuests <=`) · `GET /cho/phuong` (chỉ phường
+đang có hàng) · `GET /cho/:id` · `GET /cho/:id/lich?tu&den` (chỉ `trong`/`ban`, không nguồn,
+không guest). Vai được vào: `SALES` + `ADMIN` (admin để kiểm chợ đang hiện gì) — **HOST bị 403**.
+`giaChoSales()` đổi cấu hình hoa hồng thành thứ sales cần: A → `{giaBan, hoaHongToiDa, phanTram}`,
+B → `{giaSan, keTu, keDen, giaBanGoiY, hoaHongToiDa}`. Cố ý không bày sẵn "giá host nhận".
+
+Web: `sabihome/src/screens/ChoScreen.tsx`, nav `🛒 Chợ căn` (`laSales(r) || laAdmin(r)`).
+`AppShell` có `NAV_SALES = {'/cho'}` — sales chỉ thấy đúng màn này, vì `hostId` null nên mọi
+màn nghiệp vụ khác sẽ rỗng, mở ra thấy trắng là tưởng app hỏng. Màn có: lọc, lưới thẻ, modal
+chi tiết (ảnh, tiện ích, lịch trống/bận, khối tính tiền dùng `lib/commission.ts` có ô **cắt phí**,
+nút Copy bài chào khách). Bài chào KHÔNG kèm địa chỉ chính xác / SĐT quản gia.
+Kiểm: `scripts/thu-cho-sales.ps1` (24 kiểm, có bài "không lộ cột riêng").
+
 - **`LichKhoa`**: 1 dòng = 1 ĐÊM bị khoá của 1 căn (`@@unique homeId+ngay`), `nguon` MANUAL/SHEET/ICAL.
   **Quy tắc bắt buộc:** đồng bộ SHEET/ICAL chỉ được thêm/xoá dòng cùng nguồn, KHÔNG đụng dòng MANUAL
   (khoá tay thắng sheet). Ngày trống trên chợ = không booking VÀ không LichKhoa.

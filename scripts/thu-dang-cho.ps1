@@ -21,6 +21,11 @@ Kt ($hid -gt 0) "can #$hid ($($homes[0].name)), trang thai cho: $($homes[0].choT
 $ph = Invoke-RestMethod -Uri "$B/homes/phuong" -Headers $H
 Kt ($ph.Count -ge 15 -and $ph -contains 'Khac' -or $ph.Count -ge 15) "GET /homes/phuong = $($ph.Count) phuong"
 
+# TU DON TRUOC KHI CHAY: mot lan chay hong truoc do co the de can o DANG_BAN/CHO_DUYET,
+# lam lech het cac bai kiem sau ("luu nhap: van NHAP" se FAIL). Ep ve NHAP + rong.
+try { Invoke-RestMethod -Uri "$B/hosts/can/$hid/duyet" -Method Post -Headers $H0 -ContentType 'application/json' -Body '{"quyetDinh":"GO"}' | Out-Null } catch {}
+Invoke-RestMethod -Uri "$B/homes/$hid/cho" -Method Patch -Headers $H -ContentType 'application/json' -Body '{}' | Out-Null
+
 Write-Host "`n--- luu nhap ---"
 $nhap = Invoke-RestMethod -Uri "$B/homes/$hid/cho" -Method Patch -Headers $H -ContentType 'application/json' -Body (J @{ salesTitle='Thu dang cho'; amenities=@('Wifi','Wifi','BBQ'); roomNotes=@('Phong don'); bedrooms='3'; childUnder6='MIEN_PHI'; coCheHoaHong='PHAN_TRAM'; listPrice='5000000'; commissionPct='10' })
 Kt ($nhap.choTrangThai -eq 'NHAP' -and $nhap.salesTitle -eq 'Thu dang cho' -and $nhap.amenities.Count -eq 2 -and $nhap.bedrooms -eq 3) "luu nhap: van NHAP, amenities khu trung (2), bedrooms=3"
