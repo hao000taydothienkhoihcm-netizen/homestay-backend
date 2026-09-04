@@ -30,9 +30,23 @@ Kt ($c -eq 400) "% hoa hong 80 -> 400 ($c)"
 Write-Host "`n--- gui duyet ---"
 $c = Code { Invoke-RestMethod -Uri "$B/homes/$hid/cho" -Method Patch -Headers $H -ContentType 'application/json' -Body (J @{ salesTitle='Thu'; guiDuyet=$true }) }
 Kt ($c -eq 400) "gui duyet thieu truong -> 400 ($c)"
-$full = @{ salesTitle='Thu dang cho'; ward=$ph[0]; salesInfo='Bai gioi thieu thu'; coCheHoaHong='GIA_SAN'; floorPrice='4500000'; markupMin='300000'; markupMax='1000000'; guiDuyet=$true }
+$full = @{ salesTitle='Thu dang cho'; ward=$ph[0]; bedrooms='3'; albumUrl='https://drive.google.com/abc';
+  salesInfo='Bai gioi thieu thu'; caretakerPhone='0909123456';
+  coCheHoaHong='GIA_SAN'; floorPrice='4500000'; markupMin='300000'; markupMax='1000000'; guiDuyet=$true }
+# Thieu anh -> chan
+$k = $full.Clone(); $k.Remove('albumUrl')
+$c = Code { Invoke-RestMethod -Uri "$B/homes/$hid/cho" -Method Patch -Headers $H -ContentType 'application/json' -Body (J $k) }
+Kt ($c -eq 400) "gui duyet thieu anh -> 400 ($c)"
+# Thieu SDT/Zalo -> chan
+$k = $full.Clone(); $k.caretakerPhone = ''
+$c = Code { Invoke-RestMethod -Uri "$B/homes/$hid/cho" -Method Patch -Headers $H -ContentType 'application/json' -Body (J $k) }
+Kt ($c -eq 400) "gui duyet thieu SDT/Zalo -> 400 ($c)"
+# Thieu so phong ngu -> chan
+$k = $full.Clone(); $k.bedrooms = ''
+$c = Code { Invoke-RestMethod -Uri "$B/homes/$hid/cho" -Method Patch -Headers $H -ContentType 'application/json' -Body (J $k) }
+Kt ($c -eq 400) "gui duyet thieu so phong ngu -> 400 ($c)"
 $gd = Invoke-RestMethod -Uri "$B/homes/$hid/cho" -Method Patch -Headers $H -ContentType 'application/json' -Body (J $full)
-Kt ($gd.choTrangThai -eq 'CHO_DUYET' -and $gd.ward -eq $ph[0] -and $gd.floorPrice -eq 4500000) "gui duyet du truong -> CHO_DUYET"
+Kt ($gd.choTrangThai -eq 'CHO_DUYET' -and $gd.ward -eq $ph[0] -and $gd.floorPrice -eq 4500000 -and $gd.bedrooms -eq 3) "gui duyet du truong -> CHO_DUYET"
 
 Write-Host "`n--- admin duyet (khong can ho tro) ---"
 $cho = Invoke-RestMethod -Uri "$B/hosts/can/cho-duyet" -Headers $H0

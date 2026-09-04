@@ -339,7 +339,12 @@ router.patch('/:id/cho', requireRole(...CHU_WORKSPACE), async (req, res) => {
     if (!data.salesTitle) thieu.push('tiêu đề bán hàng');
     if (!cu.address) thieu.push('địa chỉ (tab Thông tin căn)');
     if (!(data.ward ?? cu.ward)) thieu.push('phường / xã (tab Thông tin căn)');
+    if (!(data.bedrooms ?? cu.bedrooms)) thieu.push('số phòng ngủ (tab Thông tin căn)');
+    // Không ảnh thì Sales không bán được: chấp nhận link album HOẶC ít nhất 1 ảnh bìa.
+    if (!data.albumUrl && !(data.coverImages || []).length) thieu.push('ảnh (link album hoặc ít nhất 1 ảnh bìa)');
     if (!data.salesInfo) thieu.push('bài giới thiệu');
+    // SĐT/Zalo đón khách: bắt buộc, Sales cần liên hệ sau khi host duyệt giữ chỗ.
+    if (String(data.caretakerPhone || '').replace(/\D/g, '').length < 8) thieu.push('số điện thoại / Zalo đón khách');
     if (!data.coCheHoaHong) thieu.push('cơ chế hoa hồng');
     if (data.coCheHoaHong === 'PHAN_TRAM' && (!data.listPrice || data.commissionPct == null)) thieu.push('giá bán niêm yết + % hoa hồng');
     if (data.coCheHoaHong === 'GIA_SAN' && !data.floorPrice) thieu.push('giá sàn');

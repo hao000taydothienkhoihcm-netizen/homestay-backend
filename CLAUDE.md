@@ -194,24 +194,30 @@ CREATE TABLE, không đụng dữ liệu cũ:
   Form ghi: web **Căn nhà → ✏️ Sửa / 🛒 Bán trên chợ** — CHUNG một modal `CanNhaModal.tsx` 2 tab,
   một nút Lưu ghi cả hai. **Ranh giới 2 tab KHÔNG phải "nội bộ vs chợ" mà là "sự thật về căn" vs
   "chuyện bán hàng"**:
-  · Tab 1 "Thông tin căn" = tên, địa chỉ, **phường, điểm mốc**, sức chứa, 3 mức giá host nhận,
-    **số phòng ngủ, tiện ích, đậu xe, chính sách trẻ em, ảnh**, mô tả nội bộ. Khối chi tiết
-    (phòng/tiện ích/xe/trẻ em/ảnh) gấp lại được, không bắt buộc — chỉ kiểm khi gửi lên chợ.
-    Ghi qua CẢ HAI API (cơ bản → `PATCH /homes/:id`; chi tiết → `PATCH /homes/:id/cho`).
-  · Tab 2 "Bán trên chợ" = chỉ tiêu đề bán, bài chào khách, cơ chế hoa hồng + giá, quy định,
-    hotline quản gia, nút gửi duyệt → `PATCH /homes/:id/cho`. Tab 2 hiện lại thông tin căn dạng
-    chỉ đọc; khi chưa từng khai chợ thì mồi sẵn tiêu đề ← tên căn, bài giới thiệu ← mô tả,
-    giá sàn ← giá ngày thường.
-  Căn MỚI (`POST /homes`) chỉ tạo phần cơ bản, xong modal tự `PATCH .../cho` nếu có khai chi tiết.
-  (`guiDuyet:true` → CHO_DUYET nếu đủ tiêu đề/địa chỉ/phường/bài giới thiệu/hoa hồng; `an:true|false`
-  ẩn/hiện khi đã DANG_BAN. Đã lên chợ thì **tên + địa chỉ khoá ở `PATCH /homes/:id` (báo 400)** và
-  **phường khoá ở `PATCH /homes/:id/cho` (bỏ qua im lặng)** — danh tính chống trùng, đổi phải báo Sabi.)
+  · Tab 1 "Thông tin căn" = CHỈ thứ app nội bộ cần chạy booking: biểu tượng, tên, **sức chứa**
+    (tính phụ thu quá người), địa chỉ, **phường**, 3 mức giá host nhận, **số phòng ngủ
+    (tổng/đơn/đôi)**, mô tả nội bộ. Ghi qua CẢ HAI API (cơ bản → `PATCH /homes/:id`;
+    phường + phòng ngủ → `PATCH /homes/:id/cho`, vì cột nằm chung bảng Home).
+  · Tab 2 "Bán trên chợ" = mọi thứ còn lại, đều là chuyện BÁN → `PATCH /homes/:id/cho`:
+    tiêu đề bán, **điểm mốc, nhận từ … khách (minGuests), chi tiết từng phòng, tiện ích,
+    đậu xe, chính sách trẻ em, ảnh + link album**, cơ chế hoa hồng + giá, bài chào khách,
+    quy định, **SĐT/Zalo đón khách**, nút gửi duyệt. Đầu tab hiện lại thông tin căn dạng chỉ đọc
+    + báo đỏ những thứ còn thiếu để gửi chợ, báo nâu những thứ "nên có" (không chặn).
+  **KHÔNG mồi tiêu đề bán từ tên căn** — host hay đặt tên căn trùng tên thương hiệu ("SabiHome"),
+  mồi vào ra tiêu đề rác. Chỉ mồi `floorPrice ← price`.
+  Căn MỚI (`POST /homes`) chỉ tạo phần cơ bản, xong modal tự `PATCH .../cho` nếu đã chọn
+  phường / số phòng.
+  (`guiDuyet:true` → CHO_DUYET khi đủ **8 thứ**: tiêu đề bán · địa chỉ · phường · số phòng ngủ ·
+  ảnh (albumUrl HOẶC ≥1 coverImages) · bài giới thiệu · SĐT/Zalo (≥8 chữ số) · cơ chế hoa hồng
+  + giá tương ứng. Tiện ích/đậu xe/trẻ em/chi tiết phòng/điểm mốc chỉ NHẮC, không chặn.
+  `an:true|false` ẩn/hiện khi đã DANG_BAN. Đã lên chợ thì **tên + địa chỉ khoá ở `PATCH /homes/:id`
+  (báo 400)** và **phường khoá ở `PATCH /homes/:id/cho` (bỏ qua im lặng)** — danh tính chống trùng.)
   `GET /homes/phuong` = danh sách phường Đà Lạt
   (route phải đứng TRƯỚC `/:id`). Admin duyệt ở **Chủ nhà → "🛒 Chợ — duyệt căn"**: `GET /hosts/can/cho-duyet`
   (kèm `nghiTrung`: cùng phường + tên gần giống hoặc **cùng `address`**), `GET /hosts/can/tong-quan`,
   `POST /hosts/can/:id/duyet {quyetDinh: DUYET|TU_CHOI|GO}`. Admin đọc được thông tin đăng chợ mà không cần
   hỗ trợ — vì host chủ động công khai để bán; route chỉ trả cột chợ, không kèm booking. Kiểm:
-  `scripts/thu-dang-cho.ps1` (22 kiểm). Ảnh bìa hiện là dán link URL, chưa có upload.
+  `scripts/thu-dang-cho.ps1` (25 kiểm). Ảnh bìa hiện là dán link URL, chưa có upload.
   Chạy bộ kiểm: `powershell -File scripts/chay-thu-nen.ps1` (tự bật backend cổng 3100 trỏ NHÁNH Neon
   thu-phuc-hoi, đánh thức DB, chạy `thu-lich-khoa.ps1` + `thu-dang-cho.ps1`, log ra `ket-qua-thu.log`).
   ⚠ 04/09/2026: endpoint nhánh thu `ep-dry-sunset-atgn22q1` KHÔNG còn kết nối được (P1001) —
