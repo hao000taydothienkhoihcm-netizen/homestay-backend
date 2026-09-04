@@ -220,8 +220,10 @@ CREATE TABLE, không đụng dữ liệu cũ:
   `scripts/thu-dang-cho.ps1` (25 kiểm). Ảnh bìa hiện là dán link URL, chưa có upload.
   Chạy bộ kiểm: `powershell -File scripts/chay-thu-nen.ps1` (tự bật backend cổng 3100 trỏ NHÁNH Neon
   thu-phuc-hoi, đánh thức DB, chạy `thu-lich-khoa.ps1` + `thu-dang-cho.ps1`, log ra `ket-qua-thu.log`).
-  ⚠ 04/09/2026: endpoint nhánh thu `ep-dry-sunset-atgn22q1` KHÔNG còn kết nối được (P1001) —
-  cần tạo lại nhánh thu trên Neon rồi sửa chuỗi trong `scripts/chay-thu-nhanh.ps1`.
+  Nhánh thử hiện tại: **`thu-phuc-hoi` = `ep-hidden-scene-atguv0j6-pooler`** (tạo 04/09/2026).
+  ⚠ Khi tạo nhánh Neon phải đặt **Auto-delete = Never** — mặc định là "After 1 day", nhánh cũ
+  `ep-dry-sunset-atgn22q1` đã tự bốc hơi vì để mặc định. Host phải có `-pooler` (từ VN không
+  vào được endpoint trực tiếp). Đổi nhánh thì sửa chuỗi trong `scripts/chay-thu-nhanh.ps1`.
   Kiểm nhanh một chuỗi DB có sống không: `set THU_URL=... && node scripts/thu-ket-noi-db.mjs`.
 - **`LichKhoa`**: 1 dòng = 1 ĐÊM bị khoá của 1 căn (`@@unique homeId+ngay`), `nguon` MANUAL/SHEET/ICAL.
   **Quy tắc bắt buộc:** đồng bộ SHEET/ICAL chỉ được thêm/xoá dòng cùng nguồn, KHÔNG đụng dòng MANUAL
