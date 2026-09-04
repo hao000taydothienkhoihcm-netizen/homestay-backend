@@ -88,7 +88,7 @@ router.patch('/:id/approve', async (req, res) => {
   }
 });
 
-router.post('/', async (req, res) => {
+router.post('/', async (req, res, next) => {
   try {
     const { username, password, name, email, role, active } = req.body;
     if (!username || !password || !name) return res.status(400).json({ error: 'Thiếu thông tin' });
@@ -101,11 +101,20 @@ router.post('/', async (req, res) => {
     const existing = await prisma.user.findUnique({ where: { username } });
     if (existing) return res.status(400).json({ error: 'Username đã tồn tại' });
 
-    // Tài khoản admin tạo tay -> ACTIVE ngay. Gán hostId theo body, mặc định host của người tạo.
-    // Chỉ ADMIN được chỉ định host khác; người khác luôn tạo trong host của chính mình.
-    const hostId = (req.user.role === 'ADMIN' && req.body.hostId != null)
-      ? parseInt(req.body.hostId)
-      : ownHostId(req);
+    // Tài khoản admin tạo tay -> ACTIVE ngay.
+    //
+    // hostId: SALES và ADMIN là tài khoản CẤP NỀN TẢNG, KHÔNG thuộc workspace nào -> hostId = null.
+    // (Trước đây code gọi ownHostId() cho mọi vai, nên admin ngoài chế độ hỗ trợ tạo tài khoản
+    // Sales là ném lỗi "phải vào chế độ hỗ trợ" — mà lỗi lại bị catch nuốt thành "Lỗi tạo tài
+    // khoản" chung chung, không ai biết vì sao. Sales mà gán hostId thì cũng sai bản chất:
+    // sales phải thấy căn của MỌI host.)
+    // Các vai còn lại nằm trong workspace: mặc định host của người tạo, ADMIN được chỉ định host khác.
+    const VAI_NEN_TANG = ['SALES', 'ADMIN'];
+    const hostId = VAI_NEN_TANG.includes(roleCap)
+      ? null
+      : (req.user.role === 'ADMIN' && req.body.hostId != null)
+        ? parseInt(req.body.hostId)
+        : ownHostId(req);
     const user = await prisma.user.create({
       data: {
         username, password: bcrypt.hashSync(password, 10),
@@ -119,7 +128,10 @@ router.post('/', async (req, res) => {
     });
     res.status(201).json(user);
   } catch (err) {
-    res.status(500).json({ error: 'Lỗi tạo tài khoản' });
+    // KHÔNG nuốt lỗi thành câu chung chung: lỗi mình chủ động ném (có .status) mang lý do
+    // thật cho người dùng — nuốt đi là màn hình chỉ hiện "Lỗi tạo tài khoản", không ai
+    // đoán được vì sao. Đẩy về error handler ở server.js, nó lo phân loại.
+    next(err);
   }
 });
 

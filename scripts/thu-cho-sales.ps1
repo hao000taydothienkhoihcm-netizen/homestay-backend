@@ -84,6 +84,38 @@ Kt ($l5.soCan -eq 0) "loc phuong khong ton tai -> 0 can"
 $pcho = Invoke-RestMethod -Uri "$B/cho/phuong" -Headers $H0
 Kt ($pcho -contains $ph[0]) "GET /cho/phuong co phuong cua can dang ban"
 
+Write-Host "`n--- tao tai khoan SALES that va dang nhap ---"
+# Da tung lam sai: POST /users goi ownHostId() cho MOI vai -> admin ngoai ho tro tao Sales
+# la nem loi, con bi catch nuot thanh "Loi tao tai khoan" chung chung.
+$uname = 'thu_sales_tmp'
+$cu = (Invoke-RestMethod -Uri "$B/users" -Headers $H0) | Where-Object { $_.username -eq $uname }
+if ($cu) { Invoke-RestMethod -Uri "$B/users/$($cu.id)" -Method Delete -Headers $H0 | Out-Null }
+$sales = Invoke-RestMethod -Uri "$B/users" -Method Post -Headers $H0 -ContentType 'application/json' `
+  -Body (J @{ username=$uname; password='thu@12345'; name='Sales thu'; role='SALES'; active=$true })
+Kt ($sales.role -eq 'SALES' -and $null -eq $sales.hostId) "tao Sales (admin NGOAI ho tro) -> OK, hostId = null"
+
+$stok = (Invoke-RestMethod -Uri "$B/auth/login" -Method Post -ContentType 'application/json' -Body (J @{ username=$uname; password='thu@12345' })).token
+$HS = @{ Authorization = "Bearer $stok" }
+Kt ($null -ne $stok) "Sales dang nhap duoc"
+
+# Dua can len cho (neu no dang DANG_BAN san thi DUYET se bao 400 - khong sao, bo qua)
+Invoke-RestMethod -Uri "$B/homes/$hid/cho" -Method Patch -Headers $H -ContentType 'application/json' -Body (J $full) | Out-Null
+try { Invoke-RestMethod -Uri "$B/hosts/can/$hid/duyet" -Method Post -Headers $H0 -ContentType 'application/json' -Body '{"quyetDinh":"DUYET"}' | Out-Null } catch {}
+$dsS = Invoke-RestMethod -Uri "$B/cho" -Headers $HS
+Kt ((@($dsS.can | Where-Object { $_.id -eq $hid })).Count -eq 1) "Sales thay can #$hid tren cho (khac host, khong bi loc hostId)"
+
+# Cach ly: sales KHONG thuoc host nao -> moi man nghiep vu phai rong / cam
+$bkS = Invoke-RestMethod -Uri "$B/bookings" -Headers $HS
+Kt (@($bkS).Count -eq 0) "Sales doc /bookings -> 0 dong (hostId null)"
+$hmS = Invoke-RestMethod -Uri "$B/homes" -Headers $HS
+Kt (@($hmS).Count -eq 0) "Sales doc /homes -> 0 dong"
+$c = Code { Invoke-RestMethod -Uri "$B/users" -Headers $HS }
+Kt ($c -eq 403) "Sales vao /users -> 403 ($c)"
+$c = Code { Invoke-RestMethod -Uri "$B/hosts" -Headers $HS }
+Kt ($c -eq 403) "Sales vao /hosts -> 403 ($c)"
+
+Invoke-RestMethod -Uri "$B/users/$($sales.id)" -Method Delete -Headers $H0 | Out-Null
+
 Write-Host "`n--- quyen ---"
 $hostTok = $null
 try { $hostTok = (Invoke-RestMethod -Uri "$B/auth/login" -Method Post -ContentType 'application/json' -Body (J @{ username='haotran'; password=$P })).token } catch {}
