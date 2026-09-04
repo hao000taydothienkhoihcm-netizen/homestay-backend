@@ -191,10 +191,18 @@ CREATE TABLE, không đụng dữ liệu cũ:
   `coCheHoaHong` (PHAN_TRAM = A, GIA_SAN = B) + listPrice/commissionPct/floorPrice/markupMin/markupMax.
   Cột `street` vẫn còn trong DB nhưng **BỎ KHÔNG DÙNG** (trùng chức năng với `Home.address`) —
   đừng đọc/ghi nó nữa; địa chỉ chính xác chỉ có một chỗ là `address`.
-  Form ghi: web **Căn nhà → ✏️ Sửa / 🛒 Bán trên chợ** — CHUNG một modal `CanNhaModal.tsx` 2 tab
-  ("Thông tin căn" → `PATCH /homes/:id`, "Bán trên chợ" → `PATCH /homes/:id/cho`), một nút Lưu ghi cả hai.
-  Tab 2 không hỏi lại tên/địa chỉ/giá — hiện lại dạng chỉ đọc; khi căn chưa từng khai chợ thì mồi sẵn
-  tiêu đề ← tên căn, bài giới thiệu ← mô tả, giá sàn ← giá ngày thường.
+  Form ghi: web **Căn nhà → ✏️ Sửa / 🛒 Bán trên chợ** — CHUNG một modal `CanNhaModal.tsx` 2 tab,
+  một nút Lưu ghi cả hai. **Ranh giới 2 tab KHÔNG phải "nội bộ vs chợ" mà là "sự thật về căn" vs
+  "chuyện bán hàng"**:
+  · Tab 1 "Thông tin căn" = tên, địa chỉ, **phường, điểm mốc**, sức chứa, 3 mức giá host nhận,
+    **số phòng ngủ, tiện ích, đậu xe, chính sách trẻ em, ảnh**, mô tả nội bộ. Khối chi tiết
+    (phòng/tiện ích/xe/trẻ em/ảnh) gấp lại được, không bắt buộc — chỉ kiểm khi gửi lên chợ.
+    Ghi qua CẢ HAI API (cơ bản → `PATCH /homes/:id`; chi tiết → `PATCH /homes/:id/cho`).
+  · Tab 2 "Bán trên chợ" = chỉ tiêu đề bán, bài chào khách, cơ chế hoa hồng + giá, quy định,
+    hotline quản gia, nút gửi duyệt → `PATCH /homes/:id/cho`. Tab 2 hiện lại thông tin căn dạng
+    chỉ đọc; khi chưa từng khai chợ thì mồi sẵn tiêu đề ← tên căn, bài giới thiệu ← mô tả,
+    giá sàn ← giá ngày thường.
+  Căn MỚI (`POST /homes`) chỉ tạo phần cơ bản, xong modal tự `PATCH .../cho` nếu có khai chi tiết.
   (`guiDuyet:true` → CHO_DUYET nếu đủ tiêu đề/địa chỉ/phường/bài giới thiệu/hoa hồng; `an:true|false`
   ẩn/hiện khi đã DANG_BAN. Đã lên chợ thì **tên + địa chỉ khoá ở `PATCH /homes/:id` (báo 400)** và
   **phường khoá ở `PATCH /homes/:id/cho` (bỏ qua im lặng)** — danh tính chống trùng, đổi phải báo Sabi.)

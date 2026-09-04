@@ -338,7 +338,7 @@ router.patch('/:id/cho', requireRole(...CHU_WORKSPACE), async (req, res) => {
     const thieu = [];
     if (!data.salesTitle) thieu.push('tiêu đề bán hàng');
     if (!cu.address) thieu.push('địa chỉ (tab Thông tin căn)');
-    if (!(data.ward ?? cu.ward)) thieu.push('phường / xã');
+    if (!(data.ward ?? cu.ward)) thieu.push('phường / xã (tab Thông tin căn)');
     if (!data.salesInfo) thieu.push('bài giới thiệu');
     if (!data.coCheHoaHong) thieu.push('cơ chế hoa hồng');
     if (data.coCheHoaHong === 'PHAN_TRAM' && (!data.listPrice || data.commissionPct == null)) thieu.push('giá bán niêm yết + % hoa hồng');
