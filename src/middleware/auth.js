@@ -76,8 +76,8 @@ export function requireRole(...roles) {
 //
 // Dùng 3 nhóm này thay vì viết tay từng danh sách vai trò — thêm/bớt một vai sau này
 // chỉ sửa một chỗ, không phải rà lại 26 route.
-export const CHU_WORKSPACE = ['ADMIN', 'HOST'];                    // căn nhà, thu chi, ngày lễ, nhân sự
-export const QUAN_LY = ['ADMIN', 'HOST', 'MANAGER'];               // bảng giá, sửa/xoá booking, điều chỉnh kho
+export const CHU_WORKSPACE = ['ADMIN', 'HOST'];                    // căn nhà, XOÁ chi phí, ngày lễ, nhân sự
+export const QUAN_LY = ['ADMIN', 'HOST', 'MANAGER'];               // bảng giá, sửa/xoá booking, điều chỉnh kho, GHI chi phí
 export const VAN_HANH = ['ADMIN', 'HOST', 'MANAGER', 'STAFF'];     // thao tác hằng ngày: đặt phòng, nhập kho
 
 // ───── Multi-tenant helper ─────

@@ -1,6 +1,14 @@
 import { routerAnToan } from '../lib/router-an-toan.js';
 import { prisma } from '../prisma.js';
-import { requireRole, hostWhere, ownHostId, findOwn, updateOwn, deleteOwn, ownsRecord, notFound, CHU_WORKSPACE } from '../middleware/auth.js';
+import { requireRole, hostWhere, ownHostId, findOwn, updateOwn, deleteOwn, ownsRecord, notFound, CHU_WORKSPACE, QUAN_LY } from '../middleware/auth.js';
+
+// ───── Ai được ghi chi phí ─────
+// GHI (thêm/sửa): QUAN_LY — gồm cả MANAGER.
+//   Người mua nước rửa chén, trả tiền thợ sửa vòi, đóng tiền điện chính là quản lý
+//   căn, không phải chủ nhà ngồi xa. Bắt chủ nhà tự nhập hết thì sổ chi phí không ai
+//   ghi. Trước 09/2026 chỗ này để CHU_WORKSPACE nên manager mở màn Thu chi ra mà
+//   không có nút thêm — nhìn y như app hỏng.
+// XOÁ: vẫn CHU_WORKSPACE. Xoá là chỗ mất dấu vết, giữ lại cho chủ workspace.
 
 const router = routerAnToan();
 
@@ -19,7 +27,7 @@ router.get('/', async (req, res) => {
   res.json(expenses);
 });
 
-router.post('/', requireRole(...CHU_WORKSPACE), async (req, res) => {
+router.post('/', requireRole(...QUAN_LY), async (req, res) => {
   const { date, category, desc, amount, homeId } = req.body;
   if (!date || !category || !desc || !amount) return res.status(400).json({ error: 'Thiếu thông tin' });
 
@@ -38,7 +46,7 @@ router.post('/', requireRole(...CHU_WORKSPACE), async (req, res) => {
   res.status(201).json(expense);
 });
 
-router.patch('/:id', requireRole(...CHU_WORKSPACE), async (req, res) => {
+router.patch('/:id', requireRole(...QUAN_LY), async (req, res) => {
   const id = parseInt(req.params.id);
   const { date, category, desc, amount, homeId } = req.body;
 
