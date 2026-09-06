@@ -1,6 +1,23 @@
 import { PrismaClient } from '@prisma/client';
 
+// ───── Chợ chạy bằng một tài khoản Postgres CHỈ ĐỌC ─────
+// Service "chợ" (src/server-cho.js) đặt SABI_SERVICE=cho và nối bằng DATABASE_URL_CHO —
+// một role Neon chỉ có quyền SELECT. Nhờ vậy dù chợ có bug hay bị khai thác thì cũng
+// KHÔNG THỂ ghi vào booking / thu chi / kho của host. Đây là hàng rào thật, không phải
+// lời hứa trong code: quyền nằm ở tầng cơ sở dữ liệu.
+//
+// Thiếu biến thì NÉM LỖI ngay lúc khởi động. Im lặng quay về DATABASE_URL nghĩa là chợ
+// chạy bằng quyền chủ sở hữu mà không ai biết — đúng cái mình đang muốn tránh.
+const laCho = process.env.SABI_SERVICE === 'cho';
+if (laCho && !process.env.DATABASE_URL_CHO) {
+  throw new Error(
+    'SABI_SERVICE=cho nhưng thiếu DATABASE_URL_CHO. Chợ phải nối bằng role chỉ-đọc, ' +
+    'không được dùng chung chuỗi kết nối của app nội bộ.'
+  );
+}
+
 const goc = new PrismaClient({
+  ...(laCho ? { datasources: { db: { url: process.env.DATABASE_URL_CHO } } } : {}),
   log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error']
 });
 

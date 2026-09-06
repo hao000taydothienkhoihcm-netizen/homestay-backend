@@ -298,6 +298,41 @@ File liên quan: `prisma/schema.prisma` (model Charge), `src/routes/bookings.js`
 
 ---
 
+### 🔀 CHỢ CHẠY THÀNH SERVICE RIÊNG (06/09/2026)
+
+Trước đây chợ và app nội bộ chung **một tiến trình**: deploy chợ là khởi động lại app nội bộ,
+và một bug ở chợ làm sập cả app đang giữ dữ liệu thật của 100 host. Đã tách.
+
+**Cùng repo, cùng Neon, hai điểm khởi động:**
+
+| | App nội bộ | Chợ căn |
+|---|---|---|
+| Chạy | `node src/server.js` | `node src/cho.js` |
+| Route | tất cả | chỉ `/v1/auth/login` + `/v1/cho/*` |
+| Nối DB bằng | `DATABASE_URL` (chủ sở hữu) | `DATABASE_URL_CHO` (**role chỉ SELECT**) |
+| Cổng khi chạy máy | 3000 | 3200 |
+
+**Ba hàng rào, từ ngoài vào trong:**
+1. Tiến trình riêng — chợ chết không kéo app nội bộ.
+2. `server-cho.js` chỉ mount route chợ; `/v1/bookings`, `/v1/expenses`… trả **404** ở đây.
+3. **Role Postgres chỉ-đọc** — hàng rào thật, không phụ thuộc code đúng hay sai.
+   Tạo role: chạy `scripts/sql/cho-chi-doc.sql` trong Neon SQL Editor.
+
+⚠️ **`src/cho.js` mới là điểm khởi động, KHÔNG chạy thẳng `server-cho.js`.** Trong ESM mọi
+`import` chạy trước phần thân module, nên đặt `SABI_SERVICE=cho` bên trong `server-cho.js`
+là quá muộn — `prisma.js` đã kịp tạo client bằng chuỗi của app nội bộ. `cho.js` đặt biến
+xong mới `await import()`. `prisma.js` **ném lỗi lúc khởi động** nếu `SABI_SERVICE=cho`
+mà thiếu `DATABASE_URL_CHO` — cố ý không lặng lẽ quay về `DATABASE_URL`.
+
+Giai đoạn 1 chợ **chỉ đọc**, cả tầng app (chặn mọi method ghi) lẫn tầng DB. Muốn ghi
+(giữ chỗ, báo cọc) thì cấp quyền trên **đúng bảng của chợ**, không bao giờ trên `Booking`.
+Lý do và lộ trình nối 3 giai đoạn: `tach-cho-chay-rieng.html` ở thư mục cha.
+
+**Tạo service thứ hai trên Render:** New → Web Service → cùng repo →
+Build `npm install && npx prisma generate` (KHÔNG chạy `migrate deploy` — app nội bộ lo việc đó) →
+Start `npm run start:cho` → Environment: `DATABASE_URL_CHO`, `JWT_SECRET` (giống app nội bộ để
+token dùng chung được), `NODE_ENV=production`. Nhớ thêm cron-job.org ping `/health` như service kia.
+
 ## 6. Quy trình deploy (mỗi lần sửa)
 
 **Backend/code:**
