@@ -70,12 +70,25 @@ export function nights(checkIn, checkOut) {
 }
 
 /**
- * Một đêm là "cuối tuần" nếu tối bắt đầu rơi vào T6, T7 hoặc CN.
- * getUTCDay: 0=CN, 5=T6, 6=T7
+ * Đêm nào tính giá cuối tuần — do TỪNG CĂN quy định (Home.cuoiTuanGom).
+ * Mỗi căn một kiểu khách: villa nhóm đông thì đêm CN vẫn đông, căn nhỏ cho đôi
+ * đi làm thì đêm CN đã vắng. Ép chung một luật là sai ở một nửa số căn.
+ *
+ * Một "đêm" tính theo NGÀY NHẬN của đêm đó: đêm CN = tối chủ nhật, sáng T2 trả phòng.
+ * getUTCDay: 0=CN · 5=T6 · 6=T7
+ *
+ * Mặc định T6_T7_CN — đúng cách app tính từ đầu, nên căn cũ không đổi giá.
+ * DÙNG CHUNG cho app nội bộ và chợ căn: hai bên phải ra cùng một con số cho cùng một đêm.
  */
-function isWeekendNight(date) {
+const DEM_CUOI_TUAN = {
+  T6_T7: [5, 6],
+  T6_T7_CN: [5, 6, 0],
+  T7_CN: [6, 0],
+  T7: [6],
+};
+export function isWeekendNight(date, gom) {
   const d = new Date(date).getUTCDay();
-  return d === 5 || d === 6 || d === 0;
+  return (DEM_CUOI_TUAN[gom] || DEM_CUOI_TUAN.T6_T7_CN).includes(d);
 }
 
 /** Timestamp -> 'YYYY-MM-DD' theo UTC (khớp cách lưu @db.Date) */
@@ -97,7 +110,7 @@ export function normalizeHolidays(holidays) {
 }
 
 /** Một đêm (theo ngày bắt đầu) có rơi vào ngày lễ nào không. */
-function isHolidayNight(t, holidayRanges) {
+export function isHolidayNight(t, holidayRanges) {
   if (!holidayRanges || !holidayRanges.length) return false;
   const d = ymdUTC(t);
   return holidayRanges.some(r => d >= r.start && d <= r.end);
@@ -183,8 +196,8 @@ export function stayTotal(home, checkIn, checkOut, holidays = [], priceTable = n
     if (isHolidayNight(t, ranges)) {
       total += mHol ?? (pos(home.holidayPrice) ? home.holidayPrice : (mWk ?? holPrice));
     }
-    // 3. Cuối tuần
-    else if (isWeekendNight(t)) {
+    // 3. Cuối tuần — đêm nào là cuối tuần do chính căn đó quy định
+    else if (isWeekendNight(t, home.cuoiTuanGom)) {
       total += mWk ?? wkPrice;
     }
     // 4. Ngày thường

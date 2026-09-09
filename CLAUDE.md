@@ -537,3 +537,94 @@ tự đổi giúp.
 app chỉ có một instance, sai một request còn hơn sập cả app.
 
 Kiểm chứng: `node scripts/thu-boc-loi.mjs` (12 phép, không đụng database).
+
+---
+
+## 🗓️ GIÁ THEO LOẠI ĐÊM & NGUỒN LỊCH (09/09/2026)
+
+### Auto-Deploy đã TẮT trên cả hai service
+
+Trước đây `homestay-backend` để **Auto-Deploy = On Commit**, và Build Command có
+`prisma migrate deploy`. Nghĩa là **push code là database thật tự đổi cấu trúc**.
+Ngày 09/09 đã phát hiện khi migration `20260909160000` tự chạy lúc 15:42 UTC, một
+phút sau khi push, dù không ai bấm gì.
+
+Từ nay **cả `homestay-backend` lẫn `sabi-marketplace` đều Auto-Deploy = Off.**
+Quy trình: push → báo chủ nhà → chủ nhà bấm **Manual Deploy → Deploy latest commit**.
+Migration chạy trong bước build của lần deploy đó, tức là nằm dưới nút bấm của người.
+
+**Đừng bật lại Auto-Deploy** trừ khi bỏ hẳn `migrate deploy` khỏi Build Command.
+
+### Quy trình migration an toàn
+
+1. `node scripts/sao-luu.mjs` — luôn sao lưu trước.
+2. Sửa `prisma/schema.prisma`, rồi `npx prisma format`.
+3. Sinh SQL: `npx prisma migrate diff --from-schema-datasource prisma/schema.prisma
+   --to-schema-datamodel prisma/schema.prisma --script > prisma/migrations/<tem>_<ten>/migration.sql`
+4. Neon → Branches → New Branch từ `production`, auto-delete **After 1 day**,
+   chọn **Branch data and schema**. Dán chuỗi kết nối vào `.env` thành `DATABASE_URL_THU`.
+5. `node scripts/thu-migration.mjs` — áp lên NHÁNH. Script tự chặn nếu chuỗi trùng production.
+6. `node scripts/kiem-cot-moi.mjs` — kiểm cột, enum, và **so số dòng với bản sao lưu mới nhất**
+   (không ghim số cứng: chủ nhà vẫn đang nhập booking thật trong lúc mình làm).
+7. Sạch rồi mới push + nhờ chủ nhà Manual Deploy.
+
+Script phụ: `scripts/xem-lich-su-migration.mjs` (migration nào áp lúc nào, cả hai DB),
+`scripts/soi-thay-doi.mjs` (so từng id với bản sao lưu, chỉ ra dòng nào mất).
+
+### Cuối tuần là đêm nào — do TỪNG CĂN quyết định
+
+`Home.cuoiTuanGom` — enum `CuoiTuanGom`: `T6_T7` · `T6_T7_CN` (mặc định) · `T7_CN` · `T7`.
+
+Mặc định `T6_T7_CN` đúng bằng cách `bookingService` tính từ đầu, nên 9 căn cũ và 53
+booking cũ không đổi một đồng nào. Host đổi được cho từng căn vì mỗi căn một kiểu
+khách: villa nhóm đông thì đêm CN vẫn đông, căn nhỏ cho đôi đi làm thì đêm CN đã vắng.
+
+Một "đêm" tính theo **ngày nhận** của đêm đó: đêm CN = tối chủ nhật, sáng T2 trả phòng.
+
+Hàm dùng chung: `isWeekendNight(date, gom)` trong `services/bookingService.js`.
+**App nội bộ và chợ phải gọi cùng hàm này** — lệch nhau là sales báo khách một giá,
+chủ nhà nhận một giá khác.
+
+### Giá chợ theo ba loại đêm
+
+Cột mới trên `Home` (đều nullable, thiếu thì tự lùi về mức dưới):
+
+| Cơ chế | Thường | Cuối tuần | Lễ |
+|---|---|---|---|
+| A · % giá bán | `listPrice` | `listPriceWeekend` | `listPriceHoliday` |
+| B · giá sàn + kê | `floorPrice` | `floorPriceWeekend` | `floorPriceHoliday` |
+| B · mức kê | `markupMin` | `markupMin` | `markupHoliday` |
+
+**Cơ chế A cố ý KHÔNG có % riêng cho ngày lễ** — đêm lễ giá cao thì hoa hồng tự cao,
+cùng một con số phần trăm. Chủ nhà đã chốt như vậy.
+
+`markupMax` giữ lại cho dữ liệu cũ nhưng **mô hình mới không dùng**: host quy định
+MỘT mức kê, sales chỉ được **cắt bớt** phần của mình để giảm giá cho khách. Sales
+không tự đặt mức kê.
+
+`routes/cho.js` trả `gia.dem.{thuong,cuoiTuan,le}` mỗi loại gồm `{khachTra, hoaHong, hostNhan}`.
+Có trả `hostNhan` — mockup đã chốt sales nhìn thấy phần chia tiền (nằm trong khối gập,
+kèm nhắc "đừng mở khi đang đưa điện thoại cho khách"). Giấu số đó chỉ khiến sales tính
+nhẩm sai rồi cãi nhau với chủ nhà.
+
+### 4 mức tin cậy lịch
+
+Cột: `lichNguon` (enum `ChoNguonLich`: APP · ICAL · SCRIPT · SHEET), `lichLink`,
+`lichSheetTab`, `lichSheetCot`, `lichKey`, `lichDongBoLuc`, `lichLoiTu`, `lichNhatKy`.
+
+**Mức KHÔNG lưu thành cột** — suy ra lúc đọc trong `tinhMucLich()` của `cho.js`:
+
+| Nguồn | Mức |
+|---|---|
+| APP (dùng app nội bộ) | ① Lịch thật |
+| ICAL, SCRIPT | ② Tự động |
+| SHEET | ③ Tham khảo |
+| chưa nối, hoặc lỗi liên tục > 24h | ④ Chưa có lịch |
+
+Lưu hai chỗ thì sớm muộn lệch: cột ghi mức ① mà thực tế hai ngày không đọc được lịch.
+
+**Luật chống gãy im lặng:** lịch KHÔNG ĐỔI là bình thường (mùa ế thì trống là câu trả
+lời đúng), không bị hạ mức. Chỉ **đọc không được** liên tục quá 24 giờ mới hạ xuống ④.
+
+`CHON_CHO` không trả `lichLink` / `lichSheetTab` / `lichKey` cho sales — đó là cấu
+hình riêng của host.

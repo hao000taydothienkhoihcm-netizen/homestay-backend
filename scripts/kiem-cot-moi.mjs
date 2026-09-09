@@ -40,10 +40,20 @@ try {
     db.home.count(), db.booking.count(), db.expense.count(), db.user.count(),
   ]);
   console.log(`  OK   dữ liệu: ${h} căn · ${b} booking · ${e} thu chi · ${u} tài khoản`);
-  if (h !== 9 || b !== 52) {
-    console.log('  ⚠  khác lúc sao lưu (9 căn / 52 booking) — xem lại trước khi đi tiếp');
-    hong++;
-  }
+  // So với bản sao lưu mới nhất chứ đừng ghim số cứng — người dùng vẫn đang nhập
+  // booking thật trong lúc mình làm, số cứng sẽ báo động giả mỗi lần.
+  try {
+    const fs = await import('node:fs'), zlib = await import('node:zlib');
+    const d = 'E:/project/homestay/_sao-luu';
+    const f = fs.readdirSync(d).filter((x) => x.endsWith('.json.gz')).sort().pop();
+    const sao = JSON.parse(zlib.gunzipSync(fs.readFileSync(d + '/' + f))).bang || {};
+    const it = (a, ten) => {
+      const cu = (sao[ten] || []).length;
+      if (a < cu) { console.log(`  ✕ ${ten}: còn ${a}, bản sao lưu có ${cu} — MẤT ${cu - a} dòng`); hong++; }
+    };
+    it(h, 'home'); it(b, 'booking'); it(u, 'user');
+    console.log(`  OK   không bảng nào ít dòng hơn bản sao lưu ${f}`);
+  } catch { console.log('  ⚠  không đọc được bản sao lưu để đối chiếu'); }
 
   const cu = await db.$queryRawUnsafe(
     `SELECT count(*)::int n FROM "Home" WHERE price IS NULL OR name IS NULL`);

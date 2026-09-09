@@ -1,7 +1,7 @@
 import { routerAnToan } from '../lib/router-an-toan.js';
 import { prisma } from '../prisma.js';
 import { requireRole, hostWhere, ownHostId, findOwn, updateOwn, notFound, CHU_WORKSPACE, QUAN_LY } from '../middleware/auth.js';
-import { loadPriceTable, stayTotal } from '../services/bookingService.js';
+import { loadPriceTable, stayTotal, isWeekendNight } from '../services/bookingService.js';
 
 const router = routerAnToan();
 
@@ -12,6 +12,10 @@ function optPrice(v) {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 const ymdUTC = (d) => new Date(d).toISOString().split('T')[0];
+
+// Đêm nào tính giá cuối tuần — host chọn cho từng căn. Giá trị lạ thì bỏ qua,
+// giữ nguyên mức đang có, chứ không ném lỗi làm hỏng cả form.
+const GOM_HOP_LE = ['T6_T7', 'T6_T7_CN', 'T7_CN', 'T7'];
 
 router.get('/', async (req, res) => {
   const homes = await prisma.home.findMany({
@@ -31,7 +35,7 @@ router.get('/:id', async (req, res) => {
 });
 
 router.post('/', requireRole(...CHU_WORKSPACE), async (req, res) => {
-  const { name, address, price, weekendPrice, holidayPrice, maxGuests, emoji, desc } = req.body;
+  const { name, address, price, weekendPrice, holidayPrice, maxGuests, emoji, desc, cuoiTuanGom } = req.body;
   if (!name || !address || !price) return res.status(400).json({ error: 'Thiếu thông tin' });
 
   const wk = (weekendPrice === '' || weekendPrice == null) ? null : parseInt(weekendPrice);
@@ -41,6 +45,7 @@ router.post('/', requireRole(...CHU_WORKSPACE), async (req, res) => {
       name, address, price: parseInt(price),
       weekendPrice: (wk && wk > 0) ? wk : null,
       holidayPrice: (hol && hol > 0) ? hol : null,
+      ...(GOM_HOP_LE.includes(cuoiTuanGom) && { cuoiTuanGom }),
       maxGuests: parseInt(maxGuests) || 8, emoji: emoji || '🏡', desc,
       hostId: ownHostId(req)
     }
@@ -50,7 +55,7 @@ router.post('/', requireRole(...CHU_WORKSPACE), async (req, res) => {
 
 router.patch('/:id', requireRole(...CHU_WORKSPACE), async (req, res) => {
   const id = parseInt(req.params.id);
-  const { name, address, price, weekendPrice, holidayPrice, maxGuests, emoji, desc } = req.body;
+  const { name, address, price, weekendPrice, holidayPrice, maxGuests, emoji, desc, cuoiTuanGom } = req.body;
 
   // Căn đã lên chợ thì TÊN + ĐỊA CHỈ là danh tính chống trùng — đổi phải qua admin.
   // (Chỉ chặn khi đổi thật; gửi lại đúng giá trị cũ vẫn cho qua để form khỏi vướng.)
@@ -76,6 +81,7 @@ router.patch('/:id', requireRole(...CHU_WORKSPACE), async (req, res) => {
         holidayPrice: (holidayPrice === '' || holidayPrice == null || parseInt(holidayPrice) <= 0)
           ? null : parseInt(holidayPrice)
       }),
+      ...(GOM_HOP_LE.includes(cuoiTuanGom) && { cuoiTuanGom }),
       ...(maxGuests !== undefined && { maxGuests: parseInt(maxGuests) }),
       ...(emoji !== undefined && { emoji }),
       ...(desc !== undefined && { desc })
@@ -265,7 +271,8 @@ router.get('/:id/price-preview', async (req, res) => {
     nightsList.push({
       date: ds,
       weekday: ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'][wd],
-      kind: overridden ? 'ghi-de' : holiday ? 'le' : (wd === 5 || wd === 6 || wd === 0) ? 'cuoi-tuan' : 'thuong',
+      kind: overridden ? 'ghi-de' : holiday ? 'le'
+        : isWeekendNight(d, home.cuoiTuanGom) ? 'cuoi-tuan' : 'thuong',
       // tính đúng bằng chính công thức thật, cho 1 đêm
       price: stayTotal(home, d, next, holidays, priceTable)
     });

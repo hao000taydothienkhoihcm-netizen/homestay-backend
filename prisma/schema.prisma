@@ -111,8 +111,8 @@ model Home {
   id           Int     @id @default(autoincrement())
   name         String
   address      String
-  price        Int // VND/đêm (giá ngày thường T2–T5)
-  weekendPrice Int? // VND/đêm cuối tuần (T6, T7, CN). Null = dùng price
+  price        Int // VND/đêm (giá ngày thường)
+  weekendPrice Int? // VND/đêm cuối tuần. Đêm nào là cuối tuần do cuoiTuanGom quyết định. Null = dùng price
   holidayPrice Int? // VND/đêm ngày lễ (theo danh sách Holiday). Null = dùng giá cuối tuần
   maxGuests    Int     @default(8)
   emoji        String  @default("🏡")
@@ -173,6 +173,10 @@ model Home {
   floorPriceHoliday Int? // B: giá sàn ngày lễ
   markupHoliday     Int? // B: mức kê ngày lễ. Null = dùng markupMin
 
+  // Đêm nào tính giá cuối tuần — mỗi căn một kiểu khách nên host tự chọn.
+  // Dùng chung cho CẢ app nội bộ lẫn chợ: hai bên phải ra cùng một con số.
+  cuoiTuanGom CuoiTuanGom @default(T6_T7_CN)
+
   // ───── Nguồn lịch & mức tin cậy (① lịch thật · ② tự động · ③ tham khảo · ④ chưa có) ─────
   // Mức KHÔNG lưu thành cột: suy từ lichNguon + lichLoiTu, tránh hai chỗ lệch nhau.
   lichNguon     ChoNguonLich?
@@ -220,6 +224,13 @@ model LichKhoa {
 
   @@unique([homeId, ngay])
   @@index([hostId, ngay])
+}
+
+enum CuoiTuanGom {
+  T6_T7 // tối thứ 6 + thứ 7. Đêm CN tính giá ngày thường (khách về sớm đi làm)
+  T6_T7_CN // tối thứ 6 + 7 + chủ nhật — cách app nội bộ tính từ đầu, mặc định
+  T7_CN // tối thứ 7 + chủ nhật
+  T7 // chỉ tối thứ 7
 }
 
 enum ChoNguonLich {

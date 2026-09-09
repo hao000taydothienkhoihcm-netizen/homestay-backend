@@ -38,31 +38,91 @@ const CHON_CHO = {
   coverImages: true, albumUrl: true, salesInfo: true,
   coCheHoaHong: true, listPrice: true, commissionPct: true,
   floorPrice: true, markupMin: true, markupMax: true,
+  // Giá theo loại đêm + luật cuối tuần của chính căn đó
+  listPriceWeekend: true, listPriceHoliday: true,
+  floorPriceWeekend: true, floorPriceHoliday: true, markupHoliday: true,
+  cuoiTuanGom: true,
+  // Nguồn lịch — để tính mức tin cậy. KHÔNG trả link/tab/key: đó là cấu hình riêng của host.
+  lichNguon: true, lichDongBoLuc: true, lichLoiTu: true,
 };
 
-// Đổi cấu hình hoa hồng của host thành thứ sales cần thấy.
-//   A (PHAN_TRAM): host niêm yết giá bán, trích % -> sales biết giá bán + hoa hồng tối đa.
-//   B (GIA_SAN):   host chốt giá sàn, sales tự kê -> giá bán gợi ý = sàn + mức kê chuẩn.
-// Cả hai đều KHÔNG trả giá host nhận thành một trường riêng để tránh sales lỡ gửi nhầm
-// cho khách; ai cần thì tự trừ ra được, nhưng không bày sẵn.
+// ───── Mức tin cậy lịch ─────
+// Không lưu thành cột: suy từ nguồn + chuỗi lỗi, để không bao giờ có chuyện
+// cột ghi mức ① mà thực tế đã hai ngày không đọc được lịch.
+const MUC_LICH = {
+  1: { ten: 'Lịch thật', ghi: 'Chủ nhà dùng app nội bộ Sabi — lịch cập nhật tức thì.', canhBao: false },
+  2: { ten: 'Tự động', ghi: 'Đồng bộ tự động từ lịch của chủ nhà.', canhBao: false },
+  3: { ten: 'Tham khảo', ghi: 'Đọc từ Google Sheet của chủ nhà — có thể chậm hơn thực tế.', canhBao: true },
+  4: { ten: 'Chưa có lịch', ghi: 'Chưa nối lịch. Bắt buộc gọi chủ nhà hỏi ngày trống.', canhBao: true },
+};
+const NGUONG_LOI = 24 * 60 * 60 * 1000;   // lỗi liên tục quá 24h thì hạ xuống mức ④
+
+function tinhMucLich(h, bayGio = Date.now()) {
+  if (!h.lichNguon) return 4;
+  // Lịch KHÔNG ĐỔI là bình thường (mùa ế thì trống là câu trả lời đúng).
+  // Chỉ ĐỌC KHÔNG ĐƯỢC liên tục mới bị hạ mức.
+  if (h.lichLoiTu && bayGio - new Date(h.lichLoiTu).getTime() > NGUONG_LOI) return 4;
+  if (h.lichNguon === 'APP') return 1;
+  if (h.lichNguon === 'ICAL' || h.lichNguon === 'SCRIPT') return 2;
+  return 3;   // SHEET
+}
+function goiLich(h) {
+  const muc = tinhMucLich(h);
+  return { muc, ...MUC_LICH[muc], dongBoLuc: muc === 1 ? null : (h.lichDongBoLuc || null) };
+}
+
+// Đổi cấu hình hoa hồng của host thành thứ sales cần thấy, cho CẢ BA loại đêm.
+//
+//   A (PHAN_TRAM): host niêm yết giá bán từng loại đêm, trích một mức % dùng chung.
+//       Đêm lễ giá cao thì hoa hồng tự cao — cố ý không có % riêng cho lễ.
+//   B (GIA_SAN):   host chốt giá sàn từng loại đêm + mức kê. Ngày lễ có mức kê riêng
+//       vì lễ host thường cho kê nhiều hơn. Sales KHÔNG tự đặt mức kê, chỉ được CẮT bớt.
+//
+// Trả cả `hostNhan` — mockup đã chốt là sales nhìn thấy phần chia tiền (nằm trong
+// khối gập lại, kèm nhắc đừng mở trước mặt khách). Giấu số đó chỉ khiến sales tự
+// tính nhẩm sai rồi cãi nhau với chủ nhà.
+const LOAI_DEM = ['thuong', 'cuoiTuan', 'le'];
+
+function motDem(h, loai) {
+  if (h.coCheHoaHong === 'PHAN_TRAM') {
+    const ban = loai === 'le' ? (h.listPriceHoliday || h.listPriceWeekend || h.listPrice)
+      : loai === 'cuoiTuan' ? (h.listPriceWeekend || h.listPrice)
+        : h.listPrice;
+    if (!ban) return null;
+    const hh = Math.round(ban * (h.commissionPct || 0) / 100);
+    return { khachTra: ban, hoaHong: hh, hostNhan: ban - hh };
+  }
+  const san = loai === 'le' ? (h.floorPriceHoliday || h.floorPriceWeekend || h.floorPrice)
+    : loai === 'cuoiTuan' ? (h.floorPriceWeekend || h.floorPrice)
+      : h.floorPrice;
+  if (!san) return null;
+  const ke = loai === 'le' ? (h.markupHoliday ?? h.markupMin ?? 0) : (h.markupMin || 0);
+  return { khachTra: san + ke, hoaHong: ke, hostNhan: san };
+}
+
 function giaChoSales(h) {
-  if (h.coCheHoaHong === 'PHAN_TRAM' && h.listPrice) {
-    const hoaHong = Math.round(h.listPrice * (h.commissionPct || 0) / 100);
-    return { coChe: 'A', giaBan: h.listPrice, hoaHongToiDa: hoaHong, phanTram: h.commissionPct || 0 };
-  }
-  if (h.coCheHoaHong === 'GIA_SAN' && h.floorPrice) {
-    const keChuan = h.markupMin || 0;
-    return {
-      coChe: 'B', giaSan: h.floorPrice, keTu: h.markupMin || 0, keDen: h.markupMax || null,
-      giaBanGoiY: h.floorPrice + keChuan, hoaHongToiDa: keChuan,
-    };
-  }
-  return { coChe: null };   // host duyệt xong mà xoá cấu hình — hiếm, nhưng đừng nổ
+  const co = (h.coCheHoaHong === 'PHAN_TRAM' && h.listPrice)
+    || (h.coCheHoaHong === 'GIA_SAN' && h.floorPrice);
+  if (!co) return { coChe: null };   // host duyệt xong mà xoá cấu hình — hiếm, nhưng đừng nổ
+
+  const dem = {};
+  for (const l of LOAI_DEM) dem[l] = motDem(h, l);
+  return {
+    coChe: h.coCheHoaHong === 'PHAN_TRAM' ? 'A' : 'B',
+    phanTram: h.coCheHoaHong === 'PHAN_TRAM' ? (h.commissionPct || 0) : null,
+    cuoiTuanGom: h.cuoiTuanGom,
+    dem,
+    tuGia: dem.thuong ? dem.thuong.khachTra : null,   // số hiện trên thẻ ngoài chợ
+  };
 }
 
 function goiCan(h) {
-  const { coCheHoaHong, listPrice, commissionPct, floorPrice, markupMin, markupMax, ...con } = h;
-  return { ...con, gia: giaChoSales(h) };
+  const {
+    coCheHoaHong, listPrice, commissionPct, floorPrice, markupMin, markupMax,
+    listPriceWeekend, listPriceHoliday, floorPriceWeekend, floorPriceHoliday, markupHoliday,
+    cuoiTuanGom, lichNguon, lichDongBoLuc, lichLoiTu, ...con
+  } = h;
+  return { ...con, gia: giaChoSales(h), lich: goiLich(h) };
 }
 
 // ───────────────────────────────────────────────
@@ -135,7 +195,18 @@ router.get('/:id', requireRole(...XEM_CHO), async (req, res) => {
     select: CHON_CHO,
   });
   if (!h) return res.status(404).json({ error: 'Không tìm thấy căn nhà' });
-  res.json(goiCan(h));
+
+  // Ngày lễ do host tự khai — sales cần để biết đêm nào ăn giá lễ.
+  // Chỉ trả khoảng ngày và tên, không có gì riêng tư.
+  const le = await prisma.holiday.findMany({
+    where: { hostId: h.hostId },
+    select: { name: true, startDate: true, endDate: true },
+    orderBy: { startDate: 'asc' },
+  });
+  res.json({
+    ...goiCan(h),
+    ngayLe: le.map((x) => ({ ten: x.name, tu: ymd(x.startDate), den: ymd(x.endDate) })),
+  });
 });
 
 // ───────────────────────────────────────────────
