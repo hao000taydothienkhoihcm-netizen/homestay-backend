@@ -1,5 +1,6 @@
 node_modules/
 .env
+.env.bak-*
 *.log
 *.log.err
 ket-qua-thu.*
