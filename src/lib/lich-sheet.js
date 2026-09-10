@@ -140,20 +140,42 @@ export function docTab(sheet, tenTab) {
   const HANG = Math.min(sheet.rowCount || 60, 400);
 
   // ── 1. Cột nào là cột ngày ──
+  // Hai kiểu cột ngày gặp thật:
+  //   'ngay'   — ô chứa ngày đầy đủ (01/09/2026, hoặc công thức =B5+1)
+  //   'songay' — ô chỉ ghi SỐ NGÀY trong tháng: 1, 2, 3… Tháng/năm lấy từ tên tab.
+  // Cột "số ngày" dễ nhầm với cột số khách / số phòng, nên bắt buộc phải TĂNG DẦN
+  // liên tiếp ít nhất 6 lần thì mới nhận.
+  const soNgayCuaO = (v) => {
+    const n = soO(v);
+    if (n != null) return Number.isInteger(n) && n >= 1 && n <= 31 ? n : null;
+    const s = chuoiO(v).trim();
+    return /^\d{1,2}$/.test(s) && +s >= 1 && +s <= 31 ? +s : null;
+  };
+
   const cotNgay = [];
   for (let c = 1; c <= COT; c++) {
-    let dem = 0, dau = 0;
+    let demNgay = 0, dauNgay = 0, demSo = 0, dauSo = 0, truoc = 0, tang = 0;
     for (let r = 1; r <= HANG; r++) {
-      if (docNgay(sheet.getRow(r).getCell(c).value)) { dem++; if (!dau) dau = r; }
+      const v = sheet.getRow(r).getCell(c).value;
+      if (docNgay(v)) { demNgay++; if (!dauNgay) dauNgay = r; continue; }
+      const n = soNgayCuaO(v);
+      if (n != null) {
+        demSo++; if (!dauSo) dauSo = r;
+        if (n === truoc + 1) tang++;
+        truoc = n;
+      }
     }
-    if (dem >= 8) cotNgay.push({ c, hangDau: dau });
+    if (demNgay >= 8) cotNgay.push({ c, hangDau: dauNgay, kieu: 'ngay' });
+    else if (moc && demSo >= 8 && tang >= 6) cotNgay.push({ c, hangDau: dauSo, kieu: 'songay' });
   }
   if (!cotNgay.length) return [];
 
   const khoi = [];
   for (let i = 0; i < cotNgay.length; i++) {
     const d = cotNgay[i];
-    const het = Math.min(i + 1 < cotNgay.length ? cotNgay[i + 1].c - 1 : d.c + 6, COT);
+    // Cột ngày cuối cùng thì quét tới hết bảng: kiểu "một cột ngày dùng chung" có thể
+    // có hơn chục căn xếp sau nó. Cột thừa sẽ bị loại ở bước kiểm "có gì không".
+    const het = i + 1 < cotNgay.length ? Math.min(cotNgay[i + 1].c - 1, COT) : COT;
     const hangTieuDe = Math.max(1, d.hangDau - 1);
 
     const timTen = (cot) => {
@@ -177,7 +199,14 @@ export function docTab(sheet, tenTab) {
       const ngay = [];
       for (let r = d.hangDau; r <= HANG; r++) {
         const hang = sheet.getRow(r);
-        const n = docNgay(hang.getCell(d.c).value);
+        const oNgay = hang.getCell(d.c).value;
+        let n = null;
+        if (d.kieu === 'songay') {
+          const x = soNgayCuaO(oNgay);
+          if (x != null) n = { d: x, m: moc.m, y: moc.y };
+        } else {
+          n = docNgay(oNgay);
+        }
         if (!n) { if (ngay.length) break; continue; }
         if (n.d < 1 || n.d > 31) continue;
         // Năm/tháng gõ sai trong ô rất hay gặp ("01/09/0206"). Tên tab đáng tin hơn.
@@ -208,7 +237,7 @@ export function docTab(sheet, tenTab) {
 }
 
 /** Tải bảng tính công khai về dạng .xlsx rồi đọc. */
-export async function taiVaDoc(spreadsheetId, hetHan = 30000) {
+export async function taiVaDoc(spreadsheetId, hetHan = 75000) {
   const bo = new AbortController();
   const h = setTimeout(() => bo.abort(), hetHan);
   try {
