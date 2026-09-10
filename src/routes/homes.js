@@ -356,6 +356,15 @@ router.patch('/:id/cho', requireRole(...CHU_WORKSPACE), async (req, res) => {
     coCheHoaHong: ['PHAN_TRAM', 'GIA_SAN'].includes(b.coCheHoaHong) ? b.coCheHoaHong : null,
     listPrice: soNguyen(b.listPrice), commissionPct: soNguyen(b.commissionPct),
     floorPrice: soNguyen(b.floorPrice), markupMin: soNguyen(b.markupMin), markupMax: soNguyen(b.markupMax),
+    // Giá theo LOẠI ĐÊM. Để trống là cố ý: chợ tự lùi lễ -> cuối tuần -> thường,
+    // nên host chỉ khai chỗ nào khác biệt, không phải điền đủ ba ô cho mỗi cơ chế.
+    listPriceWeekend: soNguyen(b.listPriceWeekend), listPriceHoliday: soNguyen(b.listPriceHoliday),
+    floorPriceWeekend: soNguyen(b.floorPriceWeekend), floorPriceHoliday: soNguyen(b.floorPriceHoliday),
+    markupHoliday: soNguyen(b.markupHoliday),
+    // Nguồn lịch: TẠM THỜI chỉ nhận APP (mức ①) hoặc bỏ trống (mức ④).
+    // ICAL/SHEET vẫn nằm trong schema nhưng CHƯA có job đồng bộ — cho host chọn bây giờ
+    // là dựng chợ hiện "Tự động đồng bộ" trong khi không ai đồng bộ cả, tức là nói dối sales.
+    lichNguon: b.lichNguon === 'APP' ? 'APP' : null,
   };
   // Địa chỉ chính xác dùng chung cột `address` của căn (nhập ở tab "Thông tin căn"),
   // KHÔNG có ô riêng ở đây — trước có cột `street` trùng chức năng, nay bỏ không dùng.
