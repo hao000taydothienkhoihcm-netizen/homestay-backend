@@ -225,15 +225,24 @@ export function docTab(sheet, tenTab) {
           ghiChu: (laGia ? chuoiO(hang.getCell(c + 2).value).trim() : (so == null ? chu : '')) || null,
         });
       }
-      // Cột phải THỰC SỰ có gì đó mới tính là căn: có ô giá, có màu, hoặc có ghi chú.
-      // Chỉ có mỗi cái tên (do ô tên bị gộp ô tràn sang) là cột ma — bỏ.
-      const coGi = ngay.some((x) => x.gia || x.trangThai !== 'trong' || x.ghiChu);
+      // Cột phải có GIÁ hoặc có MÀU mới tính là lịch của một căn.
+      // Chỉ có chữ thì đó là cột ghi chú, hoặc là ô tên của căn kế bên tràn sang —
+      // nhận nhầm sẽ đẻ ra một căn ma "trống cả tháng" nằm cạnh căn thật.
+      const coGi = ngay.some((x) => x.gia != null || x.trangThai !== 'trong');
       if (ngay.length && (laGia || coGi)) {
         khoi.push({ ten: ten || '(không rõ tên)', cot: c, cotNgay: d.c, ngay });
       }
     }
   }
-  return khoi;
+
+  // Hai khối trùng tên (ô tên bị gộp ngang) — giữ khối nhiều thông tin hơn.
+  const diem = (k) => k.ngay.filter((n) => n.gia != null).length + k.ngay.filter((n) => n.trangThai !== 'trong').length;
+  const tot = new Map();
+  for (const k of khoi) {
+    const key = k.ten.toLowerCase().replace(/\s+/g, '');
+    if (!tot.has(key) || diem(k) > diem(tot.get(key))) tot.set(key, k);
+  }
+  return khoi.filter((k) => tot.get(k.ten.toLowerCase().replace(/\s+/g, '')) === k);
 }
 
 /** Tải bảng tính công khai về dạng .xlsx rồi đọc. */
