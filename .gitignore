@@ -10,3 +10,6 @@ dist/
 # Ban sao luu du lieu that � KHONG bao gio dua len git
 _sao-luu/
 scripts/du-lieu/ 
+_sheet/ 
+_thu-lich.log 
+_sheet-dau.html 
