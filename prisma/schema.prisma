@@ -139,6 +139,7 @@ model Home {
   street         String? // số nhà & tên đường (address = địa chỉ chính xác, chỉ sales thấy sau duyệt)
   ward           String? // phường/xã — lọc khu vực + chống trùng
   landmark       String? // điểm mốc gần
+  kmTrungTam     Float? // km tới chợ Đà Lạt — sales lọc "trong 3 km"; null = chưa đo
   bedrooms       Int? // số phòng ngủ
   bedroomsSingle Int? // phòng đơn
   bedroomsDouble Int? // phòng đôi

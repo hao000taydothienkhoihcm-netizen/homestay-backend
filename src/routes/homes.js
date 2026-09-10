@@ -299,6 +299,11 @@ const CHILD_6 = ['NHU_NGUOI_LON', 'PHU_THU_50', 'MIEN_PHI'];
 
 const chuoi = (v, max = 500) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : null);
 const soNguyen = (v) => { const n = parseInt(v); return Number.isFinite(n) && n >= 0 ? n : null; };
+// km tới trung tâm — cho phép lẻ (1,5 km). Trên 100 km là gõ nhầm, bỏ.
+const soLe = (v, max = 100) => {
+  const n = Number(String(v).replace(',', '.'));
+  return Number.isFinite(n) && n >= 0 && n <= max ? Math.round(n * 10) / 10 : null;
+};
 const mangChuoi = (v, max = 20, len = 120) =>
   Array.isArray(v) ? [...new Set(v.map((s) => chuoi(s, len)).filter(Boolean))].slice(0, max) : [];
 
@@ -314,6 +319,7 @@ router.patch('/:id/cho', requireRole(...CHU_WORKSPACE), async (req, res) => {
   const data = {
     salesTitle: chuoi(b.salesTitle, 150),
     landmark: chuoi(b.landmark, 200),
+    kmTrungTam: soLe(b.kmTrungTam),
     bedrooms: soNguyen(b.bedrooms), bedroomsSingle: soNguyen(b.bedroomsSingle), bedroomsDouble: soNguyen(b.bedroomsDouble),
     minGuests: soNguyen(b.minGuests),
     roomNotes: mangChuoi(b.roomNotes, 20, 200),

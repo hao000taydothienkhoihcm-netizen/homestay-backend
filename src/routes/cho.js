@@ -29,7 +29,7 @@ const ngayHopLe = (s) => typeof s === 'string' && YMD.test(s) && !Number.isNaN(n
 // DANH SÁCH TRẮNG — chỉ những cột này ra khỏi hệ thống cho sales.
 const CHON_CHO = {
   id: true, hostId: true,
-  salesTitle: true, ward: true, landmark: true,
+  salesTitle: true, ward: true, landmark: true, kmTrungTam: true,
   maxGuests: true, minGuests: true,
   bedrooms: true, bedroomsSingle: true, bedroomsDouble: true, roomNotes: true,
   amenities: true,
@@ -127,10 +127,26 @@ function goiCan(h) {
 
 // ───────────────────────────────────────────────
 // GET /v1/cho  — danh sách căn đang bán
-// Lọc: ?ward= &khach= &q= &tu=&den= (còn trống trọn khoảng) &trangCanKe (bỏ căn cùng host?)
+//
+// Lọc cơ bản : ?ward= &khach= (= người lớn) &q= &tu=&den= (còn trống trọn khoảng)
+// Lọc sâu    : &pnMin= (phòng ngủ tối thiểu) &kmMax= &giaMin=&giaMax= (VNĐ, GIÁ HOST NHẬN)
+//              &tienIch=a,b,c (phải có ĐỦ) &sap= muc|giaAsc|giaDesc|sucChua|km
+//
+// VÌ SAO LỌC GIÁ THEO GIÁ HOST NHẬN, KHÔNG PHẢI GIÁ KHÁCH TRẢ:
+// khách nói "tầm 2 triệu" là nói giá họ trả, nhưng sales còn cắt bớt hoa hồng được.
+// Lọc theo giá sàn host mới ra đúng rổ căn sales có thể xoay xở. Mockup chốt vậy.
+//
+// Trẻ dưới 6 tuổi CỐ Ý không gửi lên đây: chỉ người lớn tính vào sức chứa, nên
+// lọc bằng `khach` là đủ — web chỉ dùng số trẻ để nhắc sales.
 // ───────────────────────────────────────────────
+const SAP_HOP_LE = ['muc', 'giaAsc', 'giaDesc', 'sucChua', 'km'];
+const DAI_SO_DEM = 14;               // dải lịch hiện trên thẻ căn
+
+const soDuong = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : 0; };
+
 router.get('/', requireRole(...XEM_CHO), async (req, res) => {
-  const { ward, khach, q, tu, den } = req.query;
+  const { ward, khach, q, tu, den, pnMin, kmMax, giaMin, giaMax, tienIch, sap } = req.query;
+
   const where = { choTrangThai: 'DANG_BAN', active: true };
   if (ward && String(ward).trim()) where.ward = String(ward).trim();
   const soKhach = parseInt(khach);
@@ -143,10 +159,48 @@ router.get('/', requireRole(...XEM_CHO), async (req, res) => {
       { ward: { contains: s, mode: 'insensitive' } },
     ];
   }
+  const soPn = soDuong(pnMin);
+  if (soPn) where.bedrooms = { gte: soPn };
 
-  let rows = await prisma.home.findMany({ where, select: CHON_CHO, orderBy: { id: 'asc' } });
+  const [tongCan, thoBan] = await Promise.all([
+    prisma.home.count({ where: { choTrangThai: 'DANG_BAN', active: true } }),
+    prisma.home.findMany({ where, select: CHON_CHO, orderBy: { id: 'asc' } }),
+  ]);
+  let rows = thoBan;
 
-  // Lọc theo khoảng ngày: chỉ giữ căn TRỐNG TRỌN VẸN [tu, den) — một đêm bận là loại.
+  // ───── Cách trung tâm ─────
+  // Căn CHƯA ĐO km bị loại khi bộ lọc này bật — không thể khẳng định nó trong bán kính.
+  // Đếm riêng để nói thẳng với sales, đỡ tưởng hết hàng.
+  const kmToiDa = soDuong(kmMax);
+  let chuaDoKm = 0;
+  if (kmToiDa) {
+    chuaDoKm = rows.filter((r) => r.kmTrungTam == null).length;
+    rows = rows.filter((r) => r.kmTrungTam != null && r.kmTrungTam <= kmToiDa);
+  }
+
+  // ───── Tiện ích: phải có ĐỦ, khớp lỏng ─────
+  // Host gõ "Sân BBQ", "BBQ ngoài trời"… nên so kiểu chứa-chuỗi thay vì bằng tuyệt đối.
+  const canTienIch = String(tienIch || '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+  if (canTienIch.length) {
+    rows = rows.filter((r) => {
+      const co = (r.amenities || []).map((x) => String(x).toLowerCase());
+      return canTienIch.every((t) => co.some((x) => x.includes(t)));
+    });
+  }
+
+  // ───── Khoảng giá (VNĐ / đêm, giá host nhận, đêm thường) ─────
+  const gMin = soDuong(giaMin), gMax = soDuong(giaMax);
+  if (gMin || gMax) {
+    rows = rows.filter((r) => {
+      const h = motDem(r, 'thuong');
+      if (!h) return false;
+      if (gMin && h.hostNhan < gMin) return false;
+      if (gMax && h.hostNhan > gMax) return false;
+      return true;
+    });
+  }
+
+  // ───── Khoảng ngày: chỉ giữ căn TRỐNG TRỌN VẸN [tu, den) — một đêm bận là loại ─────
   let khoang = null;
   if (ngayHopLe(tu) && ngayHopLe(den) && tu < den) {
     khoang = { tu, den };
@@ -172,7 +226,56 @@ router.get('/', requireRole(...XEM_CHO), async (req, res) => {
     rows = rows.filter((r) => !r.minGuests || soKhach >= r.minGuests);
   }
 
-  res.json({ khoang, soCan: rows.length, can: rows.map(goiCan) });
+  // ───── Dải 14 đêm cho từng thẻ ─────
+  // Sales lướt danh sách là thấy ngay căn nào sắp kín — đúng việc họ cần.
+  // Một truy vấn cho cả trang, không phải mỗi căn một lần.
+  const homNay = ymd(new Date());
+  const daiTu = ngayHopLe(tu) && tu > homNay ? tu : homNay;
+  const daiDen = ymd(new Date(ngayUTC(daiTu).getTime() + DAI_SO_DEM * 864e5));
+  const banTheoCan = new Map();
+  const ids = rows.map((r) => r.id);
+  if (ids.length) {
+    const [bks, khoa] = await Promise.all([
+      prisma.booking.findMany({
+        where: { homeId: { in: ids }, checkIn: { lt: ngayUTC(daiDen) }, checkOut: { gt: ngayUTC(daiTu) } },
+        select: { homeId: true, checkIn: true, checkOut: true },
+      }),
+      prisma.lichKhoa.findMany({
+        where: { homeId: { in: ids }, ngay: { gte: ngayUTC(daiTu), lt: ngayUTC(daiDen) } },
+        select: { homeId: true, ngay: true },
+      }),
+    ]);
+    const them = (idCan, s) => {
+      if (s < daiTu || s >= daiDen) return;
+      if (!banTheoCan.has(idCan)) banTheoCan.set(idCan, new Set());
+      banTheoCan.get(idCan).add(s);
+    };
+    for (const b of bks) {
+      for (let d = new Date(b.checkIn); d < b.checkOut; d.setUTCDate(d.getUTCDate() + 1)) them(b.homeId, ymd(d));
+    }
+    for (const k of khoa) them(k.homeId, ymd(k.ngay));
+  }
+
+  // ───── Sắp xếp ─────
+  const kieu = SAP_HOP_LE.includes(String(sap)) ? String(sap) : 'muc';
+  const giaThuong = (r) => { const d = motDem(r, 'thuong'); return d ? d.khachTra : Number.MAX_SAFE_INTEGER; };
+  rows.sort((a, b) => (
+    kieu === 'giaAsc' ? giaThuong(a) - giaThuong(b)
+      : kieu === 'giaDesc' ? giaThuong(b) - giaThuong(a)
+        : kieu === 'sucChua' ? b.maxGuests - a.maxGuests
+          : kieu === 'km' ? (a.kmTrungTam ?? 1e9) - (b.kmTrungTam ?? 1e9)
+            : tinhMucLich(a) - tinhMucLich(b)
+  ) || a.id - b.id);
+
+  res.json({
+    khoang,
+    tongCan,                       // tổng căn đang bán, để web nói "x căn bị loại"
+    chuaDoKm,                      // căn rớt vì chưa đo km — nói cho sales biết, đừng giấu
+    sap: kieu,
+    dai: { tu: daiTu, soDem: DAI_SO_DEM },
+    soCan: rows.length,
+    can: rows.map((r) => ({ ...goiCan(r), ban: [...(banTheoCan.get(r.id) || [])].sort() })),
+  });
 });
 
 // Danh sách phường CÓ CĂN ĐANG BÁN — để ô lọc chỉ hiện phường thật sự có hàng.
@@ -182,6 +285,37 @@ router.get('/phuong', requireRole(...XEM_CHO), async (_req, res) => {
     select: { ward: true }, distinct: ['ward'], orderBy: { ward: 'asc' },
   });
   res.json(rows.map((r) => r.ward));
+});
+
+// Tiện ích CÓ THẬT trong rổ hàng, kèm số căn — chip lọc dựng từ đây thay vì
+// danh sách cứng, để không bao giờ có chip bấm vào ra 0 căn.
+// Gom theo chữ thường và cắt cụm hay gặp ("Sân BBQ" và "BBQ ngoài trời" về một mối).
+const NHOM_TIEN_ICH = ['hồ bơi', 'bbq', 'bếp', 'lò sưởi', 'máy giặt', 'sân vườn', 'karaoke', 'view'];
+
+router.get('/tien-ich', requireRole(...XEM_CHO), async (_req, res) => {
+  const rows = await prisma.home.findMany({
+    where: { choTrangThai: 'DANG_BAN', active: true },
+    select: { amenities: true },
+  });
+  const dem = new Map(NHOM_TIEN_ICH.map((t) => [t, 0]));
+  const le = new Map();
+  for (const r of rows) {
+    const co = new Set();
+    for (const a of r.amenities || []) {
+      const s = String(a).toLowerCase();
+      const nhom = NHOM_TIEN_ICH.find((t) => s.includes(t));
+      if (nhom) co.add(nhom);
+      else le.set(s, (le.get(s) || 0) + 1);
+    }
+    for (const t of co) dem.set(t, dem.get(t) + 1);
+  }
+  const TEN = { bbq: 'BBQ', view: 'View đẹp' };
+  const hoa = (t) => TEN[t] || t.charAt(0).toUpperCase() + t.slice(1);
+  const ds = [...dem].filter(([, n]) => n > 0).map(([t, n]) => ({ khoa: t, ten: hoa(t), soCan: n }));
+  // Tiện ích lẻ phổ biến (từ 5 căn trở lên) cũng cho lên, host đặt tên gì cũng nhận.
+  for (const [t, n] of le) if (n >= 5) ds.push({ khoa: t, ten: hoa(t), soCan: n });
+  ds.sort((a, b) => b.soCan - a.soCan);
+  res.json(ds.slice(0, 12));
 });
 
 // ───────────────────────────────────────────────

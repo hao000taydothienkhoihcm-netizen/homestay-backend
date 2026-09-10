@@ -102,7 +102,9 @@ for (const [, h] of chu) {
         salesTitle: c.ten,
         street: [c.soNha, c.duong].filter(Boolean).join(' ') || null,
         ward: c.phuong,
-        landmark: c.km ? `cách chợ Đà Lạt ${c.km} km` : null,
+        // Khoảng cách đã có cột riêng — đừng nhét vào landmark nữa, thẻ căn sẽ nói hai lần.
+        landmark: null,
+        kmTrungTam: Number.isFinite(c.km) ? c.km : null,
         bedrooms: c.bedrooms,
         minGuests: null,
         amenities: c.tienIch,
