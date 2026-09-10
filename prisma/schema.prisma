@@ -139,6 +139,14 @@ model Home {
   street         String? // số nhà & tên đường (address = địa chỉ chính xác, chỉ sales thấy sau duyệt)
   ward           String? // phường/xã — lọc khu vực + chống trùng
   landmark       String? // điểm mốc gần
+  // ───── Vị trí trên bản đồ ─────
+  // mapLink là link Google Maps host dán vào — CHỨA ĐỊA CHỈ CHÍNH XÁC nên KHÔNG bao giờ
+  // trả ra chợ (không có trong CHON_CHO). Sales chỉ được thấy km và phường.
+  // kmTrungTam suy từ lat/lng khi có, tính theo đường chim bay tới chợ Đà Lạt.
+  mapLink        String?
+  lat            Float?
+  lng            Float?
+  viTriUocChung  Boolean       @default(false) // true = máy dò từ địa chỉ, chưa host xác nhận
   kmTrungTam     Float? // km tới chợ Đà Lạt — sales lọc "trong 3 km"; null = chưa đo
   bedrooms       Int? // số phòng ngủ
   bedroomsSingle Int? // phòng đơn

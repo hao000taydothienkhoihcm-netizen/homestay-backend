@@ -35,6 +35,12 @@ for (const [qs, ten] of thu) {
   console.log(`  ${ten.padEnd(26)} ${String(r.soCan).padStart(3)} can${them}`);
 }
 
+console.log('\nO tim — go ten duong (truoc day bi sot vi chi quet tieu de):');
+for (const t of ['Trần Thái Tông', 'Nguyễn Công Trứ', 'Hùng Vương', 'view đồi']) {
+  const r = await goi('q=' + encodeURIComponent(t));
+  console.log(`  "${t}"`.padEnd(24), r.soCan, 'can', r.can.slice(0, 2).map((c) => c.salesTitle).join(' · '));
+}
+
 console.log('\nSap xep:');
 for (const s of ['muc', 'giaAsc', 'giaDesc', 'sucChua', 'km']) {
   const r = await goi('sap=' + s);
@@ -47,7 +53,7 @@ for (const s of ['muc', 'giaAsc', 'giaDesc', 'sucChua', 'km']) {
 
 const ct = await (await fetch(G + `/v1/cho/${goc.can[0].id}`, { headers: H })).json();
 console.log('\nChi tiet can dau — truong KHONG duoc lo:');
-for (const k of ['address', 'street', 'caretakerPhone', 'rules', 'floorPrice', 'name']) {
+for (const k of ['address', 'street', 'caretakerPhone', 'rules', 'floorPrice', 'name', 'lat', 'lng', 'mapLink']) {
   console.log(`  ${k.padEnd(16)} ${k in ct ? '✕ BI LO' : '✓ khong co'}`);
 }
 console.log('  kmTrungTam       ', 'kmTrungTam' in ct ? '✓ co (duoc phep)' : '— khong co');

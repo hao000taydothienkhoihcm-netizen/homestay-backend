@@ -2,6 +2,7 @@ import { routerAnToan } from '../lib/router-an-toan.js';
 import { prisma } from '../prisma.js';
 import { requireRole, hostWhere, ownHostId, findOwn, updateOwn, notFound, CHU_WORKSPACE, QUAN_LY } from '../middleware/auth.js';
 import { loadPriceTable, stayTotal, isWeekendNight } from '../services/bookingService.js';
+import { docViTri } from '../lib/vitri.js';
 
 const router = routerAnToan();
 
@@ -316,10 +317,30 @@ router.patch('/:id/cho', requireRole(...CHU_WORKSPACE), async (req, res) => {
   if (!cu) return notFound(res, 'căn nhà');
   const b = req.body || {};
 
+  // ───── Vị trí: host dán link Google Maps thì máy tự ra toạ độ + km ─────
+  // Không dán link thì GIỮ NGUYÊN toạ độ cũ (có thể do máy dò từ địa chỉ) và chỉ nhận
+  // số km gõ tay. Route này ghi đè cả loạt cột, nên phải nói rõ chỗ nào được giữ lại.
+  const mapLink = chuoi(b.mapLink, 800);
+  let canhBaoViTri = null;
+  let viTri;
+  if (mapLink) {
+    const t = await docViTri(mapLink);
+    if (t) {
+      viTri = { mapLink, lat: t.lat, lng: t.lng, viTriUocChung: false, kmTrungTam: t.km };
+      if (t.daDao) canhBaoViTri = 'Toạ độ trong link bị đảo thứ tự, đã tự sửa lại giúp bạn.';
+    } else {
+      // Lưu link để host không mất công dán lại, nhưng không bịa toạ độ.
+      viTri = { mapLink, lat: cu.lat, lng: cu.lng, viTriUocChung: cu.viTriUocChung, kmTrungTam: soLe(b.kmTrungTam) ?? cu.kmTrungTam };
+      canhBaoViTri = 'Chưa đọc được toạ độ từ link này. Mở Google Maps, bấm Chia sẻ → Sao chép liên kết rồi dán lại.';
+    }
+  } else {
+    viTri = { mapLink: null, lat: cu.lat, lng: cu.lng, viTriUocChung: cu.viTriUocChung, kmTrungTam: soLe(b.kmTrungTam) ?? cu.kmTrungTam };
+  }
+
   const data = {
     salesTitle: chuoi(b.salesTitle, 150),
     landmark: chuoi(b.landmark, 200),
-    kmTrungTam: soLe(b.kmTrungTam),
+    ...viTri,
     bedrooms: soNguyen(b.bedrooms), bedroomsSingle: soNguyen(b.bedroomsSingle), bedroomsDouble: soNguyen(b.bedroomsDouble),
     minGuests: soNguyen(b.minGuests),
     roomNotes: mangChuoi(b.roomNotes, 20, 200),
@@ -374,7 +395,8 @@ router.patch('/:id/cho', requireRole(...CHU_WORKSPACE), async (req, res) => {
 
   const n = await updateOwn(prisma.home, req, id, data);
   if (!n) return notFound(res, 'căn nhà');
-  res.json(await findOwn(prisma.home, req, id));
+  const sau = await findOwn(prisma.home, req, id);
+  res.json(canhBaoViTri ? { ...sau, canhBaoViTri } : sau);
 });
 
 // ═══════════════════ GĐ3: LỊCH KHOÁ TAY ═══════════════════

@@ -29,7 +29,9 @@ const ngayHopLe = (s) => typeof s === 'string' && YMD.test(s) && !Number.isNaN(n
 // DANH SÁCH TRẮNG — chỉ những cột này ra khỏi hệ thống cho sales.
 const CHON_CHO = {
   id: true, hostId: true,
-  salesTitle: true, ward: true, landmark: true, kmTrungTam: true,
+  // kmTrungTam + viTriUocChung được phép ra chợ. lat/lng/mapLink/address thì KHÔNG:
+  // toạ độ chính là địa chỉ chính xác, chỉ lộ sau khi host duyệt giữ chỗ (GĐ4).
+  salesTitle: true, ward: true, landmark: true, kmTrungTam: true, viTriUocChung: true,
   maxGuests: true, minGuests: true,
   bedrooms: true, bedroomsSingle: true, bedroomsDouble: true, roomNotes: true,
   amenities: true,
@@ -153,10 +155,15 @@ router.get('/', requireRole(...XEM_CHO), async (req, res) => {
   if (Number.isFinite(soKhach) && soKhach > 0) where.maxGuests = { gte: soKhach };
   if (q && String(q).trim()) {
     const s = String(q).trim();
+    // Quét cả `street` và `address`: sales gõ "Trần Thái Tông" hay "hẻm Nguyễn Công Trứ"
+    // là ra căn ngay, thay vì sót chỉ vì tiêu đề bán hàng không nhắc tên đường.
+    // TÌM trên hai cột đó KHÔNG làm lộ chúng — danh sách cột trả về vẫn là CHON_CHO.
     where.OR = [
       { salesTitle: { contains: s, mode: 'insensitive' } },
       { landmark: { contains: s, mode: 'insensitive' } },
       { ward: { contains: s, mode: 'insensitive' } },
+      { street: { contains: s, mode: 'insensitive' } },
+      { address: { contains: s, mode: 'insensitive' } },
     ];
   }
   const soPn = soDuong(pnMin);
@@ -182,10 +189,7 @@ router.get('/', requireRole(...XEM_CHO), async (req, res) => {
   // Host gõ "Sân BBQ", "BBQ ngoài trời"… nên so kiểu chứa-chuỗi thay vì bằng tuyệt đối.
   const canTienIch = String(tienIch || '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
   if (canTienIch.length) {
-    rows = rows.filter((r) => {
-      const co = (r.amenities || []).map((x) => String(x).toLowerCase());
-      return canTienIch.every((t) => co.some((x) => x.includes(t)));
-    });
+    rows = rows.filter((r) => canTienIch.every((t) => khopTienIch(r.amenities, t)));
   }
 
   // ───── Khoảng giá (VNĐ / đêm, giá host nhận, đêm thường) ─────
@@ -287,35 +291,43 @@ router.get('/phuong', requireRole(...XEM_CHO), async (_req, res) => {
   res.json(rows.map((r) => r.ward));
 });
 
-// Tiện ích CÓ THẬT trong rổ hàng, kèm số căn — chip lọc dựng từ đây thay vì
-// danh sách cứng, để không bao giờ có chip bấm vào ra 0 căn.
-// Gom theo chữ thường và cắt cụm hay gặp ("Sân BBQ" và "BBQ ngoài trời" về một mối).
-const NHOM_TIEN_ICH = ['hồ bơi', 'bbq', 'bếp', 'lò sưởi', 'máy giặt', 'sân vườn', 'karaoke', 'view'];
+// ───── Tiện ích để lọc ─────
+// Trả ĐỦ danh sách chuẩn kèm số căn thật, kể cả loại đang 0 căn. Web làm mờ cái 0 lại.
+// Cố ý không giấu: chip mờ nói "chưa host nào khai", còn giấu đi thì sales tưởng app thiếu.
+// Khớp lỏng theo từ khoá vì host gõ mỗi người một kiểu ("Sân BBQ", "BBQ ngoài trời").
+const TIEN_ICH_CHUAN = [
+  { khoa: 'hồ bơi', ten: 'Hồ bơi', tu: ['hồ bơi', 'ho boi', 'bể bơi', 'pool'] },
+  { khoa: 'bbq', ten: 'BBQ', tu: ['bbq', 'nướng'] },
+  { khoa: 'bếp', ten: 'Bếp', tu: ['bếp', 'bep', 'kitchen'] },
+  { khoa: 'lò sưởi', ten: 'Lò sưởi', tu: ['lò sưởi', 'lo suoi', 'fireplace'] },
+  { khoa: 'máy giặt', ten: 'Máy giặt', tu: ['máy giặt', 'may giat'] },
+  { khoa: 'sân vườn', ten: 'Sân vườn', tu: ['sân vườn', 'san vuon', 'vườn'] },
+  { khoa: 'karaoke', ten: 'Karaoke', tu: ['karaoke', 'loa kẹo'] },
+  { khoa: 'view', ten: 'View đẹp', tu: ['view', 'tầm nhìn'] },
+  { khoa: 'máy lạnh', ten: 'Máy lạnh', tu: ['máy lạnh', 'may lanh', 'điều hoà', 'điều hòa'] },
+  { khoa: 'bồn tắm', ten: 'Bồn tắm', tu: ['bồn tắm', 'bon tam', 'jacuzzi'] },
+  { khoa: 'thang máy', ten: 'Thang máy', tu: ['thang máy', 'thang may'] },
+  { khoa: 'thú cưng', ten: 'Cho mang thú cưng', tu: ['thú cưng', 'thu cung', 'pet'] },
+];
+
+/** Dùng chung cho cả bộ lọc lẫn phần đếm — một luật khớp duy nhất, không lệch nhau. */
+export function khopTienIch(amenities, khoa) {
+  const nhom = TIEN_ICH_CHUAN.find((x) => x.khoa === khoa);
+  const tu = nhom ? nhom.tu : [String(khoa).toLowerCase()];
+  return (amenities || []).some((a) => {
+    const s = String(a).toLowerCase();
+    return tu.some((t) => s.includes(t));
+  });
+}
 
 router.get('/tien-ich', requireRole(...XEM_CHO), async (_req, res) => {
   const rows = await prisma.home.findMany({
     where: { choTrangThai: 'DANG_BAN', active: true },
     select: { amenities: true },
   });
-  const dem = new Map(NHOM_TIEN_ICH.map((t) => [t, 0]));
-  const le = new Map();
-  for (const r of rows) {
-    const co = new Set();
-    for (const a of r.amenities || []) {
-      const s = String(a).toLowerCase();
-      const nhom = NHOM_TIEN_ICH.find((t) => s.includes(t));
-      if (nhom) co.add(nhom);
-      else le.set(s, (le.get(s) || 0) + 1);
-    }
-    for (const t of co) dem.set(t, dem.get(t) + 1);
-  }
-  const TEN = { bbq: 'BBQ', view: 'View đẹp' };
-  const hoa = (t) => TEN[t] || t.charAt(0).toUpperCase() + t.slice(1);
-  const ds = [...dem].filter(([, n]) => n > 0).map(([t, n]) => ({ khoa: t, ten: hoa(t), soCan: n }));
-  // Tiện ích lẻ phổ biến (từ 5 căn trở lên) cũng cho lên, host đặt tên gì cũng nhận.
-  for (const [t, n] of le) if (n >= 5) ds.push({ khoa: t, ten: hoa(t), soCan: n });
-  ds.sort((a, b) => b.soCan - a.soCan);
-  res.json(ds.slice(0, 12));
+  res.json(TIEN_ICH_CHUAN.map(({ khoa, ten }) => ({
+    khoa, ten, soCan: rows.filter((r) => khopTienIch(r.amenities, khoa)).length,
+  })));
 });
 
 // ───────────────────────────────────────────────
