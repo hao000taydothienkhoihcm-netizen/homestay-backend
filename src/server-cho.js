@@ -33,6 +33,9 @@ import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
+import path from 'node:path';
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 import { authMiddleware } from './middleware/auth.js';
 import authRouter from './routes/auth.js';
@@ -79,6 +82,23 @@ app.use('/v1/auth', authRouter);
 
 app.use('/v1', authMiddleware);
 app.use('/v1/cho', choRouter);
+
+// ───── Web chợ (build từ ../sabicho) ─────
+// Đặt SAU các route /v1 để không bao giờ nuốt mất API.
+const THU_MUC = path.dirname(fileURLToPath(import.meta.url));
+const WEB = path.join(THU_MUC, '..', 'public-cho');
+if (fs.existsSync(path.join(WEB, 'index.html'))) {
+  // File băm tên (index-<hash>.js) đổi tên mỗi lần build nên cache lâu được.
+  app.use('/assets', express.static(path.join(WEB, 'assets'), {
+    maxAge: '1y', immutable: true,
+  }));
+  app.use(express.static(WEB, { index: false, maxAge: '1h' }));
+  // App một trang: mọi đường dẫn còn lại trả index.html, TRỪ /v1 (đã xử lý ở trên
+  // và phải để rơi xuống 404 JSON, không thì lỗi gõ sai API lại trả về trang HTML).
+  app.get(/^(?!\/v1(\/|$)).*/, (_req, res) => res.sendFile(path.join(WEB, 'index.html')));
+} else {
+  console.warn('⚠  Chưa có public-cho/index.html — chạy `npm run build` trong ../sabicho');
+}
 
 // ───── Error handler ─────
 app.use((err, req, res, next) => {
