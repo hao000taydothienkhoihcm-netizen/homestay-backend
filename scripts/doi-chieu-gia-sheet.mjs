@@ -141,6 +141,17 @@ console.log(`Bảng có ghi luật kê: ${coLuat.length} căn`);
 console.log(`Giá sàn lệch bảng  : ${saiSan.length} căn`);
 console.log(`Mức kê lệch bảng   : ${saiKe.length} căn`);
 
+// GIÁ LỄ: không đối chiếu được nếu kho chưa khai kỳ lễ nào rơi vào 3 tháng đang đọc.
+// Đây không phải lỗi vặt: kho trống ngày lễ thì CHỢ CŨNG không biết đêm nào là lễ,
+// nên đêm Tết vẫn đang tính giá cuối tuần, và cột "giá lễ" trên màn sales chỉ là con
+// số nằm đó chứ không bao giờ được dùng.
+const leTrong3Thang = le.filter((h) => {
+  const a = h.startDate.toISOString().slice(0, 10), b = h.endDate.toISOString().slice(0, 10);
+  return thangCanDoc.some((t) => { const k = `${t.y}-${String(t.m).padStart(2, '0')}`; return a.slice(0, 7) <= k && b.slice(0, 7) >= k; });
+});
+const soLeSau = co.filter((x) => x.sheetLe).length;
+console.log(`Giá lễ đối chiếu   : ${soLeSau} căn` + (leTrong3Thang.length ? '' : `  ⚠ kho chưa khai kỳ lễ nào trong ${thangCanDoc.map((t) => t.m + '/' + t.y).join(', ')} — không có đêm nào để so, và chợ cũng đang tính đêm lễ như đêm thường`));
+
 console.log('\n── Lệch giá sàn (bảng chủ nhà ≠ chợ) ──');
 for (const x of saiSan.slice(0, 40)) {
   const d = [];
@@ -202,6 +213,10 @@ const yeu = co.filter((x) => (lech(x.sheetThuong?.gia, x.floorPrice) && !chacCha
 console.log(`\n(${yeu.length} căn có lệch nhưng bằng chứng mỏng — chỉ báo, KHÔNG tự sửa: ${yeu.map((x) => x.ma).join(' ')})`);
 
 if (GHI) {
+  // Đọc 21 bảng tính mất cả chục phút; trong lúc đó Neon đóng kết nối rảnh.
+  // Nối lại trước khi ghi, không thì cả mẻ sửa rơi hết ở dòng đầu tiên.
+  try { await db.$disconnect(); } catch { /* kệ */ }
+  await db.$connect();
   let n = 0;
   for (const x of co) {
     const d = {};
@@ -210,7 +225,12 @@ if (GHI) {
     if (lech(x.luatThuong, x.markupMin)) { d.markupMin = x.luatThuong; d.markupMax = x.luatThuong; }
     if (lech(x.luatLe, x.markupHoliday)) d.markupHoliday = x.luatLe;
     if (!Object.keys(d).length) continue;
-    await db.home.update({ where: { id: x.id }, data: d });
+    try {
+      await db.home.update({ where: { id: x.id }, data: d });
+    } catch {
+      await db.$connect();                       // đứt giữa chừng thì nối lại, thử đúng một lần nữa
+      await db.home.update({ where: { id: x.id }, data: d });
+    }
     n++;
   }
   console.log(`Đã sửa ${n} căn theo bảng của chủ nhà.`);

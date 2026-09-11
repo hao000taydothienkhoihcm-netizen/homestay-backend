@@ -1,0 +1,10 @@
+import 'dotenv/config';
+import { PrismaClient } from '@prisma/client';
+const db = new PrismaClient({ datasources: { db: { url: process.env.DATABASE_URL_THU } }, log: ['error'] });
+const ds = await db.holiday.findMany({ orderBy: { startDate: 'asc' } });
+console.log(`${ds.length} kỳ lễ trong kho:`);
+for (const h of ds) console.log(`  ${h.startDate.toISOString().slice(0,10)} → ${h.endDate.toISOString().slice(0,10)}  ${h.name}  (host ${h.hostId ?? 'chung'})`);
+const homNay = new Date().toISOString().slice(0,10);
+const toi = ds.filter((h) => h.endDate.toISOString().slice(0,10) >= homNay);
+console.log(`\nSắp tới: ${toi.length} kỳ` + (toi[0] ? ` · gần nhất ${toi[0].name} ${toi[0].startDate.toISOString().slice(0,10)}` : ''));
+await db.$disconnect();
