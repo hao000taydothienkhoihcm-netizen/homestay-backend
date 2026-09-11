@@ -42,8 +42,25 @@ const gon = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
 const tuKhoa = (s) => new Set(String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
   .replace(/đ/gi, 'd').toLowerCase().split(/[^a-z0-9]+/).filter((x) => x.length >= 2));
 
-/** Trả { khoi, doChac } — 'chac' | 'kha' | 'mo' | null */
-function ghep(tenCan, dsKhoi) {
+/** Giá hay gặp nhất trong một khối — dùng làm bằng chứng phụ khi tên không khớp. */
+function giaHayGap(khoi) {
+  const dem = new Map();
+  for (const n of khoi.ngay) if (n.gia) dem.set(n.gia, (dem.get(n.gia) || 0) + 1);
+  if (!dem.size) return null;
+  return [...dem].sort((a, b) => b[1] - a[1])[0][0];
+}
+const lech = (a, b) => (a && b ? Math.abs(a - b) / Math.max(a, b) : 1);
+
+/**
+ * Trả { khoi, doChac } — 'chac' | 'kha' | 'mo' | null
+ *
+ * VÌ SAO PHẢI CÓ GIÁ Ở ĐÂY: nhiều link lịch không trỏ tới bảng của chủ nhà mà tới bảng
+ * của một đơn vị tổng hợp khác, và bên đó đặt tên căn theo kiểu của họ. Tên lệch hẳn,
+ * nhưng GIÁ THÌ GIỐNG — vì cùng bán một căn. Tên khớp lỏng + giá khớp = hai bằng chứng
+ * độc lập cùng chỉ một chỗ, đủ tin. Còn giá khớp một mình thì KHÔNG đủ: cả chục căn
+ * ở Đà Lạt cùng để 2.000.000/đêm.
+ */
+function ghep(tenCan, dsKhoi, giaCan) {
   if (!dsKhoi.length) return { khoi: null, doChac: null };
   const t = gon(tenCan);
   const bang = dsKhoi.filter((k) => gon(k.ten) === t);
@@ -56,15 +73,25 @@ function ghep(tenCan, dsKhoi) {
   if (chua.length === 1) return { khoi: chua[0], doChac: 'kha' };
 
   const tk = tuKhoa(tenCan);
-  if (tk.size) {
-    const diem = dsKhoi.map((k) => {
-      const b = tuKhoa(k.ten);
-      let chung = 0;
-      for (const x of tk) if (b.has(x)) chung++;
-      return { k, d: chung / tk.size };
-    }).sort((a, b) => b.d - a.d);
-    if (diem[0].d >= 0.6 && (diem.length === 1 || diem[0].d - diem[1].d >= 0.2)) {
-      return { khoi: diem[0].k, doChac: 'mo' };
+  const diem = tk.size ? dsKhoi.map((k) => {
+    const b = tuKhoa(k.ten);
+    let chung = 0;
+    for (const x of tk) if (b.has(x)) chung++;
+    return { k, d: chung / tk.size };
+  }).sort((a, b) => b.d - a.d) : [];
+
+  if (diem.length && diem[0].d >= 0.6 && (diem.length === 1 || diem[0].d - diem[1].d >= 0.2)) {
+    return { khoi: diem[0].k, doChac: 'mo' };
+  }
+
+  // ── Bằng chứng phụ: giá ──
+  if (giaCan) {
+    const gan = dsKhoi.map((k) => ({ k, l: lech(giaHayGap(k), giaCan) })).sort((a, b) => a.l - b.l);
+    const motMinh = gan[0].l <= 0.05 && (gan.length === 1 || gan[1].l >= 0.15);
+    if (motMinh) {
+      // Tên còn dính chút nào không? Dính là đủ hai bằng chứng, tin được.
+      const dTen = (diem.find((x) => x.k === gan[0].k) || {}).d || 0;
+      return { khoi: gan[0].k, doChac: dTen >= 0.4 ? 'kha' : 'mo' };
     }
   }
   return { khoi: null, doChac: null };
@@ -81,7 +108,7 @@ const GHEP_TAY = fs.existsSync(F_TAY) ? JSON.parse(fs.readFileSync(F_TAY, 'utf8'
 
 const canDb = await db.home.findMany({
   where: { desc: { startsWith: 'GOODSTAY' }, choTrangThai: 'DANG_BAN' },
-  select: { id: true, hostId: true, name: true, desc: true, salesTitle: true },
+  select: { id: true, hostId: true, name: true, desc: true, salesTitle: true, price: true, floorPrice: true },
   orderBy: { id: 'asc' },
 });
 const theoBang = new Map();
@@ -126,7 +153,7 @@ for (const [idBang, dsCan] of theoBang) {
       if (tenKhop) { muc.doChac = 'tay'; muc.tenBang = tenKhop; }
       for (const x of khoiTheoThang) {
         if (tenKhop || !x.khoi.length) continue;
-        const g = ghep(can.name, x.khoi);
+        const g = ghep(can.name, x.khoi, can.floorPrice || can.price);
         if (!g.khoi) continue;
         tenKhop = g.khoi.ten; muc.doChac = g.doChac; muc.tenBang = g.khoi.ten;
       }
@@ -194,7 +221,13 @@ if (GHI) {
     }
     await db.home.update({
       where: { id: m.id },
-      data: { lichNguon: 'SHEET', lichDongBoLuc: new Date(), lichLoiTu: null },
+      data: {
+        lichNguon: 'SHEET', lichDongBoLuc: new Date(), lichLoiTu: null,
+        // Ghi lại đọc từ đâu — KHÔNG ra chợ (không nằm trong CHON_CHO), chỉ để dò khi sai.
+        lichLink: `https://docs.google.com/spreadsheets/d/${m.idBang}`,
+        lichSheetTab: (m.thang[0] && m.thang[0].tab) || null,
+        lichSheetCot: m.tenBang || null,
+      },
     });
     soCanGhi++;
   }

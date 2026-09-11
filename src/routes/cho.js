@@ -54,7 +54,10 @@ const CHON_CHO = {
 const MUC_LICH = {
   1: { ten: 'Lịch thật', ghi: 'Chủ nhà dùng app nội bộ Sabi — lịch cập nhật tức thì.', canhBao: false },
   2: { ten: 'Tự động', ghi: 'Đồng bộ tự động từ lịch của chủ nhà.', canhBao: false },
-  3: { ten: 'Tham khảo', ghi: 'Đọc từ Google Sheet của chủ nhà — có thể chậm hơn thực tế.', canhBao: true },
+  // Cố ý KHÔNG nói "của chủ nhà": khảo sát rổ hàng thật cho thấy nhiều link lịch trỏ
+  // sang bảng của một ĐƠN VỊ TỔNG HỢP khác, tức là bản sao của bản sao. Ghi sai nguồn
+  // là sales tin quá mức rồi chốt trúng ngày đã bận.
+  3: { ten: 'Tham khảo', ghi: 'Đọc từ bảng Google Sheet — có thể là bảng của bên tổng hợp chứ không phải chủ nhà, nên chậm hơn thực tế. Gọi xác nhận trước khi chốt.', canhBao: true },
   4: { ten: 'Chưa có lịch', ghi: 'Chưa nối lịch. Bắt buộc gọi chủ nhà hỏi ngày trống.', canhBao: true },
 };
 const NGUONG_LOI = 24 * 60 * 60 * 1000;   // lỗi liên tục quá 24h thì hạ xuống mức ④
