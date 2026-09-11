@@ -106,6 +106,17 @@ const linkTheoMa = new Map(JSON.parse(fs.readFileSync(F, 'utf8')).map((x) => [x.
 const F_TAY = new URL('./du-lieu/ghep-lich-tay.json', import.meta.url);
 const GHEP_TAY = fs.existsSync(F_TAY) ? JSON.parse(fs.readFileSync(F_TAY, 'utf8')) : {};
 
+// Luật màu riêng của từng bảng — xem ghi chú trong chính file đó.
+const F_MAU = new URL('./du-lieu/luat-mau.json', import.meta.url);
+const LUAT_MAU = fs.existsSync(F_MAU) ? JSON.parse(fs.readFileSync(F_MAU, 'utf8')) : {};
+const luatCua = (id) => {
+  const x = LUAT_MAU[id];
+  if (!x) return null;
+  const ra = {};
+  for (const [k, v] of Object.entries(x)) if (!k.startsWith('_')) ra[k] = v;
+  return ra;
+};
+
 const canDb = await db.home.findMany({
   where: { desc: { startsWith: 'GOODSTAY' }, choTrangThai: 'DANG_BAN' },
   select: { id: true, hostId: true, name: true, desc: true, salesTitle: true, price: true, floorPrice: true },
@@ -137,7 +148,7 @@ for (const [idBang, dsCan] of theoBang) {
     for (const t of thangCanDoc) {
       const chon = chonTab(wb, t.m, t.y);
       if (!chon) continue;
-      khoiTheoThang.push({ t, tab: chon.w.name, khoi: docTab(chon.w, chon.w.name) });
+      khoiTheoThang.push({ t, tab: chon.w.name, khoi: docTab(chon.w, chon.w.name, luatCua(idBang)) });
     }
     if (!khoiTheoThang.some((x) => x.khoi.length)) loi = loi || 'Không nhận ra bảng lịch trong tab nào';
   }
@@ -149,7 +160,7 @@ for (const [idBang, dsCan] of theoBang) {
 
     if (!loi) {
       // Ghép ở tháng đầu tiên đọc được, rồi dùng cùng tên đó cho các tháng sau.
-      let tenKhop = GHEP_TAY[can.ma] || null;
+      let tenKhop = (typeof GHEP_TAY[can.ma] === 'string' ? GHEP_TAY[can.ma] : null);
       if (tenKhop) { muc.doChac = 'tay'; muc.tenBang = tenKhop; }
       for (const x of khoiTheoThang) {
         if (tenKhop || !x.khoi.length) continue;

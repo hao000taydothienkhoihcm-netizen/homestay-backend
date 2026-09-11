@@ -29,19 +29,30 @@ export const TRANG_THAI = {
   khoa: 'Chủ nhà khoá',
 };
 
-/** Đổi màu nền ô thành trạng thái. */
-export function phanLoaiMau(argb) {
+/**
+ * Đổi màu nền ô thành trạng thái.
+ *
+ * KHÔNG CÓ LUẬT MÀU CHUNG. Hai bảng thật đang dùng NGƯỢC NHAU:
+ *   · CAMI (Lê Vy):    xanh lá = đã nhận cọc · vàng = đợi cọc
+ *   · Nhà của Bé:      vàng = đã có khách    · xanh lá = tạm giữ
+ * Đoán theo sắc màu là sẽ dán nhãn sai cho một trong hai bảng. Nên:
+ *   · Bảng nào đã khai luật (du-lieu/luat-mau.json) thì theo đúng luật đó.
+ *   · Bảng chưa khai thì chỉ kết luận điều CHẮC CHẮN ĐÚNG ở mọi bảng đã gặp:
+ *       trắng / không tô = còn trống · CÓ TÔ MÀU = không trống.
+ * Nhãn "đã bán hay đang giữ" có thể chưa chuẩn, nhưng câu trả lời sales cần —
+ * "đêm đó còn nhận được không" — thì không bao giờ sai về phía nguy hiểm.
+ */
+export function phanLoaiMau(argb, luat) {
   if (!argb || typeof argb !== 'string') return 'trong';
-  const s = argb.length === 8 ? argb.slice(2) : argb;
+  const s = (argb.length === 8 ? argb.slice(2) : argb).toUpperCase();
   const r = parseInt(s.slice(0, 2), 16);
   const g = parseInt(s.slice(2, 4), 16);
   const b = parseInt(s.slice(4, 6), 16);
   if ([r, g, b].some(Number.isNaN)) return 'trong';
-  if (r > 240 && g > 240 && b > 240) return 'trong';        // trắng
+  if (r > 240 && g > 240 && b > 240) return 'trong';               // trắng
   if (Math.max(r, g, b) - Math.min(r, g, b) < 24) return 'trong';  // xám -> coi như chưa tô
-  if (r > 200 && g > 200 && b < 140) return 'giu';          // vàng
-  if (r > 200 && g >= 120 && g < 200 && b < 120) return 'khoa';    // cam
-  return 'ban';                                             // đỏ / hồng / tím / xanh…
+  if (luat && luat[s]) return luat[s];
+  return 'ban';                                                    // có tô = không trống
 }
 
 function mauNen(o) {
@@ -134,7 +145,7 @@ const KHONG_PHAI_TEN = /địa chỉ|cơ cấu|tiện ích|link|group|thứ|a\/c
  * ô đọc ra ngày), rồi các cột bên phải nó tới cột ngày kế tiếp chính là các cột căn.
  * Không nhận ra được thì trả mảng rỗng — nơi gọi phải báo "chưa đọc được".
  */
-export function docTab(sheet, tenTab) {
+export function docTab(sheet, tenTab, luatMau) {
   const moc = thangCuaTab(tenTab);
   const COT = Math.min(sheet.columnCount || 40, 120);
   const HANG = Math.min(sheet.rowCount || 60, 400);
@@ -230,7 +241,7 @@ export function docTab(sheet, tenTab) {
         const chu = chuoiO(o.value).trim();
         ngay.push({
           ngay: ymd({ d: n.d, m, y }),
-          trangThai: phanLoaiMau(mau),
+          trangThai: phanLoaiMau(mau, luatMau),
           mau: mau || null,
           gia: so,
           saler: laGia ? (chuoiO(hang.getCell(c + 1).value).trim() || null) : null,
