@@ -67,9 +67,13 @@ export function bocToaDo(s) {
   return null;
 }
 
-/** Link rút gọn (maps.app.goo.gl / goo.gl/maps) chỉ lộ toạ độ sau khi mở ra. */
+/**
+ * Link rút gọn chỉ lộ toạ độ sau khi mở ra. KHÔNG liệt kê từng nhà rút gọn:
+ * rổ hàng thật có cả maps.app.goo.gl, goo.gl/maps VÀ bit.ly. Cứ là link mà trong
+ * chuỗi chưa thấy toạ độ thì mở thử — mở hụt chỉ tốn một lần gọi mạng.
+ */
 export function laLinkNgan(s) {
-  return typeof s === 'string' && /(maps\.app\.goo\.gl|goo\.gl\/maps)/i.test(s);
+  return typeof s === 'string' && /^https?:\/\//i.test(s) && !bocToaDo(s);
 }
 
 /**
