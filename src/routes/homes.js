@@ -3,6 +3,23 @@ import { prisma } from '../prisma.js';
 import { requireRole, hostWhere, ownHostId, findOwn, updateOwn, notFound, CHU_WORKSPACE, QUAN_LY } from '../middleware/auth.js';
 import { loadPriceTable, stayTotal, isWeekendNight } from '../services/bookingService.js';
 import { docViTri } from '../lib/vitri.js';
+import { idBangTinh, taiVaDoc, chonTab, docTab } from '../lib/lich-sheet.js';
+import fs from 'node:fs';
+
+// Luật màu riêng của từng bảng chủ nhà (hai bảng có thể dùng màu NGƯỢC nhau — xanh ở bảng
+// này là "đã cọc", ở bảng kia là "tạm giữ"). Không khai thì mặc định: ô có tô màu = không trống.
+let LUAT_MAU = null;
+function luatMauCua(idBang) {
+  if (LUAT_MAU === null) {
+    try { LUAT_MAU = JSON.parse(fs.readFileSync(new URL('../../scripts/du-lieu/luat-mau.json', import.meta.url), 'utf8')); }
+    catch { LUAT_MAU = {}; }
+  }
+  const x = LUAT_MAU[idBang];
+  if (!x) return null;
+  const ra = {};
+  for (const [k, v] of Object.entries(x)) if (!k.startsWith('_')) ra[k] = v;
+  return ra;
+}
 
 const router = routerAnToan();
 
@@ -361,11 +378,34 @@ router.patch('/:id/cho', requireRole(...CHU_WORKSPACE), async (req, res) => {
     listPriceWeekend: soNguyen(b.listPriceWeekend), listPriceHoliday: soNguyen(b.listPriceHoliday),
     floorPriceWeekend: soNguyen(b.floorPriceWeekend), floorPriceHoliday: soNguyen(b.floorPriceHoliday),
     markupHoliday: soNguyen(b.markupHoliday),
-    // Nguồn lịch: TẠM THỜI chỉ nhận APP (mức ①) hoặc bỏ trống (mức ④).
-    // ICAL/SHEET vẫn nằm trong schema nhưng CHƯA có job đồng bộ — cho host chọn bây giờ
-    // là dựng chợ hiện "Tự động đồng bộ" trong khi không ai đồng bộ cả, tức là nói dối sales.
-    lichNguon: b.lichNguon === 'APP' ? 'APP' : null,
   };
+
+  // ───── Nguồn lịch ─────
+  // LỖI CŨ (sửa 11/09/2026): chỗ này từng ghi `lichNguon: b.lichNguon === 'APP' ? 'APP' : null`,
+  // nghĩa là host mở căn ra sửa một chữ rồi bấm Lưu là NGUỒN LỊCH BỊ XOÁ TRẮNG. 61 căn đang
+  // chạy lịch từ Google Sheet sẽ lặng lẽ tụt xuống mức ④ "chưa có lịch" mà không ai hay.
+  // Nay: form gửi lên cái gì thì nhận cái đó, và form KHÔNG gửi lichNguon thì giữ nguyên.
+  if ('lichNguon' in b) {
+    const n = b.lichNguon;
+    if (n === 'APP') {
+      data.lichNguon = 'APP';
+      data.lichLink = null; data.lichSheetTab = null; data.lichSheetCot = null; data.lichLoiTu = null;
+    } else if (n === 'SHEET') {
+      const link = chuoi(b.lichLink, 500);
+      const idBang = link ? idBangTinh(link) : null;
+      if (!idBang) return res.status(400).json({ error: 'Link Google Sheet không đọc được. Mở bảng lịch → Chia sẻ → Sao chép liên kết rồi dán lại.' });
+      data.lichNguon = 'SHEET';
+      data.lichLink = link;
+      // Đổi sang bảng khác thì mọi thứ máy đã học về bảng cũ (tab nào, cột nào, đọc lúc mấy giờ)
+      // đều hết giá trị — xoá đi để lần đồng bộ tới học lại, đừng để số cũ nằm đó đánh lừa.
+      if (idBangTinh(cu.lichLink || '') !== idBang) {
+        data.lichSheetTab = null; data.lichSheetCot = null; data.lichDongBoLuc = null; data.lichLoiTu = null;
+      }
+    } else {
+      data.lichNguon = null;
+      data.lichLink = null; data.lichSheetTab = null; data.lichSheetCot = null; data.lichLoiTu = null;
+    }
+  }
   // Địa chỉ chính xác dùng chung cột `address` của căn (nhập ở tab "Thông tin căn"),
   // KHÔNG có ô riêng ở đây — trước có cột `street` trùng chức năng, nay bỏ không dùng.
   // Phường là danh tính chống trùng: chỉ sửa khi chưa lên chợ, đang bán thì báo admin.
@@ -373,8 +413,10 @@ router.patch('/:id/cho', requireRole(...CHU_WORKSPACE), async (req, res) => {
     data.ward = PHUONG_DA_LAT.includes(b.ward) ? b.ward : null;
   }
   if (data.commissionPct != null && data.commissionPct > 50) return res.status(400).json({ error: '% hoa hồng tối đa 50' });
-  if (data.coCheHoaHong === 'GIA_SAN' && data.markupMin != null && data.markupMax != null && data.markupMin > data.markupMax) {
-    return res.status(400).json({ error: 'Mức kê "từ" phải nhỏ hơn "đến"' });
+  // Mô hình đã chốt: host ra MỘT mức kê (markupMin), sales chỉ được CẮT bớt phần của mình
+  // cho khách, không kê quá. markupMax giữ lại cho dữ liệu cũ, không dùng để kiểm nữa.
+  if (data.coCheHoaHong === 'GIA_SAN' && data.markupMin != null && data.markupMin > 5000000) {
+    return res.status(400).json({ error: 'Mức kê tối đa 5.000.000đ/đêm — gõ nhầm số 0 rồi?' });
   }
 
   if (b.guiDuyet === true) {
@@ -394,6 +436,8 @@ router.patch('/:id/cho', requireRole(...CHU_WORKSPACE), async (req, res) => {
     if (!data.coCheHoaHong) thieu.push('cơ chế hoa hồng');
     if (data.coCheHoaHong === 'PHAN_TRAM' && (!data.listPrice || data.commissionPct == null)) thieu.push('giá bán niêm yết + % hoa hồng');
     if (data.coCheHoaHong === 'GIA_SAN' && !data.floorPrice) thieu.push('giá sàn');
+    // Không có mức kê thì sales bán xong không được đồng nào — căn sẽ nằm im trên chợ.
+    if (data.coCheHoaHong === 'GIA_SAN' && !data.markupMin) thieu.push('mức kê cho Sales');
     if (thieu.length) return res.status(400).json({ error: 'Chưa đủ để gửi duyệt: ' + thieu.join(', '), thieu });
     if (cu.choTrangThai !== 'DANG_BAN') data.choTrangThai = 'CHO_DUYET';
   } else if (b.an === true && cu.choTrangThai === 'DANG_BAN') {
@@ -436,6 +480,55 @@ router.get('/:id/lich-khoa', async (req, res) => {
     select: { ngay: true, nguon: true, ghiChu: true, createdAt: true },
   });
   res.json({ tu, den, ngay: rows.map((r) => ({ ...r, ngay: ymd(r.ngay) })) });
+});
+
+// ═══ Thử đọc bảng lịch Google Sheet của chủ nhà, KHÔNG ghi gì ═══
+// Đây là chỗ trả lời câu hỏi quan trọng nhất của host: "lịch Sabi đọc về có đúng bảng của
+// tôi không". Trả về tab nào đọc được, bảng đó có những KHỐI nào (mỗi khối là một căn),
+// khối nào đang khớp với căn này, và 21 đêm tới khối đó bận ngày nào — để host liếc qua
+// bảng của mình là biết đúng hay sai ngay, không phải chờ tới lúc mất khách mới biết.
+router.post('/:id/lich/thu-doc', requireRole(...CHU_WORKSPACE), async (req, res) => {
+  const home = await findOwn(prisma.home, req, req.params.id, { select: { id: true, name: true, lichLink: true, lichSheetCot: true } });
+  if (!home) return notFound(res, 'căn nhà');
+  const link = chuoi(req.body?.lichLink, 500) || home.lichLink;
+  const idBang = link ? idBangTinh(link) : null;
+  if (!idBang) return res.status(400).json({ error: 'Chưa có link Google Sheet hợp lệ để thử.' });
+
+  let wb;
+  try {
+    wb = await taiVaDoc(idBang, 60000);
+  } catch (e) {
+    // Lý do hay gặp nhất là bảng chưa mở chia sẻ — nói thẳng cách sửa, đừng bắt host đoán.
+    return res.status(400).json({
+      error: String(e?.message || e).includes('403') || String(e?.message || e).includes('401')
+        ? 'Bảng chưa mở chia sẻ. Mở bảng → Chia sẻ → "Bất kỳ ai có đường liên kết" → Người xem, rồi thử lại.'
+        : 'Không tải được bảng: ' + String(e?.message || e).slice(0, 180),
+    });
+  }
+
+  const bg = new Date();
+  const chon = chonTab(wb, bg.getUTCMonth() + 1, bg.getUTCFullYear());
+  if (!chon) return res.status(400).json({ error: `Bảng không có tab nào cho tháng ${bg.getUTCMonth() + 1}/${bg.getUTCFullYear()}.`, tab: wb.worksheets.map((w) => w.name).slice(0, 40) });
+
+  const dsKhoi = docTab(chon.w, chon.w.name, luatMauCua(idBang));
+  const gon = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/gi, 'd').replace(/[^a-z0-9]/gi, '').toLowerCase();
+  const muon = chuoi(req.body?.khoi, 120) || home.lichSheetCot || home.name;
+  const g = gon(muon);
+  const khop = dsKhoi.find((k) => gon(k.ten) === g)
+    || dsKhoi.find((k) => g.length >= 4 && gon(k.ten).length >= 4 && (gon(k.ten).includes(g) || g.includes(gon(k.ten))))
+    || null;
+
+  const homNay = new Date().toISOString().slice(0, 10);
+  const dem = (khop?.ngay || []).filter((n) => n.ngay >= homNay).slice(0, 21)
+    .map((n) => ({ ngay: n.ngay, trong: n.trangThai === 'trong', trangThai: n.trangThai, gia: n.gia ?? null }));
+
+  res.json({
+    idBang, tab: chon.w.name,
+    khoi: dsKhoi.map((k) => k.ten).filter(Boolean),
+    khop: khop ? khop.ten : null,
+    lyDo: khop ? null : `Bảng đọc được nhưng không có khối nào tên giống "${muon}". Chọn đúng khối trong danh sách rồi Lưu.`,
+    ngay: dem,
+  });
 });
 
 // Lịch tổng hợp từng ngày: trống / booking / khoá — nguồn sự thật duy nhất cho lịch,

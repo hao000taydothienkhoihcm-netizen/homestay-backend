@@ -119,13 +119,15 @@ const luatCua = (id) => {
 
 const canDb = await db.home.findMany({
   where: { desc: { startsWith: 'GOODSTAY' }, choTrangThai: 'DANG_BAN' },
-  select: { id: true, hostId: true, name: true, desc: true, salesTitle: true, price: true, floorPrice: true },
+  select: { id: true, hostId: true, name: true, desc: true, salesTitle: true, price: true, floorPrice: true, lichSheetCot: true, lichLink: true },
   orderBy: { id: 'asc' },
 });
 const theoBang = new Map();
 for (const c of canDb) {
   const ma = (c.desc.match(/G-\d+/) || [])[0];
-  const link = ma ? linkTheoMa.get(ma) : null;
+  // Link chủ nhà tự dán trong màn khai căn THẮNG link trong rổ GOODSTAY: rổ là bản
+  // sao chép lại của bên tổng hợp, chủ nhà mới là người biết bảng thật của mình ở đâu.
+  const link = c.lichLink || (ma ? linkTheoMa.get(ma) : null);
   const id = link ? idBangTinh(link) : null;
   if (!id) continue;
   if (!theoBang.has(id)) theoBang.set(id, []);
@@ -160,7 +162,12 @@ for (const [idBang, dsCan] of theoBang) {
 
     if (!loi) {
       // Ghép ở tháng đầu tiên đọc được, rồi dùng cùng tên đó cho các tháng sau.
-      let tenKhop = (typeof GHEP_TAY[can.ma] === 'string' ? GHEP_TAY[can.ma] : null);
+      // Ưu tiên 1: chính chủ nhà đã chọn khối trong màn khai căn (lưu ở lichSheetCot).
+      // Đó là người biết rõ nhất căn của mình nằm ở cột nào — hơn mọi thuật toán ghép tên.
+      // Ưu tiên 2: bảng ghép tay do Sabi chỉ. Ưu tiên 3: máy tự ghép theo tên + giá.
+      let tenKhop = (typeof can.lichSheetCot === 'string' && can.lichSheetCot.trim() ? can.lichSheetCot.trim() : null);
+      if (tenKhop) { muc.doChac = 'host'; muc.tenBang = tenKhop; }
+      if (!tenKhop) tenKhop = (typeof GHEP_TAY[can.ma] === 'string' ? GHEP_TAY[can.ma] : null);
       if (tenKhop) { muc.doChac = 'tay'; muc.tenBang = tenKhop; }
       for (const x of khoiTheoThang) {
         if (tenKhop || !x.khoi.length) continue;
@@ -196,7 +203,7 @@ for (const [idBang, dsCan] of theoBang) {
 }
 
 // ───── Ghi ─────
-const GHI_DUOC = new Set(['chac', 'kha', 'tay']);   // 'mo' phải người duyệt, không tự ghi
+const GHI_DUOC = new Set(['chac', 'kha', 'tay', 'host']);   // 'mo' phải người duyệt, không tự ghi
 let soGhi = 0, soXoa = 0, soCanGhi = 0;
 if (GHI) {
   for (const m of baoCao) {
@@ -251,7 +258,7 @@ if (GHI) {
 
 // ───── Tổng kết ─────
 const dem = (d) => baoCao.filter((x) => !x.loi && x.doChac === d).length;
-console.log(`\n${baoCao.length} căn · ghép chắc ${dem('chac')} · khá ${dem('kha')} · mờ ${dem('mo')} (cần bạn duyệt) · hỏng ${baoCao.filter((x) => x.loi).length}`);
+console.log(`\n${baoCao.length} căn · chủ nhà tự chọn khối ${dem('host')} · Sabi chỉ tay ${dem('tay')} · máy ghép chắc ${dem('chac')} · khá ${dem('kha')} · mờ ${dem('mo')} (cần bạn duyệt) · hỏng ${baoCao.filter((x) => x.loi).length}`);
 if (GHI) console.log(`Đã ghi lịch cho ${soCanGhi} căn · thêm ${soGhi} đêm bận · gỡ ${soXoa} đêm không còn bận`);
 else console.log('Thêm --ghi để ghi thật.');
 
