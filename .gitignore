@@ -23,3 +23,6 @@ _can-thieu.xlsx
 _lich-truoc.json 
 _lich-sau.json 
 _id.txt 
+
+# Bản đệm bảng tính Google tải về (chỉ để dò lỗi, không đưa lên git)
+_dem-sheet/

@@ -21,6 +21,8 @@
 // NGUYÊN TẮC: đọc không chắc thì báo "không đọc được", TUYỆT ĐỐI không coi là trống.
 // Sales tin "còn trống" rồi chốt trúng ngày bận là mất khách thật.
 import ExcelJS from 'exceljs';
+import fs from 'node:fs';
+import path from 'node:path';
 
 export const TRANG_THAI = {
   trong: 'Còn trống',
@@ -270,6 +272,17 @@ export function docTab(sheet, tenTab, luatMau) {
 
 /** Tải bảng tính công khai về dạng .xlsx rồi đọc. */
 export async function taiVaDoc(spreadsheetId, hetHan = 75000) {
+  const tep = duongDanDem(spreadsheetId);
+  if (tep) {
+    try {
+      const st = fs.statSync(tep);
+      if (Date.now() - st.mtimeMs < PHUT_DEM * 60000) {
+        const wb = new ExcelJS.Workbook();
+        await wb.xlsx.load(fs.readFileSync(tep));
+        return wb;
+      }
+    } catch { /* chưa có bản đệm -> tải như thường */ }
+  }
   const bo = new AbortController();
   const h = setTimeout(() => bo.abort(), hetHan);
   try {
@@ -279,13 +292,29 @@ export async function taiVaDoc(spreadsheetId, hetHan = 75000) {
     if (r.status === 401 || r.status === 403) {
       throw new Error('Bảng chưa mở chia sẻ "bất kỳ ai có link đều xem được"');
     }
+    // Tải cùng một bảng chục lần trong vài phút thì Google chặn bớt (429 / 5xx).
+    // Gặp lúc đang dò lỗi là dễ tưởng bảng hỏng, trong khi chỉ là bị chặn tạm.
+    if (r.status === 429 || r.status >= 500) {
+      throw new Error(`Google đang chặn bớt (${r.status}) vì tải lại quá nhiều lần — nghỉ vài phút rồi thử lại`);
+    }
     if (!r.ok) throw new Error(`Google trả về ${r.status}`);
+    const buf = Buffer.from(await r.arrayBuffer());
+    if (tep) { try { fs.mkdirSync(path.dirname(tep), { recursive: true }); fs.writeFileSync(tep, buf); } catch { /* đệm hỏng thì kệ */ } }
     const wb = new ExcelJS.Workbook();
-    await wb.xlsx.load(Buffer.from(await r.arrayBuffer()));
+    await wb.xlsx.load(buf);
     return wb;
   } finally {
     clearTimeout(h);
   }
+}
+
+// ───── Bộ nhớ đệm bảng tính ─────
+// Bật bằng SHEET_DEM=<số phút>. Dùng cho mấy việc phải đọc đi đọc lại cùng một bảng
+// (dò lỗi, đối chiếu giá). Đồng bộ hằng ngày KHÔNG bật — lịch phải là bản mới nhất.
+const PHUT_DEM = Number(process.env.SHEET_DEM || 0);
+function duongDanDem(id) {
+  if (!(PHUT_DEM > 0) || !/^[\w-]{20,}$/.test(String(id))) return null;
+  return path.join(process.env.SHEET_DEM_THU_MUC || '_dem-sheet', `${id}.xlsx`);
 }
 
 /** Lấy id bảng tính từ một đường link bất kỳ. */
@@ -308,4 +337,102 @@ export function chonKhoi(khoi, tenCan) {
   return khoi.find((k) => bo_dau(k.ten) === t)
     || khoi.find((k) => bo_dau(k.ten).includes(t) || t.includes(bo_dau(k.ten)))
     || null;
+}
+
+// ═══════════════ LUẬT KÊ GIÁ NẰM NGAY TRONG BẢNG CỦA CHỦ NHÀ ═══════════════
+// Rất nhiều bảng lịch có một dòng băng-rôn vàng ghi thẳng luật cho sales, kiểu:
+//   "A/c Saler vui lòng nâng không quá 500.000/đêm ngày thường, tối đa 1.000.000/đêm Lễ Tết"
+//   "CHÊNH TỐI ĐA 1TR/ĐÊM"
+// Đây là CHỮ CỦA CHÍNH CHỦ NHÀ, đáng tin hơn con số chép lại qua tay bên tổng hợp.
+// Trước đây docTab() coi dòng này là "biển hiệu" rồi vứt đi — vứt luôn cả luật kê.
+
+/** "1.600.000" · "1tr" · "1tr5" · "500k" · "2 triệu" -> số. Trả null nếu không phải tiền. */
+export function soTien(s) {
+  const t = String(s || '').trim().toLowerCase().replace(/\s+/g, '');
+  let m = t.match(/^(\d{1,3}(?:[.,]\d{3})+)/);
+  if (m) { const n = +m[1].replace(/[.,]/g, ''); return n >= 1000 ? n : null; }
+  m = t.match(/^(\d+)(?:[.,](\d+))?(tr|triệu|trieu)(\d)?/);
+  if (m) {
+    let n = +m[1] * 1e6;
+    if (m[2]) n += Math.round(+('0.' + m[2]) * 1e6);
+    if (m[4]) n += +m[4] * 1e5;                       // "1tr5" = 1.500.000
+    return n;
+  }
+  m = t.match(/^(\d+)(k|nghìn|nghin|ngàn|ngan)/);
+  if (m) return +m[1] * 1000;
+  m = t.match(/^(\d{4,})$/);                          // "500000" viết liền
+  if (m) return +m[1];
+  return null;
+}
+
+// CỐ Ý KHÔNG có "ke" trần và "max": "Phòng Karaoke + 1tr/đêm" từng bị đọc thành luật kê
+// 1 triệu, còn "Giá tiêu chuẩn 6 khách Tối đa 7" thì nuốt luôn con số ở tận cuối dòng.
+// Chữ chặn phải có DẤU và phải đứng NGAY TRƯỚC con số thì mới là luật kê thật.
+const TU_CHAN = /(không\s*quá|khong\s*qua|tối\s*đa|toi\s*da|chênh|chenh|kê|nâng\s*giá|nâng|cộng\s*thêm|cong\s*them)/i;
+const TU_LE = /(lễ|le\b|tết|tet\b|holiday)/i;
+// Chen vào giữa chữ chặn và con số thì đó là phụ thu người/phòng, không phải luật kê.
+const TU_BO = /(khách|khach|người|nguoi|phòng|phong|phụ\s*thu|phu\s*thu|giường|giuong|wc|tuổi|tuoi)/i;
+
+/**
+ * Bóc luật kê từ một dòng chữ. Trả { thuong, le, nguyenVan } — chỗ nào không ghi thì null.
+ * Cách đọc: tìm mọi con số tiền trong câu, rồi nhìn chữ QUANH nó xem có nhắc "lễ / tết"
+ * không. Có thì đó là mức kê ngày lễ, không thì là mức ngày thường.
+ * Cố ý KHÔNG cố hiểu cả câu — bảng của mỗi chủ nhà viết một kiểu, bám vào con số và
+ * hai chữ "lễ/tết" là thứ duy nhất ổn định giữa các bảng.
+ */
+export function docLuatKe(dong) {
+  const t = String(dong || '').replace(/\s+/g, ' ').trim();
+  if (!t || t.length > 300 || !TU_CHAN.test(t)) return null;
+
+  // TÁCH THÀNH TỪNG VẾ rồi mới đọc. Đo khoảng cách tới chữ "lễ" thì đọc NGƯỢC hai kiểu
+  // viết dưới đây, cả hai đều có thật trong bảng của chủ nhà:
+  //   "…nâng không quá 500.000/đêm ngày thường, tối đa 1.000.000/đêm Lễ Tết"  (lễ đứng SAU)
+  //   "Ngày thường chênh tối đa 700k, lễ/ Tết tối đa 1tr"                      (lễ đứng TRƯỚC)
+  // Nhưng cả hai kiểu đều NGẮT VẾ ở dấu phẩy / gạch ngang, và mỗi vế đúng một luật.
+  // Dấu phẩy nằm giữa hai chữ số thì không ngắt (phòng khi ai đó viết "1,000,000").
+  const ve = t.split(/(?<!\d)\s*[,;·]\s*(?!\d)|\s+[-–—]\s+/).filter(Boolean);
+
+  const reTien = /(\d{1,3}(?:[.,]\d{3})+|\d+(?:[.,]\d+)?\s*(?:tr|triệu|trieu)\s*\d?|\d+\s*(?:k|nghìn|nghin|ngàn|ngan))/gi;
+  let thuong = null, le = null;
+  for (const v of ve) {
+    const laLe = TU_LE.test(v);
+    let m;
+    reTien.lastIndex = 0;
+    while ((m = reTien.exec(v))) {
+      const n = soTien(m[0]);
+      // Dưới 50k không phải mức kê (thường là "5 phòng", "2 khách"); trên 2tr là gõ nhầm.
+      if (n == null || n < 50000 || n > 2000000) continue;
+      // Chữ chặn phải DÍNH LIỀN trước con số (14 ký tự: đủ cho "nâng không quá ",
+      // "chênh tối đa ", "kê tối đa "). Đây là thứ tách được "tối đa 1.000.000/đêm"
+      // (luật kê) khỏi "Tối đa 7 khách, phụ thu 100.000" (phụ thu người, không phải kê).
+      const truoc = v.slice(Math.max(0, m.index - 14), m.index);
+      if (!TU_CHAN.test(truoc) || TU_BO.test(truoc)) continue;
+      // Trong một vế ghi khoảng "chênh 300-500k" thì lấy mức CAO NHẤT — đó là trần.
+      if (laLe) le = Math.max(le ?? 0, n);
+      else thuong = Math.max(thuong ?? 0, n);
+    }
+  }
+  if (thuong == null && le == null) return null;
+  return { thuong, le, nguyenVan: t.slice(0, 200) };
+}
+
+
+/**
+ * Quét CẢ tab tìm dòng luật kê. Đọc mọi ô chữ ở 12 hàng đầu (băng-rôn luôn nằm trên đầu
+ * bảng, phía trên hàng ngày đầu tiên) và trả luật đầu tiên bóc được.
+ */
+export function luatKeCuaTab(sheet) {
+  const HANG = Math.min(sheet.rowCount || 0, 12);
+  const COT = Math.min(sheet.columnCount || 0, 120);
+  const daXem = new Set();
+  for (let r = 1; r <= HANG; r++) {
+    for (let c = 1; c <= COT; c++) {
+      const v = chuoiO(sheet.getRow(r).getCell(c).value).trim();
+      if (!v || v.length < 8 || daXem.has(v)) continue;
+      daXem.add(v);
+      const k = docLuatKe(v);
+      if (k) return { ...k, o: `R${r}C${c}` };
+    }
+  }
+  return null;
 }
