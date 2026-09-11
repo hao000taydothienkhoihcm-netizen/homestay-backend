@@ -283,29 +283,40 @@ export async function taiVaDoc(spreadsheetId, hetHan = 75000) {
       }
     } catch { /* chưa có bản đệm -> tải như thường */ }
   }
-  const bo = new AbortController();
-  const h = setTimeout(() => bo.abort(), hetHan);
-  try {
-    const r = await fetch(`https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=xlsx`, {
-      redirect: 'follow', signal: bo.signal,
-    });
-    if (r.status === 401 || r.status === 403) {
-      throw new Error('Bảng chưa mở chia sẻ "bất kỳ ai có link đều xem được"');
+  // Tải cùng một bảng chục lần trong vài phút thì Google chặn bớt (429 / 5xx). Bị chặn
+  // KHÔNG có nghĩa bảng hỏng — nghỉ một lát là đọc lại được. Nên thử lại có lùi giờ,
+  // thay vì báo hỏng rồi bỏ luôn căn đó như trước.
+  const LUI = [0, 20000, 45000, 90000];
+  let loiCuoi = null;
+  for (let lan = 0; lan < LUI.length; lan++) {
+    if (LUI[lan]) await new Promise((r) => setTimeout(r, LUI[lan]));
+    const bo = new AbortController();
+    const h = setTimeout(() => bo.abort(), hetHan);
+    try {
+      const r = await fetch(`https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=xlsx`, {
+        redirect: 'follow', signal: bo.signal,
+      });
+      if (r.status === 401 || r.status === 403) {
+        throw new Error('Bảng chưa mở chia sẻ "bất kỳ ai có link đều xem được"');   // không thử lại, chờ mấy cũng vậy
+      }
+      if (r.status === 429 || r.status >= 500) {
+        loiCuoi = new Error(`Google đang chặn bớt (${r.status}) — đã thử lại ${lan + 1} lần`);
+        continue;
+      }
+      if (!r.ok) throw new Error(`Google trả về ${r.status}`);
+      const buf = Buffer.from(await r.arrayBuffer());
+      if (tep) { try { fs.mkdirSync(path.dirname(tep), { recursive: true }); fs.writeFileSync(tep, buf); } catch { /* đệm hỏng thì kệ */ } }
+      const wb = new ExcelJS.Workbook();
+      await wb.xlsx.load(buf);
+      return wb;
+    } catch (e) {
+      if (/chưa mở chia sẻ/.test(e.message)) throw e;
+      loiCuoi = e;
+    } finally {
+      clearTimeout(h);
     }
-    // Tải cùng một bảng chục lần trong vài phút thì Google chặn bớt (429 / 5xx).
-    // Gặp lúc đang dò lỗi là dễ tưởng bảng hỏng, trong khi chỉ là bị chặn tạm.
-    if (r.status === 429 || r.status >= 500) {
-      throw new Error(`Google đang chặn bớt (${r.status}) vì tải lại quá nhiều lần — nghỉ vài phút rồi thử lại`);
-    }
-    if (!r.ok) throw new Error(`Google trả về ${r.status}`);
-    const buf = Buffer.from(await r.arrayBuffer());
-    if (tep) { try { fs.mkdirSync(path.dirname(tep), { recursive: true }); fs.writeFileSync(tep, buf); } catch { /* đệm hỏng thì kệ */ } }
-    const wb = new ExcelJS.Workbook();
-    await wb.xlsx.load(buf);
-    return wb;
-  } finally {
-    clearTimeout(h);
   }
+  throw loiCuoi || new Error('Không tải được bảng');
 }
 
 // ───── Bộ nhớ đệm bảng tính ─────

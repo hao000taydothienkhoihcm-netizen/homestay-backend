@@ -18,6 +18,8 @@ import { taiVaDoc, chonTab, docTab, idBangTinh, luatKeCuaTab } from '../src/lib/
 
 const GHI = process.argv.includes('--ghi');
 const SO_THANG = 3;
+const NGHI = Number(process.env.SHEET_NGHI || 0) * 1000;   // giây nghỉ giữa hai bảng
+const HAN = Number(process.env.SHEET_HAN || 75) * 1000;    // giây chờ tối đa mỗi lần tải
 const url = process.env.DATABASE_URL_THU;
 if (!url) { console.error('✕ Thiếu DATABASE_URL_THU'); process.exit(1); }
 const host = (u) => (u.match(/@([^/]+)/) || [, '?'])[1];
@@ -71,9 +73,14 @@ const bc = [];
 let i = 0;
 for (const [idBang, ds] of theoBang) {
   i++;
-  let wb = null;
-  try { wb = await taiVaDoc(idBang); } catch { /* bảng chưa mở chia sẻ */ }
-  if (!wb) { console.log(`${String(i).padStart(3)}/${theoBang.size} ${idBang.slice(0, 10)} ✕ không mở được`); continue; }
+  // Nghỉ giữa hai bảng cho Google đỡ chặn. Quét cả rổ chậm hơn vài phút còn hơn bị
+  // chặn giữa chừng rồi phải chạy lại từ đầu.
+  if (i > 1 && NGHI) await new Promise((r) => setTimeout(r, NGHI));
+  let wb = null, viSao = '';
+  // Bảng đọc được thì xong trong ~5 giây. Chờ 75 giây mỗi lần thử là phí: bảng nào
+  // Google treo thì treo luôn, mà 4 lần thử thành 5 phút chết đứng cho MỘT bảng.
+  try { wb = await taiVaDoc(idBang, HAN); } catch (e) { viSao = e.message; }
+  if (!wb) { console.log(`${String(i).padStart(3)}/${theoBang.size} ${idBang.slice(0, 10)} ✕ ${viSao}`); continue; }
 
   const tabs = [];
   for (const t of thangCanDoc) { const ch = chonTab(wb, t.m, t.y); if (ch) tabs.push(ch.w); }
