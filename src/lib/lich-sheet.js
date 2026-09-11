@@ -178,14 +178,26 @@ export function docTab(sheet, tenTab) {
     const het = i + 1 < cotNgay.length ? Math.min(cotNgay[i + 1].c - 1, COT) : COT;
     const hangTieuDe = Math.max(1, d.hangDau - 1);
 
-    const timTen = (cot) => {
+    const ungVien = (cot) => {
+      const ra = [];
       for (let r = 1; r < d.hangDau; r++) {
         const v = chuoiO(sheet.getRow(r).getCell(cot).value)
           .replace(/\s*[-–]\s*lịch booking.*$/i, '').replace(/\s+/g, ' ').trim();
-        if (v && v.length >= 2 && v.length < 80 && !KHONG_PHAI_TEN.test(v) && !docNgay(v)) return v;
+        if (v && v.length >= 2 && v.length < 80 && !KHONG_PHAI_TEN.test(v) && !docNgay(v)) ra.push(v);
       }
-      return '';
+      return ra;
     };
+
+    // BIỂN HIỆU: nhiều bảng có một dòng tiêu đề gộp ngang cả chục cột ("LA VILLA DALAT…").
+    // Lấy đại dòng đầu tiên là mọi căn đều mang chung một tên, rồi bước gộp trùng tên
+    // xoá sạch chỉ còn một căn — đúng lỗi đã dính: bảng 10 căn chỉ đọc ra 1.
+    // Nên: chuỗi nào xuất hiện ở từ 3 cột trở lên trong cùng khoảng thì đó là biển hiệu, bỏ.
+    const demChuoi = new Map();
+    for (let c = d.c + 1; c <= het; c++) {
+      for (const v of new Set(ungVien(c))) demChuoi.set(v, (demChuoi.get(v) || 0) + 1);
+    }
+    const laBienHieu = (v) => (het - d.c) >= 3 && (demChuoi.get(v) || 0) >= 3;
+    const timTen = (cot) => ungVien(cot).find((v) => !laBienHieu(v)) || '';
 
     for (let c = d.c + 1; c <= het; c++) {
       const tieuDe = chuoiO(sheet.getRow(hangTieuDe).getCell(c).value).trim();
