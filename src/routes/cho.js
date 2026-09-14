@@ -146,6 +146,8 @@ function goiCan(h) {
 // ───────────────────────────────────────────────
 const SAP_HOP_LE = ['muc', 'giaAsc', 'giaDesc', 'sucChua', 'km'];
 const DAI_SO_DEM = 14;               // dải lịch hiện trên thẻ căn
+// Số căn trả về mỗi lần. 20 thẻ vừa đủ một màn cuộn trên điện thoại mà chưa nặng.
+const MOI_TRANG = 20;
 
 const soDuong = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : 0; };
 
@@ -233,22 +235,46 @@ router.get('/', requireRole(...XEM_CHO), async (req, res) => {
     rows = rows.filter((r) => !r.minGuests || soKhach >= r.minGuests);
   }
 
+  // ───── Sắp xếp ─────
+  // Xếp TRƯỚC khi cắt trang: cắt trước rồi mới xếp thì trang 2 lại có căn đáng lẽ
+  // phải nằm ở trang 1 — sales cuộn xuống thấy căn rẻ hơn ở dưới, hết tin bộ sắp xếp.
+  const kieu = SAP_HOP_LE.includes(String(sap)) ? String(sap) : 'muc';
+  const giaThuong = (r) => { const d = motDem(r, 'thuong'); return d ? d.khachTra : Number.MAX_SAFE_INTEGER; };
+  rows.sort((a, b) => (
+    kieu === 'giaAsc' ? giaThuong(a) - giaThuong(b)
+      : kieu === 'giaDesc' ? giaThuong(b) - giaThuong(a)
+        : kieu === 'sucChua' ? b.maxGuests - a.maxGuests
+          : kieu === 'km' ? (a.kmTrungTam ?? 1e9) - (b.kmTrungTam ?? 1e9)
+            : tinhMucLich(a) - tinhMucLich(b)
+  ) || a.id - b.id);
+
+  // ───── Cắt trang ─────
+  // Rổ hàng đang đi từ 9 căn lên trăm mấy. Trả hết một lượt thì mỗi lần mở chợ là
+  // tải cả trăm thẻ KÈM dải 14 đêm của từng căn — nặng, mà sales chỉ nhìn chục thẻ đầu.
+  // Lọc và xếp vẫn chạy trên TOÀN BỘ để con số "tìm thấy N căn" luôn đúng, chỉ phần
+  // trả về là cắt.
+  const soCan = rows.length;
+  const moiTrang = Math.min(Math.max(soDuong(req.query.moiTrang) || MOI_TRANG, 4), 50);
+  const soTrang = Math.max(1, Math.ceil(soCan / moiTrang));
+  const trang = Math.min(Math.max(soDuong(req.query.trang) || 1, 1), soTrang);
+  rows = rows.slice((trang - 1) * moiTrang, trang * moiTrang);
+
   // ───── Dải 14 đêm cho từng thẻ ─────
   // Sales lướt danh sách là thấy ngay căn nào sắp kín — đúng việc họ cần.
-  // Một truy vấn cho cả trang, không phải mỗi căn một lần.
+  // Chạy SAU khi cắt trang: chỉ hỏi lịch của mấy căn thật sự trả về, thay vì cả trăm căn.
   const homNay = ymd(new Date());
   const daiTu = ngayHopLe(tu) && tu > homNay ? tu : homNay;
   const daiDen = ymd(new Date(ngayUTC(daiTu).getTime() + DAI_SO_DEM * 864e5));
   const banTheoCan = new Map();
-  const ids = rows.map((r) => r.id);
-  if (ids.length) {
+  const idsTrang = rows.map((r) => r.id);
+  if (idsTrang.length) {
     const [bks, khoa] = await Promise.all([
       prisma.booking.findMany({
-        where: { homeId: { in: ids }, checkIn: { lt: ngayUTC(daiDen) }, checkOut: { gt: ngayUTC(daiTu) } },
+        where: { homeId: { in: idsTrang }, checkIn: { lt: ngayUTC(daiDen) }, checkOut: { gt: ngayUTC(daiTu) } },
         select: { homeId: true, checkIn: true, checkOut: true },
       }),
       prisma.lichKhoa.findMany({
-        where: { homeId: { in: ids }, ngay: { gte: ngayUTC(daiTu), lt: ngayUTC(daiDen) } },
+        where: { homeId: { in: idsTrang }, ngay: { gte: ngayUTC(daiTu), lt: ngayUTC(daiDen) } },
         select: { homeId: true, ngay: true },
       }),
     ]);
@@ -263,27 +289,19 @@ router.get('/', requireRole(...XEM_CHO), async (req, res) => {
     for (const k of khoa) them(k.homeId, ymd(k.ngay));
   }
 
-  // ───── Sắp xếp ─────
-  const kieu = SAP_HOP_LE.includes(String(sap)) ? String(sap) : 'muc';
-  const giaThuong = (r) => { const d = motDem(r, 'thuong'); return d ? d.khachTra : Number.MAX_SAFE_INTEGER; };
-  rows.sort((a, b) => (
-    kieu === 'giaAsc' ? giaThuong(a) - giaThuong(b)
-      : kieu === 'giaDesc' ? giaThuong(b) - giaThuong(a)
-        : kieu === 'sucChua' ? b.maxGuests - a.maxGuests
-          : kieu === 'km' ? (a.kmTrungTam ?? 1e9) - (b.kmTrungTam ?? 1e9)
-            : tinhMucLich(a) - tinhMucLich(b)
-  ) || a.id - b.id);
-
   res.json({
     khoang,
     tongCan,                       // tổng căn đang bán, để web nói "x căn bị loại"
     chuaDoKm,                      // căn rớt vì chưa đo km — nói cho sales biết, đừng giấu
     sap: kieu,
     dai: { tu: daiTu, soDem: DAI_SO_DEM },
-    soCan: rows.length,
+    soCan,                         // tổng căn KHỚP bộ lọc (không phải số căn trang này)
+    trang, moiTrang, soTrang,
+    conNua: trang < soTrang,       // web dựa vào đây để biết còn tải tiếp được không
     can: rows.map((r) => ({ ...goiCan(r), ban: [...(banTheoCan.get(r.id) || [])].sort() })),
   });
 });
+
 
 // Danh sách phường CÓ CĂN ĐANG BÁN — để ô lọc chỉ hiện phường thật sự có hàng.
 router.get('/phuong', requireRole(...XEM_CHO), async (_req, res) => {
