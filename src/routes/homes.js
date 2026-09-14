@@ -4,6 +4,8 @@ import { requireRole, hostWhere, ownHostId, findOwn, updateOwn, notFound, CHU_WO
 import { loadPriceTable, stayTotal, isWeekendNight } from '../services/bookingService.js';
 import { docViTri } from '../lib/vitri.js';
 import { idBangTinh, taiVaDoc, chonTab, docTab } from '../lib/lich-sheet.js';
+import express from 'express';
+import { dayAnhLen, xoaAnh, DA_BAT as ANH_DA_BAT, viSaoChuaBat } from '../lib/anh.js';
 import fs from 'node:fs';
 
 // Luật màu riêng của từng bảng chủ nhà (hai bảng có thể dùng màu NGƯỢC nhau — xanh ở bảng
@@ -45,6 +47,10 @@ router.get('/', async (req, res) => {
 
 // Danh sách phường/xã cho form đăng chợ (phải đứng TRƯỚC /:id). Hằng số khai ở mục "ĐĂNG CĂN LÊN CHỢ".
 router.get('/phuong', (_req, res) => res.json(PHUONG_DA_LAT));
+
+// Form hỏi trước để biết hiện nút "Chọn ảnh từ máy" hay hiện ô dán link.
+// PHẢI đứng trước /:id — không thì "anh" bị hiểu là id căn (đúng cái bẫy /phuong đã dính).
+router.get('/anh/trang-thai', (_req, res) => res.json({ bat: ANH_DA_BAT, viSao: viSaoChuaBat() }));
 
 router.get('/:id', async (req, res) => {
   const home = await findOwn(prisma.home, req, req.params.id);
@@ -480,6 +486,50 @@ router.get('/:id/lich-khoa', async (req, res) => {
     select: { ngay: true, nguon: true, ghiChu: true, createdAt: true },
   });
   res.json({ tu, den, ngay: rows.map((r) => ({ ...r, ngay: ymd(r.ngay) })) });
+});
+
+// ═══════════════════ ẢNH CĂN ═══════════════════
+// Host chọn ảnh từ máy/điện thoại. Trình duyệt đã thu nhỏ trước khi gửi (xem CanNhaModal),
+// nên tới đây ảnh chỉ còn vài trăm KB. Nhận BINARY THÔ chứ không multipart: đỡ thêm một
+// thư viện, mà bên gửi cũng chỉ cần fetch(body: blob).
+router.post('/:id/anh', requireRole(...CHU_WORKSPACE),
+  express.raw({ type: ['image/*', 'application/octet-stream'], limit: '8mb' }),
+  async (req, res) => {
+    if (!ANH_DA_BAT) return res.status(503).json({ error: 'Kho ảnh chưa bật. ' + viSaoChuaBat() });
+    const home = await findOwn(prisma.home, req, req.params.id, { select: { id: true, coverImages: true } });
+    if (!home) return notFound(res, 'căn nhà');
+    if ((home.coverImages || []).length >= 8) return res.status(400).json({ error: 'Mỗi căn tối đa 8 ảnh bìa. Xoá bớt rồi thêm.' });
+    if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: 'Không nhận được dữ liệu ảnh.' });
+
+    try {
+      const { url, bytes } = await dayAnhLen(home.id, req.body);
+      // Ghi luôn vào căn: host bấm chọn ảnh là ảnh phải nằm trong hồ sơ ngay, không
+      // phải nhớ bấm Lưu nữa. Quên bấm Lưu là ảnh nằm chỏng chơ trên kho, không ai thấy.
+      const sau = await prisma.home.update({
+        where: { id: home.id },
+        data: { coverImages: { push: url } },
+        select: { coverImages: true },
+      });
+      res.status(201).json({ url, bytes, coverImages: sau.coverImages });
+    } catch (e) {
+      res.status(400).json({ error: String(e.message || e).slice(0, 200) });
+    }
+  });
+
+// Gỡ một ảnh: bỏ khỏi hồ sơ căn TRƯỚC, xoá khỏi kho sau.
+// Thứ tự cố ý: xoá kho mà cập nhật hồ sơ hỏng thì căn còn link trỏ vào ảnh đã mất —
+// sales mở ra thấy ô vỡ. Ngược lại thì cùng lắm tốn vài trăm KB nằm không.
+router.delete('/:id/anh', requireRole(...CHU_WORKSPACE), async (req, res) => {
+  const home = await findOwn(prisma.home, req, req.params.id, { select: { id: true, coverImages: true } });
+  if (!home) return notFound(res, 'căn nhà');
+  const url = chuoi(req.query?.url || req.body?.url, 500);
+  if (!url) return res.status(400).json({ error: 'Thiếu url ảnh cần gỡ' });
+
+  const con = (home.coverImages || []).filter((x) => x !== url);
+  await prisma.home.update({ where: { id: home.id }, data: { coverImages: con } });
+  let daXoaKho = false;
+  try { daXoaKho = await xoaAnh(url); } catch { /* kho lỗi thì thôi, hồ sơ đã sạch */ }
+  res.json({ coverImages: con, daXoaKho });
 });
 
 // ═══ Thử đọc bảng lịch Google Sheet của chủ nhà, KHÔNG ghi gì ═══

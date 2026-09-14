@@ -1,10 +1,12 @@
 {
-  "web_commit": "e959744c983e04f8ee38dce995e95d14aa982f6d",
-  "web_commit_ngan": "e959744",
+  "dich": "app nội bộ",
+  "repo": "sabihome",
+  "web_commit": "36ee8df8ee8a30ccc753d0a9d29a72c546365cbc",
+  "web_commit_ngan": "36ee8df",
   "web_nhanh": "main",
-  "build_luc": "2026-09-14T12:33:35.500Z",
+  "build_luc": "2026-09-14T14:11:21.477Z",
   "assets": [
-    "index-BLRY08Gt.js",
+    "index-B7lXRH60.js",
     "index-COlAmdtR.css"
   ]
 }

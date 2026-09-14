@@ -62,6 +62,7 @@ const BAI = [
   ['GET', '/', null],
   ['GET', '/v1/homes', H],
   ['GET', '/v1/homes/phuong', H],
+  ['GET', '/v1/homes/anh/trang-thai', H],
   ['GET', `/v1/homes/${can.id}`, H],
   ['GET', `/v1/homes/${can.id}/lich`, H],
   ['GET', `/v1/homes/${can.id}/lich-khoa`, H],
