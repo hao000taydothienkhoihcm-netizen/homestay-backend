@@ -1,7 +1,11 @@
 // ═══════════════════════════════════════════════════════════════
 // deploy-web.mjs — Gộp 3 bước đưa web React lên Render vào 1 lệnh.
 //
-//   npm run deploy:web
+//   node scripts/deploy-web.mjs        -> app nội bộ:  sabihome -> public/
+//   node scripts/deploy-web.mjs cho    -> CHỢ CĂN:     sabicho  -> public-cho/
+//
+// Hai web, hai service Render riêng, cùng một repo backend. Chợ có đường deploy
+// riêng để làm cho chạy ổn trước rồi mới đụng tới app nội bộ.
 //
 // VÌ SAO CẦN: Render deploy từ repo homestay-backend, còn code web nằm ở
 // repo sabihome. Push sabihome KHÔNG làm Render đổi gì. Phải build sabihome
@@ -21,8 +25,18 @@ import { fileURLToPath } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const BACKEND = path.resolve(HERE, '..');
-const WEB = path.resolve(BACKEND, '../sabihome');
-const PUBLIC = path.join(BACKEND, 'public');
+
+const LA_CHO = process.argv.includes('cho');
+// public/cu là bản web vanilla cũ, phao dự phòng — chép đè mất nó là mất đường lùi.
+// Bên chợ không có phao nào nên danh sách rỗng.
+const DICH = LA_CHO
+  // sabicho khai outDir thẳng vào ../homestay-backend/public-cho trong vite.config.ts,
+  // nên build xong là file đã nằm đúng chỗ — không có bước chép, và cũng không có dist/.
+  ? { ten: 'CHỢ CĂN', repo: 'sabicho', thuMuc: 'public-cho', giuLai: [], service: 'sabi-marketplace', buildThang: true }
+  : { ten: 'app nội bộ', repo: 'sabihome', thuMuc: 'public', giuLai: ['cu', '_old-backup'], service: 'homestay-backend', buildThang: false };
+
+const WEB = path.resolve(BACKEND, '../' + DICH.repo);
+const PUBLIC = path.join(BACKEND, DICH.thuMuc);
 
 // git gọi thẳng được. Còn npm thì trên Windows là npm.cmd — Node 24 không cho
 // spawn .cmd nếu không bật shell:true, mà bật shell:true lại dính cảnh báo
@@ -48,7 +62,7 @@ try {
 // ───── 1. Kiểm tra repo web ─────
 if (!fs.existsSync(WEB)) {
   thoat(`Không thấy repo web ở ${WEB}\n`
-      + `  Script này cần sabihome nằm cạnh homestay-backend.`);
+      + `  Script này cần ${DICH.repo} nằm cạnh homestay-backend.`);
 }
 
 let ban, nhanh, ban_ngan;
@@ -57,18 +71,18 @@ try {
   ban_ngan = ban.slice(0, 7);
   nhanh = git(['rev-parse', '--abbrev-ref', 'HEAD'], WEB);
 } catch {
-  thoat('Không đọc được git của sabihome.');
+  thoat(`Không đọc được git của ${DICH.repo}.`);
 }
 
 const ban_nhap = git(['status', '--porcelain'], WEB);
 if (ban_nhap) {
-  console.error('\n  Repo sabihome đang có thay đổi CHƯA COMMIT:\n');
+  console.error(`\n  Repo ${DICH.repo} đang có thay đổi CHƯA COMMIT:\n`);
   console.error(ban_nhap.split('\n').map(l => '    ' + l).join('\n'));
   thoat('Commit hoặc bỏ chúng đi trước đã — không thì build-info.json sẽ ghi\n'
       + '  một commit không đúng với code thực sự được build.');
 }
 
-console.log(`\n  Web:  sabihome @ ${ban_ngan} (${nhanh})`);
+console.log(`\n  Đích: ${DICH.ten}  ·  ${DICH.repo} @ ${ban_ngan} (${nhanh})  ->  ${DICH.thuMuc}/`);
 
 // ───── 2. Build ─────
 const TSC = path.join(WEB, 'node_modules', 'typescript', 'bin', 'tsc');
@@ -79,8 +93,8 @@ const VITE = path.join(WEB, 'node_modules', 'vite', 'bin', 'vite.js');
 // trên máy này trước đây. Bắt lỗi sớm và nói rõ cách chữa.
 for (const [ten, p] of [['typescript', TSC], ['vite', VITE]]) {
   if (!fs.existsSync(p)) {
-    thoat(`sabihome thiếu ${ten}.\n`
-        + `  Chạy trong thư mục sabihome:  npm install --include=dev\n`
+    thoat(`${DICH.repo} thiếu ${ten}.\n`
+        + `  Chạy trong thư mục ${DICH.repo}:  npm install --include=dev\n`
         + `  (thiếu là do NODE_ENV=production làm npm bỏ qua devDependencies)`);
   }
 }
@@ -95,32 +109,44 @@ try {
   thoat('Build hỏng — xem lỗi ngay trên.');
 }
 
-const DIST = path.join(WEB, 'dist');
-const DIST_ASSETS = path.join(DIST, 'assets');
-if (!fs.existsSync(path.join(DIST, 'index.html')) || !fs.existsSync(DIST_ASSETS)) {
-  thoat('Build xong nhưng không thấy dist/index.html hoặc dist/assets.');
-}
-
-// ───── 3. Chép — CHỈ đụng index.html và assets/ ─────
-// public/cu (web vanilla cũ, phao dự phòng) và public/_old-backup phải còn nguyên.
-const GIU_LAI = ['cu', '_old-backup'];
+// public/cu (web vanilla cũ, phao dự phòng) và public/_old-backup phải còn nguyên
+// sau khi chép. Bên chợ không có phao nào nên danh sách rỗng.
+const GIU_LAI = DICH.giuLai;
+fs.mkdirSync(PUBLIC, { recursive: true });
 const truoc = fs.readdirSync(PUBLIC);
 
-fs.rmSync(path.join(PUBLIC, 'assets'), { recursive: true, force: true });
-fs.mkdirSync(path.join(PUBLIC, 'assets'), { recursive: true });
-for (const f of fs.readdirSync(DIST_ASSETS)) {
-  fs.copyFileSync(path.join(DIST_ASSETS, f), path.join(PUBLIC, 'assets', f));
+if (DICH.buildThang) {
+  // Vite đã ghi thẳng vào PUBLIC. Chỉ kiểm lại cho chắc là nó ra thật.
+  if (!fs.existsSync(path.join(PUBLIC, 'index.html')) || !fs.existsSync(path.join(PUBLIC, 'assets'))) {
+    thoat(`Build xong nhưng không thấy ${DICH.thuMuc}/index.html hoặc ${DICH.thuMuc}/assets.\n`
+        + `  Kiểm lại build.outDir trong ${DICH.repo}/vite.config.ts.`);
+  }
+} else {
+  const DIST = path.join(WEB, 'dist');
+  const DIST_ASSETS = path.join(DIST, 'assets');
+  if (!fs.existsSync(path.join(DIST, 'index.html')) || !fs.existsSync(DIST_ASSETS)) {
+    thoat('Build xong nhưng không thấy dist/index.html hoặc dist/assets.');
+  }
+
+  // ───── 3. Chép — CHỈ đụng index.html và assets/ ─────
+  fs.rmSync(path.join(PUBLIC, 'assets'), { recursive: true, force: true });
+  fs.mkdirSync(path.join(PUBLIC, 'assets'), { recursive: true });
+  for (const f of fs.readdirSync(DIST_ASSETS)) {
+    fs.copyFileSync(path.join(DIST_ASSETS, f), path.join(PUBLIC, 'assets', f));
+  }
+  fs.copyFileSync(path.join(DIST, 'index.html'), path.join(PUBLIC, 'index.html'));
 }
-fs.copyFileSync(path.join(DIST, 'index.html'), path.join(PUBLIC, 'index.html'));
 
 for (const g of GIU_LAI) {
   if (truoc.includes(g) && !fs.existsSync(path.join(PUBLIC, g))) {
-    thoat(`public/${g} biến mất sau khi chép — đây là phao dự phòng, không được mất.`);
+    thoat(`${DICH.thuMuc}/${g} biến mất sau khi chép — đây là phao dự phòng, không được mất.`);
   }
 }
 
 // ───── 4. Ghi dấu vết phiên bản ─────
 const info = {
+  dich: DICH.ten,
+  repo: DICH.repo,
   web_commit: ban,
   web_commit_ngan: ban_ngan,
   web_nhanh: nhanh,
@@ -130,16 +156,16 @@ const info = {
 fs.writeFileSync(path.join(PUBLIC, 'build-info.json'), JSON.stringify(info, null, 2) + '\n');
 
 // ───── 5. Báo việc còn lại ─────
-const doi = git(['status', '--porcelain', 'public'], BACKEND);
-console.log('\n  Đã chép xong. Thay đổi trong homestay-backend/public:\n');
+const doi = git(['status', '--porcelain', DICH.thuMuc], BACKEND);
+console.log(`\n  Đã chép xong. Thay đổi trong homestay-backend/${DICH.thuMuc}:\n`);
 console.log(doi ? doi.split('\n').map(l => '    ' + l).join('\n') : '    (không có gì đổi — web vốn đã là bản mới nhất)');
 
 if (doi) {
   console.log(`\n  Còn lại 2 bước, làm trong homestay-backend:\n`);
-  console.log(`    git add public`);
-  console.log(`    git commit -m "Cap nhat ban build web tu sabihome @ ${ban_ngan}"`);
+  console.log(`    git add ${DICH.thuMuc}`);
+  console.log(`    git commit -m "Cap nhat ban build ${DICH.ten} tu ${DICH.repo} @ ${ban_ngan}"`);
   console.log(`    git push\n`);
-  console.log(`  Rồi vào Render bấm Manual Deploy (auto-deploy đang TẮT).`);
+  console.log(`  Rồi vào Render bấm Manual Deploy cho service ${DICH.service} (auto-deploy đang TẮT).`);
   console.log(`  Deploy xong mở /build-info.json để đối chiếu: phải thấy ${ban_ngan}\n`);
 } else {
   console.log('\n  Không cần commit gì thêm.\n');
