@@ -16,13 +16,23 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import crypto from 'node:crypto';
 
-const TK = process.env.R2_ACCOUNT_ID;
-const KHOA = process.env.R2_ACCESS_KEY_ID;
-const BIMAT = process.env.R2_SECRET_ACCESS_KEY;
-const THUNG = process.env.R2_BUCKET || 'sabi-anh';
+// Dán khoá từ trang Cloudflare vào .env là chỗ dễ dính rác nhất: dấu ngoặc nhọn còn
+// sót lại từ chỗ điền mẫu, dấu nháy, khoảng trắng đầu cuối. Mấy ký tự đó làm khoá dài
+// thêm vài ký tự và R2 trả về lỗi chẳng liên quan gì ("length 34, should be 32"), dò mệt.
+// Nên cắt sạch ngay từ đây thay vì bắt người dùng đoán.
+const docBien = (ten) => {
+  let v = String(process.env[ten] ?? '').trim();
+  v = v.replace(/^[<"']+/, '').replace(/[>"']+$/, '').trim();
+  return v;
+};
+
+const TK = docBien('R2_ACCOUNT_ID');
+const KHOA = docBien('R2_ACCESS_KEY_ID');
+const BIMAT = docBien('R2_SECRET_ACCESS_KEY');
+const THUNG = docBien('R2_BUCKET') || 'sabi-anh';
 // Tên miền công khai của bucket: hoặc <hash>.r2.dev, hoặc tên miền riêng.
 // Không có cái này thì ảnh tải lên xong không ai xem được.
-const MIEN = String(process.env.R2_PUBLIC_URL || '').replace(/\/+$/, '');
+const MIEN = docBien('R2_PUBLIC_URL').replace(/\/+$/, '');
 
 export const DA_BAT = Boolean(TK && KHOA && BIMAT && MIEN);
 
