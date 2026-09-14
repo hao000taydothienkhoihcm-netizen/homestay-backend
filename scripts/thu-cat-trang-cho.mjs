@@ -58,7 +58,29 @@ console.log(`  ảnh bìa: ${coAnh}/${motPhat.can.length} căn trang đầu có 
 const coDai = motPhat.can.filter((c) => Array.isArray(c.ban)).length;
 console.log(`  dải 14 đêm: ${coDai}/${motPhat.can.length} căn có mảng ban`);
 
-// ── 5. Bộ lọc vẫn đếm trên toàn bộ, không phải trên trang ──
+// ── 5. Tên căn + mã có ra chợ không, và CÓ GÌ LỌT RA KHÔNG ──
+// Danh sách trắng CHON_CHO là lớp chặn số 2. Thêm cột mới mà quên rà là lộ dữ liệu
+// host — nên kiểm bằng máy, đừng tin mắt.
+const CAM = ['desc', 'address', 'caretakerPhone', 'rules', 'mapLink', 'lat', 'lng',
+  'lichLink', 'lichSheetTab', 'lichSheetCot', 'lichKey', 'lichNhatKy',
+  'floorPrice', 'markupMin', 'markupMax', 'listPrice', 'commissionPct', 'coCheHoaHong',
+  'floorPriceWeekend', 'floorPriceHoliday', 'markupHoliday', 'listPriceWeekend', 'listPriceHoliday',
+  'price', 'weekendPrice', 'holidayPrice', 'street', 'choTrangThai', 'active'];
+const mau = motPhat.can[0] || {};
+const lot = CAM.filter((k) => k in mau);
+console.log(`\nTên căn ra chợ: ${motPhat.can.filter((c) => c.name).length}/${motPhat.can.length} · có mã: ${motPhat.can.filter((c) => c.ma).length}/${motPhat.can.length}`);
+console.log(`  ví dụ: "${mau.name}" (${mau.ma}) — tiêu đề: "${String(mau.salesTitle || '').slice(0, 44)}"`);
+console.log(`  ${lot.length === 0 ? '✓ không có cột cấm nào lọt ra' : '✕ LỌT RA: ' + lot.join(', ')}`);
+console.log(`  cột thật sự trả về: ${Object.keys(mau).sort().join(' ')}`);
+
+// Tìm theo TÊN căn phải ra
+const timTen = String(mau.name || '').split(' ').slice(-1)[0];
+if (timTen && timTen.length >= 3) {
+  const rt = await lay(`q=${encodeURIComponent(timTen)}`);
+  console.log(`  tìm "${timTen}" -> ${rt.soCan} căn ${rt.soCan > 0 ? '✓' : '✕ gõ tên căn mà không ra'}`);
+}
+
+// ── 6. Bộ lọc vẫn đếm trên toàn bộ, không phải trên trang ──
 const loc = await lay('pnMin=3&trang=1');
 console.log(`\nLọc "từ 3 phòng ngủ": soCan=${loc.soCan} · trang này ${loc.can.length} căn · ${loc.soTrang} trang · tổng đang bán ${loc.tongCan}`);
 console.log(`  ${loc.soCan >= loc.can.length ? '✓' : '✕'} soCan là TỔNG khớp lọc, không phải số căn trang này`);

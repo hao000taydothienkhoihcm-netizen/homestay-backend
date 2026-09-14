@@ -1,12 +1,12 @@
 {
   "dich": "CHỢ CĂN",
   "repo": "sabicho",
-  "web_commit": "6aad188aac40b8639e0086d06a04e4b6f6621162",
-  "web_commit_ngan": "6aad188",
+  "web_commit": "162d38b88a7a1b2a714b0a2c79171033a656f138",
+  "web_commit_ngan": "162d38b",
   "web_nhanh": "master",
-  "build_luc": "2026-09-14T15:16:24.634Z",
+  "build_luc": "2026-09-14T15:24:35.898Z",
   "assets": [
-    "index-Bl5IAI3V.js",
-    "index-CKRdyNvd.css"
+    "index-CKRdyNvd.css",
+    "index-CMCTTE8H.js"
   ]
 }

@@ -29,6 +29,15 @@ const ngayHopLe = (s) => typeof s === 'string' && YMD.test(s) && !Number.isNaN(n
 // DANH SÁCH TRẮNG — chỉ những cột này ra khỏi hệ thống cho sales.
 const CHON_CHO = {
   id: true, hostId: true,
+  // TÊN CĂN được ra chợ — quyết định đã chốt: sales nắm thị trường nhìn TÊN mới biết
+  // căn đó có hay không; chỉ đưa mã thì họ không biết căn nào nên ngại bán. Chợ bắt
+  // đăng nhập vai SALES nên đây không phải nơi công khai.
+  // CẨN THẬN: tên căn CHỈ dành cho sales. Bài chào gửi khách tuyệt đối không được có
+  // tên căn — xem baiChao() bên sabicho.
+  name: true,
+  // desc lấy vào ĐỂ BÓC MÃ G-xxx rồi vứt, KHÔNG trả ra ngoài: đó là ghi chú nội bộ
+  // của chủ nhà, họ gõ gì trong đó là việc của họ.
+  desc: true,
   // kmTrungTam + viTriUocChung được phép ra chợ. lat/lng/mapLink/address thì KHÔNG:
   // toạ độ chính là địa chỉ chính xác, chỉ lộ sau khi host duyệt giữ chỗ (GĐ4).
   salesTitle: true, ward: true, landmark: true, kmTrungTam: true, viTriUocChung: true,
@@ -121,13 +130,24 @@ function giaChoSales(h) {
   };
 }
 
+/**
+ * Mã căn để sales gọi tên khi trao đổi với nhau và với Sabi.
+ * Căn nhập từ rổ GOODSTAY mang sẵn mã G-xxx trong desc; căn host tự khai thì chưa có
+ * mã nào nên ghép từ id. KHÔNG bịa mã đẹp hơn sự thật: hai loại nhìn là phân biệt được.
+ */
+function maCan(h) {
+  return (String(h.desc || '').match(/\bG-\d+\b/) || [])[0] || `SH-${h.id}`;
+}
+
 function goiCan(h) {
   const {
     coCheHoaHong, listPrice, commissionPct, floorPrice, markupMin, markupMax,
     listPriceWeekend, listPriceHoliday, floorPriceWeekend, floorPriceHoliday, markupHoliday,
-    cuoiTuanGom, lichNguon, lichDongBoLuc, lichLoiTu, ...con
+    cuoiTuanGom, lichNguon, lichDongBoLuc, lichLoiTu,
+    desc,                       // chỉ dùng để bóc mã ở trên, không ra chợ
+    ...con
   } = h;
-  return { ...con, gia: giaChoSales(h), lich: goiLich(h) };
+  return { ...con, ma: maCan(h), gia: giaChoSales(h), lich: goiLich(h) };
 }
 
 // ───────────────────────────────────────────────
@@ -164,6 +184,9 @@ router.get('/', requireRole(...XEM_CHO), async (req, res) => {
     // là ra căn ngay, thay vì sót chỉ vì tiêu đề bán hàng không nhắc tên đường.
     // TÌM trên hai cột đó KHÔNG làm lộ chúng — danh sách cột trả về vẫn là CHON_CHO.
     where.OR = [
+      // Tên căn đứng đầu: sales nhớ căn theo TÊN ("Chú Cuội", "Nhà của Gấu"),
+      // gõ tên mà không ra thì họ nghĩ chợ không có hàng.
+      { name: { contains: s, mode: 'insensitive' } },
       { salesTitle: { contains: s, mode: 'insensitive' } },
       { landmark: { contains: s, mode: 'insensitive' } },
       { ward: { contains: s, mode: 'insensitive' } },
