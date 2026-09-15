@@ -1,6 +1,6 @@
 import { routerAnToan } from '../lib/router-an-toan.js';
 import { prisma } from '../prisma.js';
-import { requireRole, hostWhere, ownHostId, findOwn, updateOwn, notFound, QUAN_LY, VAN_HANH } from '../middleware/auth.js';
+import { requireRole, hostWhere, ownHostId, findOwn, updateOwn, notFound, CHU_WORKSPACE, QUAN_LY, VAN_HANH } from '../middleware/auth.js';
 import { checkBookingConflict, checkLichKhoaConflict, moTaLichKhoa, nights, stayTotal, loadPriceTable } from '../services/bookingService.js';
 
 const router = routerAnToan();
@@ -399,6 +399,8 @@ router.post('/:id/checkin', async (req, res) => {
 
   const b = await findOwn(prisma.booking, req, id);
   if (!b) return notFound(res, 'booking');
+  if (b.status === 'CHECKEDOUT') return res.status(400).json({ error: 'Booking này đã trả nhà rồi, không nhận lại được' });
+  if (b.status !== 'CONFIRMED') return res.status(400).json({ error: 'Booking này đã nhận nhà rồi' });
 
   const paidAtCheckIn = Math.max(0, b.totalAmount - (b.discount || 0) - (b.deposit || 0));
 
@@ -423,12 +425,18 @@ router.post('/:id/checkout', async (req, res) => {
   const existing = await findOwn(prisma.booking, req, id);
   if (!existing) return notFound(res, 'booking');
 
-  // Ai được thêm/sửa phụ thu: ADMIN luôn được; MANAGER & STAFF chỉ được ĐÚNG NGÀY trả nhà (giờ VN), không qua hôm sau.
-  const isAdmin = req.user.role === 'ADMIN';
+  // Ai được thêm/sửa phụ thu (sửa 15/09/2026):
+  //   · Đang LÀM THỦ TỤC TRẢ (booking chưa CHECKEDOUT): ai cũng thêm được, bất kể hôm nay có
+  //     đúng ngày trả trên lịch hay không — khách về sớm / ở quá hạn vẫn phải thu phụ thu.
+  //     Luật cũ "chỉ đúng ngày checkOut" làm khách quá hạn một ngày là nhân viên không thu
+  //     được phạt nữa, dù đây mới là lúc trả thật.
+  //   · SỬA LẠI sau khi đã trả: chủ workspace (ADMIN/HOST) luôn được; MANAGER/STAFF chỉ trong
+  //     đúng ngày đã trả (giờ VN), qua hôm sau là khoá.
+  const isAdmin = CHU_WORKSPACE.includes(req.user.role);
   const vnToday = new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 10);
-  const refDate = (existing.status === 'CHECKEDOUT' && existing.actualCheckOut) ? existing.actualCheckOut : existing.checkOut;
-  const checkoutDay = refDate ? new Date(refDate).toISOString().slice(0, 10) : null;
-  const canEditCharges = isAdmin || (checkoutDay && vnToday === checkoutDay);
+  const daTra = existing.status === 'CHECKEDOUT';
+  const checkoutDay = daTra && existing.actualCheckOut ? new Date(existing.actualCheckOut).toISOString().slice(0, 10) : null;
+  const canEditCharges = isAdmin || !daTra || (checkoutDay && vnToday === checkoutDay);
 
   const chargesArr = (canEditCharges && Array.isArray(charges)) ? charges : [];
   const chargesTotal = chargesArr.reduce((s, c) => s + (parseInt(c.unit) || 0) * (parseInt(c.qty) || 1), 0);
@@ -442,6 +450,13 @@ router.post('/:id/checkout', async (req, res) => {
       waterMeter: water ? parseFloat(water) : null,
       inspectionNote: inspectionNote || null
     };
+    // Trả thẳng không qua bước nhận nhà: phần tiền nhà còn lại coi như thu lúc này, ghi
+    // vào paidAtCheckIn để thống kê "đã thu" không phải đoán (trước đây cột này để 0 và
+    // mỗi màn tự suy một kiểu). Đã nhận nhà rồi thì không đụng số cũ.
+    if (existing.status === 'CONFIRMED') {
+      data.paidAtCheckIn = Math.max(0, existing.totalAmount - (existing.discount || 0) - (existing.deposit || 0));
+      if (!existing.actualCheckIn) data.actualCheckIn = existing.checkIn;
+    }
     if (canEditCharges) {
       // Chỉ thay phụ thu TRẢ NHÀ; giữ nguyên phụ thu NHẬN NHÀ (đã thu lúc nhận).
       await tx.charge.deleteMany({ where: { bookingId: id, phase: 'CHECKOUT' } });
