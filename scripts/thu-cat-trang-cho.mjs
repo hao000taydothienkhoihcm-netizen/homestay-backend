@@ -15,7 +15,8 @@ const H = { authorization: 'Bearer ' + jwt.sign({ id: u.id, role: 'SALES', hostI
 
 const p = spawn(process.execPath, ['src/cho.js'], {
   cwd: path.resolve(import.meta.dirname, '..'),
-  env: { ...process.env, DATABASE_URL_CHO: process.env.DATABASE_URL_THU, PORT: CONG, NODE_ENV: 'production' },
+  // Cả hai chuỗi đều trỏ nhánh thử: chợ giờ có mặt chủ nhà ghi qua DATABASE_URL.
+  env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL_THU, DATABASE_URL_CHO: process.env.DATABASE_URL_THU, PORT: CONG, NODE_ENV: 'production' },
   stdio: ['ignore', 'pipe', 'pipe'],
 });
 let log = ''; p.stdout.on('data', (d) => { log += d; }); p.stderr.on('data', (d) => { log += d; });

@@ -25,11 +25,15 @@ if (hostCua(url) === hostCua(process.env.DATABASE_URL || '')) {
 }
 
 console.log('Chợ đọc NHÁNH THỬ:', hostThu);
-console.log('Vai trò           :', (url.match(/\/\/([^:]+):/) || [, '?'])[1], '(chỉ đọc)');
+console.log('Vai trò Sales     :', (url.match(/\/\/([^:]+):/) || [, '?'])[1], '(chỉ đọc)');
+console.log('Vai trò chủ nhà   : DATABASE_URL cũng trỏ nhánh thử (ghi được, nhưng vào nhánh)');
 console.log('Mở                : http://localhost:3202\n');
 
 spawn('node', ['src/cho.js'], {
   stdio: 'inherit',
   shell: true,
-  env: { ...process.env, DATABASE_URL_CHO: url, PORT: '3202' },
+  // QUAN TRỌNG: từ khi chợ có mặt chủ nhà (/v1/homes ghi bằng client chủ), phải đổi
+  // CẢ DATABASE_URL sang nhánh thử. Chỉ đổi DATABASE_URL_CHO thì Sales đọc nhánh thử
+  // mà chủ nhà bấm "Lưu" lại ghi thẳng vào production.
+  env: { ...process.env, DATABASE_URL: thu, DATABASE_URL_CHO: url, PORT: '3202' },
 });

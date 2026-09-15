@@ -12,8 +12,16 @@
 //
 // Giá cho sales tính theo cơ chế hoa hồng host chọn — xem `giaChoSales()`.
 import { routerAnToan } from '../lib/router-an-toan.js';
-import { prisma } from '../prisma.js';
+import { prismaChiDoc } from '../prisma.js';
 import { requireRole } from '../middleware/auth.js';
+
+// Mặt sales CHỈ cầm kết nối chỉ-đọc. Từ 15/09/2026 chợ gánh thêm mặt chủ nhà (ghi được)
+// trong cùng tiến trình, nên không thể dựa vào "cả tiến trình chỉ đọc" nữa — phải ghim
+// ngay tại đây. Thiếu client thì gãy lúc nạp module, đừng để rơi xuống quyền chủ sở hữu.
+if (!prismaChiDoc) {
+  throw new Error('routes/cho.js cần DATABASE_URL_CHO (role chỉ-đọc). Không được chạy chợ bằng quyền chủ sở hữu.');
+}
+const prisma = prismaChiDoc;
 
 const router = routerAnToan();
 

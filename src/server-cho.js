@@ -37,9 +37,17 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-import { authMiddleware } from './middleware/auth.js';
+import { authMiddleware, requireRole, QUAN_LY } from './middleware/auth.js';
 import authRouter from './routes/auth.js';
 import choRouter from './routes/cho.js';
+import homesRouter from './routes/homes.js';
+import holidaysRouter from './routes/holidays.js';
+
+// Không có tài khoản chỉ-đọc thì KHÔNG khởi động — thà chợ không lên còn hơn chợ
+// lặng lẽ chạy bằng tài khoản chủ (prisma.js chỉ trả null, không tự rơi về client chủ).
+if (!process.env.DATABASE_URL_CHO) {
+  throw new Error('Chợ cần DATABASE_URL_CHO (role cho_chi_doc, chỉ SELECT). Khai trong .env / Render Environment.');
+}
 
 const app = express();
 
@@ -60,28 +68,37 @@ app.get('/health', (req, res) => res.json({
   ok: true,
   name: 'Sabi — Chợ căn',
   service: 'cho',
-  chiDoc: true,
+  chiDoc: 'sales',        // mặt Sales (/v1/cho) chỉ đọc; mặt chủ nhà (/v1/homes) ghi được
+  chuNha: true,
   time: new Date().toISOString()
 }));
 
-// ───── Chặn mọi thao tác GHI ngay ở cửa ─────
-// Hàng rào số 2. Cấp DB đã chặn rồi, nhưng chặn ở đây cho ra thông báo tử tế thay vì
-// một lỗi Postgres khó hiểu — và để lỡ ai cấp nhầm quyền ghi thì vẫn còn một lớp.
-// Ngoại lệ: POST /v1/auth/login (đăng nhập chỉ đọc User rồi ký JWT, không ghi gì).
-app.use((req, res, next) => {
+// ───── HAI MẶT CỦA CHỢ (09/2026) ─────
+// Từ nay chợ có hai người dùng, đi hai cửa khác nhau trên cùng một tiến trình:
+//   · SALES  → /v1/cho    : chỉ đọc, client prismaChiDoc (role Neon chỉ SELECT).
+//   · HOST   → /v1/homes, /v1/holidays : khai căn, nối lịch, tải ảnh — client chủ,
+//              lọc hostId y như app nội bộ (cùng file routes, không chép code).
+// Chủ nhà mới KHÔNG cần cài app nội bộ: đăng ký trên chợ, khai căn trên chợ.
+//
+// Cửa Sales vẫn chặn GHI ngay ở đây (hàng rào số 2) — cấp DB đã chặn rồi, nhưng
+// chặn ở đây cho ra thông báo tử tế, và lỡ ai cấp nhầm quyền thì còn một lớp.
+app.use('/v1/cho', (req, res, next) => {
   if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return next();
-  if (req.method === 'POST' && req.path === '/v1/auth/login') return next();
-  return res.status(405).json({
-    error: 'Chợ đang ở chế độ chỉ đọc. Mọi thao tác ghi làm bên app nội bộ.'
-  });
+  return res.status(405).json({ error: 'Mặt chợ của Sales chỉ đọc. Không có thao tác ghi ở đây.' });
 });
 
-// Đăng nhập (chỉ đọc User + ký JWT). CỐ Ý không mount /register: tạo tài khoản là
-// thao tác ghi, để admin làm bên app nội bộ cho tới khi chợ có bảng riêng.
+// Đăng nhập (chỉ đọc User + ký JWT). Đăng ký (POST /register) cũng đi qua đây —
+// tài khoản mới sinh ra ở trạng thái chờ duyệt, admin duyệt xong mới vào được.
 app.use('/v1/auth', authRouter);
 
 app.use('/v1', authMiddleware);
 app.use('/v1/cho', choRouter);
+
+// Cửa chủ nhà. SALES bị chặn ngay cửa: hostWhere() của SALES là hostId -1 nên có lọt
+// cũng không thấy gì, nhưng trả 403 rõ ràng vẫn hơn trả danh sách rỗng khó hiểu.
+app.use(['/v1/homes', '/v1/holidays'], requireRole(...QUAN_LY));
+app.use('/v1/homes', homesRouter);
+app.use('/v1/holidays', holidaysRouter);
 
 // ───── Web chợ (build từ ../sabicho) ─────
 // Đặt SAU các route /v1 để không bao giờ nuốt mất API.

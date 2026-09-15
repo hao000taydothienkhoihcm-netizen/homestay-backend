@@ -1,25 +1,30 @@
 import { PrismaClient } from '@prisma/client';
 
-// ───── Chợ chạy bằng một tài khoản Postgres CHỈ ĐỌC ─────
-// Service "chợ" (src/server-cho.js) đặt SABI_SERVICE=cho và nối bằng DATABASE_URL_CHO —
-// một role Neon chỉ có quyền SELECT. Nhờ vậy dù chợ có bug hay bị khai thác thì cũng
-// KHÔNG THỂ ghi vào booking / thu chi / kho của host. Đây là hàng rào thật, không phải
-// lời hứa trong code: quyền nằm ở tầng cơ sở dữ liệu.
+// ───── HAI kết nối, hai mức quyền ─────
 //
-// Thiếu biến thì NÉM LỖI ngay lúc khởi động. Im lặng quay về DATABASE_URL nghĩa là chợ
-// chạy bằng quyền chủ sở hữu mà không ai biết — đúng cái mình đang muốn tránh.
-const laCho = process.env.SABI_SERVICE === 'cho';
-if (laCho && !process.env.DATABASE_URL_CHO) {
-  throw new Error(
-    'SABI_SERVICE=cho nhưng thiếu DATABASE_URL_CHO. Chợ phải nối bằng role chỉ-đọc, ' +
-    'không được dùng chung chuỗi kết nối của app nội bộ.'
-  );
-}
+// Đổi 15/09/2026. Trước đây mỗi TIẾN TRÌNH có một client: app nội bộ cầm quyền chủ sở
+// hữu, chợ (SABI_SERVICE=cho) cầm role Neon `cho_chi_doc` chỉ SELECT. Nay chợ gánh
+// thêm mặt CHỦ NHÀ (khai căn, ảnh, nối lịch) — là hành động ghi — nên trong cùng tiến
+// trình chợ phải có cả hai:
+//
+//   prisma       quyền chủ sở hữu  -> route host (/homes, /holidays…), lọc theo hostId
+//   prismaChiDoc chỉ SELECT         -> route sales (/cho)
+//
+// Điểm cốt yếu: hàng rào chỉ-đọc chưa bao giờ nằm ở "tiến trình", nó nằm ở "route sales
+// cầm kết nối nào". Route /cho vẫn cầm đúng kết nối chỉ-đọc như cũ — có bug hay bị khai
+// thác ở mặt sales thì vẫn KHÔNG ghi nổi vào booking / thu chi / kho của host. Quyền
+// nằm ở tầng cơ sở dữ liệu, không phải lời hứa trong code.
+//
+// prismaChiDoc chỉ tồn tại khi có DATABASE_URL_CHO. App nội bộ không cần nó. Service chợ
+// thì BẮT BUỘC — server-cho.js kiểm và ném lỗi lúc khởi động, không im lặng quay về
+// quyền chủ sở hữu.
+const LOG = process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'];
 
-const goc = new PrismaClient({
-  ...(laCho ? { datasources: { db: { url: process.env.DATABASE_URL_CHO } } } : {}),
-  log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error']
-});
+const goc = new PrismaClient({ log: LOG });
+
+const gocChiDoc = process.env.DATABASE_URL_CHO
+  ? new PrismaClient({ datasources: { db: { url: process.env.DATABASE_URL_CHO } }, log: LOG })
+  : null;
 
 // ───── Thùng rác cho Booking: tự giấu dòng đã xoá mềm ─────
 //
@@ -41,7 +46,9 @@ const CO_WHERE = new Set([
   'updateMany', 'deleteMany',
 ]);
 
-export const prisma = goc.$extends({
+// Cùng một bộ lọc thùng rác cho CẢ HAI client — chợ đọc lịch qua booking, nếu client
+// chỉ-đọc không lọc thì booking đã xoá vẫn chặn ngày trên chợ.
+const themThungRac = (client) => client.$extends({
   name: 'thung-rac-booking',
   query: {
     booking: {
@@ -57,6 +64,12 @@ export const prisma = goc.$extends({
     },
   },
 });
+
+/** Quyền chủ sở hữu, lọc hostId ở tầng route. Dùng cho mọi route trừ /cho. */
+export const prisma = themThungRac(goc);
+
+/** Chỉ SELECT (role cho_chi_doc). CHỈ dành cho route /cho. null nếu chưa khai DATABASE_URL_CHO. */
+export const prismaChiDoc = gocChiDoc ? themThungRac(gocChiDoc) : null;
 
 // Client KHÔNG lọc — chỉ cho việc dọn thùng rác / sao lưu. Đừng dùng trong route.
 export const prismaGoc = goc;
