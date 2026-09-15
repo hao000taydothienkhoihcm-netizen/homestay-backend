@@ -63,6 +63,12 @@ app.use('/v1/auth/login', rateLimit({
   max: 10,
   message: { error: 'Quá nhiều lần đăng nhập, thử lại sau 15 phút' }
 }));
+// Đăng ký mở cho người lạ: 5 lần / giờ / IP là dư cho người thật, đủ chặn bot rải tài khoản.
+app.use('/v1/auth/register', rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  message: { error: 'Đăng ký quá nhiều lần, thử lại sau một giờ' }
+}));
 
 app.get('/health', (req, res) => res.json({
   ok: true,
@@ -144,5 +150,6 @@ const PORT = process.env.PORT || 3200;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🛒 Sabi — Chợ căn chạy tại http://localhost:${PORT}`);
   console.log(`   API base: http://localhost:${PORT}/v1`);
-  console.log(`   Chế độ:   CHỈ ĐỌC (role Neon riêng, không ghi được vào dữ liệu host)\n`);
+  console.log(`   Sales:    /v1/cho chỉ đọc (role cho_chi_doc)`);
+  console.log(`   Chủ nhà:  /v1/homes, /v1/holidays ghi được, lọc theo hostId\n`);
 });

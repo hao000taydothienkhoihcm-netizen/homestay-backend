@@ -386,6 +386,18 @@ router.patch('/:id/cho', requireRole(...CHU_WORKSPACE), async (req, res) => {
     markupHoliday: soNguyen(b.markupHoliday),
   };
 
+  // ───── CHỈ GHI CỘT NÀO FORM GỬI LÊN (15/09/2026) ─────
+  // Từ khi phần bán khai trên chợ, app nội bộ chỉ gửi ward / mapLink / bedrooms*. Nếu route
+  // này vẫn ghi đè toàn bộ cột chợ như trước thì host bấm Lưu bên app nội bộ là mất sạch
+  // ảnh, hoa hồng, bài chào vừa khai trên chợ. Nên: cột KHÔNG có trong body -> không đụng.
+  // Form chợ gửi đủ mọi cột nên với nó không có gì đổi (xoá trắng một ô vẫn là xoá).
+  const VI_TRI = new Set(['mapLink', 'lat', 'lng', 'viTriUocChung', 'kmTrungTam']);
+  const coViTri = 'mapLink' in b || 'kmTrungTam' in b;
+  for (const k of Object.keys(data)) {
+    if (VI_TRI.has(k) ? !coViTri : !(k in b)) delete data[k];
+  }
+  if (!coViTri) canhBaoViTri = null;
+
   // ───── Nguồn lịch ─────
   // LỖI CŨ (sửa 11/09/2026): chỗ này từng ghi `lichNguon: b.lichNguon === 'APP' ? 'APP' : null`,
   // nghĩa là host mở căn ra sửa một chữ rồi bấm Lưu là NGUỒN LỊCH BỊ XOÁ TRẮNG. 61 căn đang
@@ -415,7 +427,7 @@ router.patch('/:id/cho', requireRole(...CHU_WORKSPACE), async (req, res) => {
   // Địa chỉ chính xác dùng chung cột `address` của căn (nhập ở tab "Thông tin căn"),
   // KHÔNG có ô riêng ở đây — trước có cột `street` trùng chức năng, nay bỏ không dùng.
   // Phường là danh tính chống trùng: chỉ sửa khi chưa lên chợ, đang bán thì báo admin.
-  if (cu.choTrangThai === 'NHAP' || cu.choTrangThai === 'CHO_DUYET') {
+  if ('ward' in b && (cu.choTrangThai === 'NHAP' || cu.choTrangThai === 'CHO_DUYET')) {
     data.ward = PHUONG_DA_LAT.includes(b.ward) ? b.ward : null;
   }
   if (data.commissionPct != null && data.commissionPct > 50) return res.status(400).json({ error: '% hoa hồng tối đa 50' });
@@ -427,23 +439,23 @@ router.patch('/:id/cho', requireRole(...CHU_WORKSPACE), async (req, res) => {
 
   if (b.guiDuyet === true) {
     const thieu = [];
-    if (!data.salesTitle) thieu.push('tiêu đề bán hàng');
-    if (!cu.address) thieu.push('địa chỉ (tab Thông tin căn)');
-    if (!(data.ward ?? cu.ward)) thieu.push('phường / xã (tab Thông tin căn)');
-    // Dùng data.* chứ không fallback về cu.*: route này ghi đè toàn bộ cột chợ, host xoá
-    // trắng ô phòng ngủ rồi gửi duyệt thì phải chặn, không được lấy giá trị cũ ra "cứu".
-    // (Riêng ward vẫn phải fallback vì khi DANG_BAN thì data.ward cố tình không được gán.)
-    if (!data.bedrooms) thieu.push('số phòng ngủ (tab Thông tin căn)');
+    // Kiểm trên bản SẼ LƯU: cột form gửi lên lấy từ data, cột form không gửi lấy từ cu.
+    // Form chợ gửi đủ mọi cột nên host xoá trắng ô phòng ngủ rồi gửi duyệt vẫn bị chặn.
+    const hop = { ...cu, ...data };
+    if (!hop.salesTitle) thieu.push('tiêu đề bán hàng');
+    if (!hop.address) thieu.push('địa chỉ');
+    if (!hop.ward) thieu.push('phường / xã');
+    if (!hop.bedrooms) thieu.push('số phòng ngủ');
     // Không ảnh thì Sales không bán được: chấp nhận link album HOẶC ít nhất 1 ảnh bìa.
-    if (!data.albumUrl && !(data.coverImages || []).length) thieu.push('ảnh (link album hoặc ít nhất 1 ảnh bìa)');
-    if (!data.salesInfo) thieu.push('bài giới thiệu');
+    if (!hop.albumUrl && !(hop.coverImages || []).length) thieu.push('ảnh (link album hoặc ít nhất 1 ảnh bìa)');
+    if (!hop.salesInfo) thieu.push('bài giới thiệu');
     // SĐT/Zalo đón khách: bắt buộc, Sales cần liên hệ sau khi host duyệt giữ chỗ.
-    if (String(data.caretakerPhone || '').replace(/\D/g, '').length < 8) thieu.push('số điện thoại / Zalo đón khách');
-    if (!data.coCheHoaHong) thieu.push('cơ chế hoa hồng');
-    if (data.coCheHoaHong === 'PHAN_TRAM' && (!data.listPrice || data.commissionPct == null)) thieu.push('giá bán niêm yết + % hoa hồng');
-    if (data.coCheHoaHong === 'GIA_SAN' && !data.floorPrice) thieu.push('giá sàn');
+    if (String(hop.caretakerPhone || '').replace(/\D/g, '').length < 8) thieu.push('số điện thoại / Zalo đón khách');
+    if (!hop.coCheHoaHong) thieu.push('cơ chế hoa hồng');
+    if (hop.coCheHoaHong === 'PHAN_TRAM' && (!hop.listPrice || hop.commissionPct == null)) thieu.push('giá bán niêm yết + % hoa hồng');
+    if (hop.coCheHoaHong === 'GIA_SAN' && !hop.floorPrice) thieu.push('giá sàn');
     // Không có mức kê thì sales bán xong không được đồng nào — căn sẽ nằm im trên chợ.
-    if (data.coCheHoaHong === 'GIA_SAN' && !data.markupMin) thieu.push('mức kê cho Sales');
+    if (hop.coCheHoaHong === 'GIA_SAN' && !hop.markupMin) thieu.push('mức kê cho Sales');
     if (thieu.length) return res.status(400).json({ error: 'Chưa đủ để gửi duyệt: ' + thieu.join(', '), thieu });
     if (cu.choTrangThai !== 'DANG_BAN') data.choTrangThai = 'CHO_DUYET';
   } else if (b.an === true && cu.choTrangThai === 'DANG_BAN') {

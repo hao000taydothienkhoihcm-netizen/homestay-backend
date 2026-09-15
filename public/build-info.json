@@ -1,12 +1,12 @@
 {
   "dich": "app nội bộ",
   "repo": "sabihome",
-  "web_commit": "d311d0be5a4b01a07e2c84cd64aa85e031fb1981",
-  "web_commit_ngan": "d311d0b",
+  "web_commit": "4294169b206191d2f9c7b16445b344a8af18eb9b",
+  "web_commit_ngan": "4294169",
   "web_nhanh": "main",
-  "build_luc": "2026-09-14T14:56:48.045Z",
+  "build_luc": "2026-09-15T14:12:41.442Z",
   "assets": [
     "index-COlAmdtR.css",
-    "index-D94_zrGy.js"
+    "index-Dv3GQvnV.js"
   ]
 }

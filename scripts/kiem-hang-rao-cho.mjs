@@ -88,6 +88,16 @@ try {
   ok(r.ma === 200 && sau?.rules === dau, `5. HOST lưu quy định qua chợ -> ${r.ma}, DB nhánh thử ${sau?.rules === dau ? 'đã đổi' : 'KHÔNG đổi'}`);
   await db.home.update({ where: { id: can.id }, data: { rules: can.rules } });
 
+  // 5b: PATCH MỘT PHẦN (app nội bộ chỉ gửi bedrooms) không được làm mất cột chợ
+  const truoc = await db.home.findUnique({ where: { id: can.id }, select: { bedrooms: true, salesTitle: true, coverImages: true, markupMin: true, lichNguon: true, salesInfo: true, mapLink: true } });
+  r = await goi('PATCH', `/v1/homes/${can.id}/cho`, HH, { bedrooms: (truoc.bedrooms || 0) + 1 });
+  const sauMotPhan = await db.home.findUnique({ where: { id: can.id }, select: { bedrooms: true, salesTitle: true, coverImages: true, markupMin: true, lichNguon: true, salesInfo: true, mapLink: true } });
+  const giuNguyen = ['salesTitle', 'markupMin', 'lichNguon', 'salesInfo', 'mapLink'].every((k) => truoc[k] === sauMotPhan[k])
+    && JSON.stringify(truoc.coverImages) === JSON.stringify(sauMotPhan.coverImages);
+  ok(r.ma === 200 && sauMotPhan.bedrooms === (truoc.bedrooms || 0) + 1 && giuNguyen,
+    `   PATCH chỉ bedrooms -> ${r.ma}, phòng ngủ đổi, còn tiêu đề/ảnh/mức kê/lịch/bài/mapLink ${giuNguyen ? 'GIỮ NGUYÊN' : 'BỊ MẤT (SAI!)'}`);
+  await db.home.update({ where: { id: can.id }, data: { bedrooms: truoc.bedrooms } });
+
   // 6: role chỉ-đọc không ghi được — kiểm thẳng ở tầng DB
   const chiDoc = new PrismaClient({ datasources: { db: { url: choThu } }, log: [] });
   let chan = false, chu = '';

@@ -48,8 +48,9 @@ router.post('/login', async (req, res) => {
 // ───── ĐĂNG KÝ (tự đăng ký Host / Sales → PENDING chờ admin duyệt) ─────
 router.post('/register', async (req, res) => {
   try {
-    const { username, password, name, phone, brand, role } = req.body;
+    const { username, password, name, phone, brand, role, gioiThieu } = req.body;
     if (!username || !password || !name) return res.status(400).json({ error: 'Thiếu username/mật khẩu/tên' });
+    if (String(password).length < 6) return res.status(400).json({ error: 'Mật khẩu ít nhất 6 ký tự' });
 
     const wanted = String(role || '').toUpperCase();
     if (!['HOST', 'SALES'].includes(wanted)) {
@@ -57,14 +58,21 @@ router.post('/register', async (req, res) => {
     }
 
     const uname = String(username).trim().toLowerCase();
+    if (!/^[a-z0-9._-]{3,40}$/.test(uname)) {
+      return res.status(400).json({ error: 'Tên đăng nhập 3–40 ký tự: chữ thường, số, dấu chấm / gạch' });
+    }
     const existing = await prisma.user.findUnique({ where: { username: uname } });
-    if (existing) return res.status(400).json({ error: 'Username đã tồn tại' });
+    if (existing) return res.status(400).json({ error: 'Tên đăng nhập này đã có người dùng' });
+
+    const cat = (v, n) => (v == null ? null : String(v).trim().slice(0, n) || null);
+    const sdt = cat(phone, 30);
 
     // Host: tạo luôn workspace (Host) nhưng để inactive tới khi được duyệt.
+    // Tên workspace lấy theo thương hiệu nếu có — "Đậu Đậu Villa" dễ nhận hơn tên người.
     let hostId = null;
     if (wanted === 'HOST') {
       const host = await prisma.host.create({
-        data: { name: name, brand: brand || null, phone: phone || null, active: false }
+        data: { name: cat(brand, 100) || String(name).trim(), brand: cat(brand, 100), phone: sdt, active: false }
       });
       hostId = host.id;
     }
@@ -73,11 +81,13 @@ router.post('/register', async (req, res) => {
       data: {
         username: uname,
         password: bcrypt.hashSync(password, 10),
-        name,
+        name: String(name).trim().slice(0, 100),
         role: wanted,
         status: 'PENDING',   // chờ admin duyệt
         active: true,
-        hostId
+        hostId,
+        phone: sdt,
+        gioiThieu: cat(gioiThieu, 120),
       },
       select: { id: true, username: true, name: true, role: true, status: true, hostId: true }
     });

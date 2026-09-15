@@ -65,6 +65,11 @@ model User {
   // để mọi tài khoản CŨ không bị chặn. Đăng ký mới -> PENDING, admin duyệt -> ACTIVE.
   status UserStatus @default(ACTIVE)
 
+  // Đăng ký trên chợ (09/2026): SĐT Zalo để Sabi gọi lúc duyệt, và "ai giới thiệu" —
+  // chợ mở cho người quen, biết ai dẫn tới là duyệt trong một phút.
+  phone     String?
+  gioiThieu String?
+
   // Multi-tenant: user thuộc host nào. Null = tài khoản cấp nền tảng (ADMIN, SALES).
   hostId Int?
   host   Host? @relation(fields: [hostId], references: [id])
